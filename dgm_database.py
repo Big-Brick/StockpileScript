@@ -46,6 +46,7 @@ DEFAULT_COLUMNS = {
 }
 
 DATABASE_VERSION = "2"
+DATABASE_CODE_VERSION = "2026-06-09.2"
 
 
 @dataclass
@@ -102,6 +103,15 @@ class SiblingInfo:
 	Kind: str
 	Text: str
 	Pattern: str
+	HasDgm: bool
+
+
+@dataclass
+class ExistingPathInfo:
+	Index: int
+	PathParts: List[str]
+	DisplayPath: str
+	DisplayName: str
 	HasDgm: bool
 
 
@@ -395,6 +405,72 @@ class DgmDatabase:
 				return None
 			Parent = NextNode
 		return Parent
+
+	def AddDgmToExistingPath(self, Name: str, Values: DgmValues, PathParts: Sequence[str]) -> ElementRecord:
+		Node = self.FindParent(PathParts)
+		if Node is None or Node is self.CatalogNode:
+			raise RuntimeError("The selected structured path does not exist")
+		if Node.tag != "node":
+			raise RuntimeError("The selected structured path is not a regular node")
+
+		Node.set("name", Node.get("name", Name))
+		Record = ElementRecord(self, Node, Name, Values)
+		Record.WriteValuesToXml()
+		return Record
+
+	def GetRegularPathInfo(self, PathParts: Sequence[str]) -> Optional[ExistingPathInfo]:
+		CleanParts = [Part for Part in (Part.strip() for Part in PathParts) if Part]
+		if not CleanParts:
+			return None
+
+		Node = self.FindParent(CleanParts)
+		if Node is None or Node is self.CatalogNode or Node.tag != "node":
+			return None
+
+		DisplayName = Node.get("name", "".join(CleanParts))
+		return ExistingPathInfo(
+			Index=1,
+			PathParts=CleanParts,
+			DisplayPath="/".join(CleanParts),
+			DisplayName=DisplayName,
+			HasDgm=Node.find("dgm") is not None,
+		)
+
+	def FindExistingRegularPathCandidates(self, Name: str) -> List[ExistingPathInfo]:
+		TargetKey = NormalizeText(Name)
+		if not TargetKey:
+			return []
+
+		Candidates: List[ExistingPathInfo] = []
+
+		def Walk(Parent: XmlTree.Element, Parts: List[str], CurrentKey: str) -> None:
+			for Child in Parent.findall("node"):
+				ChildText = Child.get("text", "")
+				ChildKey = NormalizeText(ChildText)
+				if not ChildKey:
+					continue
+
+				NextKey = CurrentKey + ChildKey
+				NextParts = Parts + [ChildText]
+				if not TargetKey.startswith(NextKey):
+					continue
+
+				if NextKey == TargetKey:
+					Candidates.append(
+						ExistingPathInfo(
+							Index=len(Candidates) + 1,
+							PathParts=NextParts,
+							DisplayPath="/".join(NextParts),
+							DisplayName=Child.get("name", "".join(NextParts)),
+							HasDgm=Child.find("dgm") is not None,
+						)
+					)
+					continue
+
+				Walk(Child, NextParts, NextKey)
+
+		Walk(self.CatalogNode, [], "")
+		return Candidates
 
 	def GetSiblingInfos(self, ParentPathParts: Sequence[str]) -> List[SiblingInfo]:
 		Parent = self.FindParent(ParentPathParts)

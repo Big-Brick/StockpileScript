@@ -33,6 +33,7 @@ CREATE_BACKUP = True
 STOP_AFTER_CONSECUTIVE_IGNORED_ROWS = 20
 DEFAULT_SHEET_MODE = "active"  # This script processes only the active sheet in each workbook.
 GRAM_NUMBER_FORMAT = "0.000000"
+SCRIPT_VERSION = "2026-06-09.2"
 
 
 def CellHasUsableText(Value: object) -> bool:
@@ -60,9 +61,21 @@ def AskElementOrIgnore(FilePath: Path, SheetName: str, Row: int, Text: str, Db: 
 
 
 def AddElementInteractively(Db: dgm_database.DgmDatabase, Name: str) -> dgm_database.ElementRecord:
+	MatchingPaths = [Candidate for Candidate in Db.FindExistingRegularPathCandidates(Name) if not Candidate.HasDgm]
+	if MatchingPaths:
+		SelectedPath = AskExistingPathCandidate(MatchingPaths)
+		if SelectedPath is not None:
+			Values = AskDgmValues(Name)
+			Record = Db.AddDgmToExistingPath(Name, Values, SelectedPath.PathParts)
+			Db.Save()
+			return Record
+
 	PathParts = AskStructureParts(Name)
 	ParentParts = PathParts[:-1]
 	LeafPart = PathParts[-1] if PathParts else Name
+
+	ExactPath = Db.GetRegularPathInfo(PathParts)
+	CanAddToExistingPath = ExactPath is not None and not ExactPath.HasDgm
 
 	Siblings = Db.GetSiblingInfos(ParentParts)
 	if Siblings:
@@ -75,14 +88,28 @@ def AddElementInteractively(Db: dgm_database.DgmDatabase, Name: str) -> dgm_data
 				print(f"  {Sibling.Index}. node text='{Sibling.Text}' ({Marker})")
 
 	print("\nAdd mode:")
+	if CanAddToExistingPath:
+		print(f"  u - add DGM values to existing node: {ExactPath.DisplayPath}")
 	print("  n - add exact structured node")
 	print("  r - add regex node with newly entered DGM values")
 	print("  c - convert an existing sibling node to regex and reuse its DGM values")
 
+	AllowedModes = "u/n/r/c" if CanAddToExistingPath else "n/r/c"
+	DefaultMode = "u" if CanAddToExistingPath else "n"
+
 	while True:
-		Answer = input("Choose add mode [n/r/c, default n]: ").strip().casefold()
+		Answer = input(f"Choose add mode [{AllowedModes}, default {DefaultMode}]: ").strip().casefold()
 		if Answer == "":
-			Answer = "n"
+			Answer = DefaultMode
+
+		if Answer == "u":
+			if not CanAddToExistingPath:
+				print("The selected structure path does not exist as a regular node without DGM values.")
+				continue
+			Values = AskDgmValues(Name)
+			Record = Db.AddDgmToExistingPath(Name, Values, PathParts)
+			Db.Save()
+			return Record
 
 		if Answer == "n":
 			Values = AskDgmValues(Name)
@@ -109,7 +136,27 @@ def AddElementInteractively(Db: dgm_database.DgmDatabase, Name: str) -> dgm_data
 			Db.Save()
 			return Record
 
-		print("Please enter 'n', 'r', or 'c'.")
+		print(f"Please enter one of: {AllowedModes}.")
+
+
+def AskExistingPathCandidate(Candidates: List[dgm_database.ExistingPathInfo]) -> Optional[dgm_database.ExistingPathInfo]:
+	print("\nExisting structured path candidates without DGM values were found:")
+	for Candidate in Candidates:
+		print(f"  {Candidate.Index}. {Candidate.DisplayPath}")
+
+	while True:
+		Raw = input("Add DGM values to an existing path? [index / empty to skip]: ").strip()
+		if Raw == "":
+			return None
+		try:
+			Value = int(Raw)
+		except ValueError:
+			print("Please enter an integer candidate index or press Enter to skip.")
+			continue
+		for Candidate in Candidates:
+			if Candidate.Index == Value:
+				return Candidate
+		print("No candidate with this index exists.")
 
 
 def AskStructureParts(Name: str) -> List[str]:
