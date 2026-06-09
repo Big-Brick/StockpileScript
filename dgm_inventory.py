@@ -29,10 +29,10 @@ except ImportError:
 	sys.exit(2)
 
 
-CREATE_BACKUP = True
+CREATE_BACKUP = False
 STOP_AFTER_CONSECUTIVE_IGNORED_ROWS = 20
 DEFAULT_SHEET_MODE = "active"  # This script processes only the active sheet in each workbook.
-GRAM_NUMBER_FORMAT = "0.000000"
+GRAM_NUMBER_FORMAT = "0.######;-0.######;0"
 SCRIPT_VERSION = "2026-06-09.2"
 
 
