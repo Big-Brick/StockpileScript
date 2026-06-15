@@ -256,7 +256,7 @@ class DgmDatabase:
 			for Child in list(Parent):
 				if Child.tag == "node":
 					ChildText = Child.get("text", "")
-					ChildKey = NormalizeText(ChildText)
+					ChildKey = NormalizeStructureText(ChildText)
 					if ChildKey and Remaining.startswith(ChildKey):
 						States.append((Child, Remaining[len(ChildKey):], MatchedRegex, PathTexts + [ChildText]))
 				elif Child.tag == "regex":
@@ -273,7 +273,6 @@ class DgmDatabase:
 					if MatchedPart == "":
 						continue
 					States.append((Child, Remaining[len(MatchedPart):], True, PathTexts + [MatchedPart]))
-
 		return ElementSearchResult(BestRecord, BestRegexState)
 
 	def FindLegacyElement(self, NormalizedName: str) -> Optional[ElementRecord]:
@@ -304,7 +303,7 @@ class DgmDatabase:
 		return ElementRecord(self, Node, DisplayName, Values)
 
 	def AddElement(self, Name: str, Values: DgmValues, PathParts: Sequence[str]) -> ElementRecord:
-		CleanParts = [Part for Part in (Part.strip() for Part in PathParts) if Part]
+		CleanParts = [Part for Part in PathParts if Part != ""]
 		if not CleanParts:
 			CleanParts = [Name]
 
@@ -376,29 +375,29 @@ class DgmDatabase:
 		return ElementRecord(self, NewNode, NewNode.get("name", Pattern), Values)
 
 	def EnsureRegularNode(self, Parent: XmlTree.Element, Text: str) -> XmlTree.Element:
-		Key = NormalizeText(Text)
+		Key = NormalizeStructureText(Text)
 		for Child in Parent.findall("node"):
-			if NormalizeText(Child.get("text", "")) == Key:
+			if NormalizeStructureText(Child.get("text", "")) == Key:
 				return Child
 		return XmlTree.SubElement(Parent, "node", {"text": Text})
 
 	def FindOrCreateParent(self, PathParts: Sequence[str]) -> XmlTree.Element:
 		Parent = self.CatalogNode
-		for Part in (Part.strip() for Part in PathParts):
-			if not Part:
+		for Part in PathParts:
+			if Part == "":
 				continue
 			Parent = self.EnsureRegularNode(Parent, Part)
 		return Parent
 
 	def FindParent(self, PathParts: Sequence[str]) -> Optional[XmlTree.Element]:
 		Parent = self.CatalogNode
-		for Part in (Part.strip() for Part in PathParts):
-			if not Part:
+		for Part in PathParts:
+			if Part == "":
 				continue
-			Key = NormalizeText(Part)
+			Key = NormalizeStructureText(Part)
 			NextNode = None
 			for Child in Parent.findall("node"):
-				if NormalizeText(Child.get("text", "")) == Key:
+				if NormalizeStructureText(Child.get("text", "")) == Key:
 					NextNode = Child
 					break
 			if NextNode is None:
@@ -517,6 +516,8 @@ def OpenDatabase(PathToDatabase: Path | str) -> DgmDatabase:
 def NormalizeText(Value: str) -> str:
 	return " ".join(str(Value).strip().split()).casefold()
 
+def NormalizeStructureText(Value: str) -> str:
+	return str(Value or "").casefold()
 
 def ReadDecimal(Value: str) -> decimal.Decimal:
 	Value = (Value or "0").strip().replace(",", ".")
