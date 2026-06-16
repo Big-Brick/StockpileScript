@@ -94,9 +94,22 @@ class DgmValues:
 
 
 @dataclass
+class PartialElementMatch:
+	Node: XmlTree.Element
+	DisplayName: str
+	MatchedByRegex: bool = False
+	HasDgm: bool = False
+
+
+@dataclass
 class ElementSearchResult:
 	Record: Optional["ElementRecord"]
 	MatchedByRegex: bool = False
+	PartialMatches: Optional[List[PartialElementMatch]] = None
+
+	def __post_init__(self) -> None:
+		if self.PartialMatches is None:
+			self.PartialMatches = []
 
 
 @dataclass
@@ -239,17 +252,33 @@ class DgmDatabase:
 
 		LegacyRecord = self.FindLegacyElement(NormalizedName)
 		if LegacyRecord is not None:
-			return ElementSearchResult(LegacyRecord, False)
+			return ElementSearchResult(LegacyRecord, False, StructuredResult.PartialMatches)
 
-		return ElementSearchResult(None, False)
+		return StructuredResult
 
 	def FindStructuredElement(self, NormalizedName: str, OriginalName: str) -> ElementSearchResult:
 		States: List[Tuple[XmlTree.Element, str, bool, List[str]]] = [(self.CatalogNode, NormalizedName, False, [])]
 		BestRecord: Optional[ElementRecord] = None
 		BestRegexState = False
+		PartialMatchesByNode: Dict[int, PartialElementMatch] = {}
+		DeepestPartialLength = 0
 
 		while States:
 			Parent, Remaining, MatchedRegex, PathTexts = States.pop()
+			MatchedLength = len(NormalizedName) - len(Remaining)
+
+			if PathTexts and Remaining != "":
+				if MatchedLength > DeepestPartialLength:
+					PartialMatchesByNode.clear()
+					DeepestPartialLength = MatchedLength
+				if MatchedLength == DeepestPartialLength:
+					DgmNode = Parent.find("dgm")
+					PartialMatchesByNode[id(Parent)] = PartialElementMatch(
+						Node=Parent,
+						DisplayName=" => ".join(PathTexts),
+						MatchedByRegex=MatchedRegex,
+						HasDgm=DgmNode is not None,
+					)
 
 			if Remaining == "":
 				DgmNode = Parent.find("dgm")
@@ -278,7 +307,7 @@ class DgmDatabase:
 					if MatchedPart == "":
 						continue
 					States.append((Child, Remaining[len(MatchedPart):], True, PathTexts + [MatchedPart]))
-		return ElementSearchResult(BestRecord, BestRegexState)
+		return ElementSearchResult(BestRecord, BestRegexState, list(PartialMatchesByNode.values()))
 
 	def FindLegacyElement(self, NormalizedName: str) -> Optional[ElementRecord]:
 		for Node in self.LegacyElementsNode.findall("element"):
