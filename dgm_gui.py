@@ -951,9 +951,19 @@ class AddElementDialog(tk.Toplevel):
 		if Candidate is None:
 			return
 		self.PathList.delete(0, tk.END)
-		for Part in self.Db.GetNodePathParts(Candidate.Node) + [self.Name]:
+		PathParts = self.Db.GetNodePathParts(Candidate.Node)
+		LeafRemainder = self._GetNameRemainderAfterCandidatePath(PathParts)
+		for Part in PathParts + [LeafRemainder]:
 			self.PathList.insert(tk.END, Part)
 		self.UseCandidate.set(False)
+
+	def _GetNameRemainderAfterCandidatePath(self, PathParts: List[str]) -> str:
+		CandidatePrefix = "".join(PathParts)
+		if CandidatePrefix and self.Name.casefold().startswith(CandidatePrefix.casefold()):
+			Remainder = self.Name[len(CandidatePrefix):]
+			if Remainder:
+				return Remainder
+		return self.Name
 
 	def _SplitEntry(self) -> None:
 		Parts = [Part for Part in self.PartEntry.get().split("/") if Part]
