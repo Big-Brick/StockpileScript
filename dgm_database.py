@@ -14,6 +14,7 @@ from __future__ import annotations
 import copy
 import decimal
 import re
+import string
 import xml.etree.ElementTree as XmlTree
 from dataclasses import dataclass
 from pathlib import Path
@@ -47,6 +48,7 @@ DEFAULT_COLUMNS = {
 
 DATABASE_VERSION = "2"
 DATABASE_CODE_VERSION = "2026-06-09.2"
+COLUMN_LETTERS = set(string.ascii_uppercase)
 
 
 @dataclass
@@ -205,7 +207,10 @@ class DgmDatabase:
 		def ReadColumn(Attribute: str) -> str:
 			Column = self.ColumnsNode.get(Attribute, DEFAULT_COLUMNS[Attribute]).strip().upper()
 			try:
-				openpyxl.utils.column_index_from_string(Column)  # type: ignore[union-attr]
+				if openpyxl is not None:
+					openpyxl.utils.column_index_from_string(Column)  # type: ignore[union-attr]
+				elif not IsSpreadsheetColumnName(Column):
+					raise ValueError("column name must contain only letters")
 			except Exception as Error:
 				raise RuntimeError(f"Invalid column '{Column}' in database setting '{Attribute}'") from Error
 			return Column
@@ -529,3 +534,7 @@ def DecimalToText(Value: decimal.Decimal) -> str:
 	if Value == 0:
 		return "0"
 	return format(Value.normalize(), "f")
+
+
+def IsSpreadsheetColumnName(Value: str) -> bool:
+	return bool(Value) and all(Character in COLUMN_LETTERS for Character in Value)
