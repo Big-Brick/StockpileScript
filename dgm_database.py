@@ -469,42 +469,6 @@ class DgmDatabase:
 			HasDgm=Node.find("dgm") is not None,
 		)
 
-	def FindExistingRegularPathCandidates(self, Name: str) -> List[ExistingPathInfo]:
-		TargetKey = NormalizeText(Name)
-		if not TargetKey:
-			return []
-
-		Candidates: List[ExistingPathInfo] = []
-
-		def Walk(Parent: XmlTree.Element, Parts: List[str], CurrentKey: str) -> None:
-			for Child in Parent.findall("node"):
-				ChildText = Child.get("text", "")
-				ChildKey = NormalizeText(ChildText)
-				if not ChildKey:
-					continue
-
-				NextKey = CurrentKey + ChildKey
-				NextParts = Parts + [ChildText]
-				if not TargetKey.startswith(NextKey):
-					continue
-
-				if NextKey == TargetKey:
-					Candidates.append(
-						ExistingPathInfo(
-							Index=len(Candidates) + 1,
-							PathParts=NextParts,
-							DisplayPath="/".join(NextParts),
-							DisplayName=Child.get("name", "".join(NextParts)),
-							HasDgm=Child.find("dgm") is not None,
-						)
-					)
-					continue
-
-				Walk(Child, NextParts, NextKey)
-
-		Walk(self.CatalogNode, [], "")
-		return Candidates
-
 	def GetSiblingInfos(self, ParentPathParts: Sequence[str]) -> List[SiblingInfo]:
 		Parent = self.FindParent(ParentPathParts)
 		if Parent is None:
