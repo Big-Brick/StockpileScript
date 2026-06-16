@@ -64,6 +64,15 @@ class GuiProcessResult:
 	Conflicts: List[GuiConflictRow]
 
 
+@dataclass
+class GuiAddElementResult:
+	Mode: str
+	Values: dgm_database.DgmValues
+	PathParts: List[str]
+	Pattern: str = ""
+	DisplayText: str = ""
+
+
 WINDOW_TITLE = "DGM Database Editor"
 
 
@@ -780,11 +789,13 @@ class XlsxReviewWindow(tk.Toplevel):
 		if Dialog.Result is None:
 			return
 		try:
-			Mode, Values, PathParts = Dialog.Result
-			if Mode == "existing":
-				self.ParentViewer.Database.AddDgmToExistingPath(Item.Name, Values, PathParts)
+			Result = Dialog.Result
+			if Result.Mode == "existing":
+				self.ParentViewer.Database.AddDgmToExistingPath(Item.Name, Result.Values, Result.PathParts)
+			elif Result.Mode == "regex":
+				self.ParentViewer.Database.AddRegexElement(Item.Name, Result.Values, Result.PathParts, Result.Pattern, Result.DisplayText)
 			else:
-				self.ParentViewer.Database.AddElement(Item.Name, Values, PathParts)
+				self.ParentViewer.Database.AddElement(Item.Name, Result.Values, Result.PathParts)
 			self.ParentViewer.Database.Save()
 			self.ParentViewer._PopulateDatabaseViews()
 			self.destroy()
@@ -879,7 +890,7 @@ class RenameElementDialog(tk.Toplevel):
 class AddElementDialog(tk.Toplevel):
 	def __init__(self, Parent: tk.Toplevel, Db: dgm_database.DgmDatabase, Name: str) -> None:
 		super().__init__(Parent)
-		self.Result: Optional[Tuple[str, dgm_database.DgmValues, List[str]]] = None
+		self.Result: Optional[GuiAddElementResult] = None
 		self.Db = Db
 		self.Name = Name
 		StructuredResult = Db.FindStructuredElement(dgm_database.NormalizeText(Name), Name)
@@ -887,7 +898,7 @@ class AddElementDialog(tk.Toplevel):
 		self.title("Add missing element")
 		self.transient(Parent)
 		self.grab_set()
-		self.geometry("560x520")
+		self.geometry("620x650")
 		self.columnconfigure(0, weight=1)
 		self.rowconfigure(4, weight=1)
 		ttk.Label(self, text=f"Element: {Name}", style="Heading.TLabel").grid(row=0, column=0, sticky="w", padx=10, pady=(10, 4))
@@ -917,8 +928,20 @@ class AddElementDialog(tk.Toplevel):
 		Controls.grid(row=6, column=0, sticky="w", padx=10)
 		ttk.Button(Controls, text="Remove", command=self._RemovePart).grid(row=0, column=0, padx=(0, 6))
 		ttk.Button(Controls, text="Use candidate as parent", command=self._UseCandidateAsParent).grid(row=0, column=1)
+		ModeFrame = ttk.LabelFrame(self, text="Add mode")
+		ModeFrame.grid(row=7, column=0, sticky="ew", padx=10, pady=(8, 0))
+		ModeFrame.columnconfigure(1, weight=1)
+		self.AddMode = tk.StringVar(value="node")
+		ttk.Radiobutton(ModeFrame, text="Exact structured node", variable=self.AddMode, value="node").grid(row=0, column=0, sticky="w", padx=(6, 12), pady=4)
+		ttk.Radiobutton(ModeFrame, text="Regex leaf node", variable=self.AddMode, value="regex").grid(row=0, column=1, sticky="w", pady=4)
+		ttk.Label(ModeFrame, text="Regex pattern").grid(row=1, column=0, sticky="w", padx=6, pady=(0, 4))
+		self.RegexPatternEntry = ttk.Entry(ModeFrame)
+		self.RegexPatternEntry.grid(row=1, column=1, sticky="ew", padx=(0, 6), pady=(0, 4))
+		ttk.Label(ModeFrame, text="Display text").grid(row=2, column=0, sticky="w", padx=6, pady=(0, 6))
+		self.RegexDisplayEntry = ttk.Entry(ModeFrame)
+		self.RegexDisplayEntry.grid(row=2, column=1, sticky="ew", padx=(0, 6), pady=(0, 6))
 		Values = ttk.LabelFrame(self, text="DGM values, g")
-		Values.grid(row=7, column=0, sticky="ew", padx=10, pady=8)
+		Values.grid(row=8, column=0, sticky="ew", padx=10, pady=8)
 		self.ValueEntries: Dict[str, ttk.Entry] = {}
 		for Index, (MetalKey, MetalName) in enumerate(dgm_database.METALS):
 			ttk.Label(Values, text=MetalName).grid(row=0, column=Index, sticky="w")
@@ -927,7 +950,7 @@ class AddElementDialog(tk.Toplevel):
 			Entry.grid(row=1, column=Index, padx=(0, 6))
 			self.ValueEntries[MetalKey] = Entry
 		Buttons = ttk.Frame(self)
-		Buttons.grid(row=8, column=0, sticky="e", padx=10, pady=(0, 10))
+		Buttons.grid(row=9, column=0, sticky="e", padx=10, pady=(0, 10))
 		ttk.Button(Buttons, text="Cancel", command=self._Cancel).grid(row=0, column=0, padx=(0, 6))
 		ttk.Button(Buttons, text="Add", command=self._Save).grid(row=0, column=1)
 		self.wait_window(self)
@@ -1003,13 +1026,23 @@ class AddElementDialog(tk.Toplevel):
 			return
 		Candidate = self._GetCandidate() if self.UseCandidate.get() else None
 		if Candidate is not None:
-			self.Result = ("existing", Values, self.Db.GetNodePathParts(Candidate.Node))
+			self.Result = GuiAddElementResult("existing", Values, self.Db.GetNodePathParts(Candidate.Node))
 		else:
 			PathParts = [self.PathList.get(Index) for Index in range(self.PathList.size())]
 			if not PathParts:
 				tkinter.messagebox.showerror(WINDOW_TITLE, "Enter at least one node.", parent=self)
 				return
-			self.Result = ("new", Values, PathParts)
+			if self.AddMode.get() == "regex":
+				Pattern = self.RegexPatternEntry.get().strip()
+				DisplayText = self.RegexDisplayEntry.get().strip()
+				if not Pattern:
+					Pattern = PathParts[-1]
+				if not Pattern:
+					tkinter.messagebox.showerror(WINDOW_TITLE, "Regex pattern cannot be empty.", parent=self)
+					return
+				self.Result = GuiAddElementResult("regex", Values, PathParts[:-1], Pattern, DisplayText or Pattern)
+			else:
+				self.Result = GuiAddElementResult("new", Values, PathParts)
 		self.destroy()
 
 	def _Cancel(self) -> None:
