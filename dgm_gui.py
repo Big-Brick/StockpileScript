@@ -882,7 +882,8 @@ class AddElementDialog(tk.Toplevel):
 		self.Result: Optional[Tuple[str, dgm_database.DgmValues, List[str]]] = None
 		self.Db = Db
 		self.Name = Name
-		self.Candidates = [Candidate for Candidate in Db.FindExistingRegularPathCandidates(Name) if not Candidate.HasDgm]
+		StructuredResult = Db.FindStructuredElement(dgm_database.NormalizeText(Name), Name)
+		self.Candidates = [Candidate for Candidate in (StructuredResult.PartialMatches or []) if not Candidate.HasDgm and Candidate.Node.tag == "node"]
 		self.title("Add missing element")
 		self.transient(Parent)
 		self.grab_set()
@@ -895,7 +896,7 @@ class AddElementDialog(tk.Toplevel):
 		self.CandidateList = tk.Listbox(self, height=4, exportselection=False)
 		self.CandidateList.grid(row=2, column=0, sticky="ew", padx=10, pady=4)
 		for Candidate in self.Candidates:
-			self.CandidateList.insert(tk.END, Candidate.DisplayPath)
+			self.CandidateList.insert(tk.END, Candidate.DisplayName)
 		if self.Candidates:
 			self.CandidateList.selection_set(0)
 		ttk.Label(self, text="Structured node chain (one node per line)").grid(row=3, column=0, sticky="w", padx=10, pady=(8, 4))
@@ -933,7 +934,7 @@ class AddElementDialog(tk.Toplevel):
 	def _DefaultSplit(self, Name: str) -> List[str]:
 		return [Part for Part in Name.split("/") if Part] or [Name]
 
-	def _GetCandidate(self) -> Optional[dgm_database.ExistingPathInfo]:
+	def _GetCandidate(self) -> Optional[dgm_database.PartialElementMatch]:
 		Selection = self.CandidateList.curselection()
 		return self.Candidates[int(Selection[0])] if Selection else None
 
@@ -942,7 +943,7 @@ class AddElementDialog(tk.Toplevel):
 		if Candidate is None:
 			return
 		self.PathList.delete(0, tk.END)
-		for Part in Candidate.PathParts + [self.Name]:
+		for Part in self.Db.GetNodePathParts(Candidate.Node) + [self.Name]:
 			self.PathList.insert(tk.END, Part)
 		self.UseCandidate.set(False)
 
@@ -984,7 +985,7 @@ class AddElementDialog(tk.Toplevel):
 			return
 		Candidate = self._GetCandidate() if self.UseCandidate.get() else None
 		if Candidate is not None:
-			self.Result = ("existing", Values, Candidate.PathParts)
+			self.Result = ("existing", Values, self.Db.GetNodePathParts(Candidate.Node))
 		else:
 			PathParts = [self.PathList.get(Index) for Index in range(self.PathList.size())]
 			if not PathParts:

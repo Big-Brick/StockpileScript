@@ -59,12 +59,13 @@ def AskElementOrIgnore(FilePath: Path, SheetName: str, Row: int, Text: str, Db: 
 
 
 def AddElementInteractively(Db: dgm_database.DgmDatabase, Name: str) -> dgm_database.ElementRecord:
-	MatchingPaths = [Candidate for Candidate in Db.FindExistingRegularPathCandidates(Name) if not Candidate.HasDgm]
+	StructuredResult = Db.FindStructuredElement(dgm_database.NormalizeText(Name), Name)
+	MatchingPaths = [Candidate for Candidate in (StructuredResult.PartialMatches or []) if not Candidate.HasDgm and Candidate.Node.tag == "node"]
 	if MatchingPaths:
 		SelectedPath = AskExistingPathCandidate(MatchingPaths)
 		if SelectedPath is not None:
 			Values = AskDgmValues(Name)
-			Record = Db.AddDgmToExistingPath(Name, Values, SelectedPath.PathParts)
+			Record = Db.AddDgmToExistingPath(Name, Values, Db.GetNodePathParts(SelectedPath.Node))
 			Db.Save()
 			return Record
 
@@ -137,10 +138,10 @@ def AddElementInteractively(Db: dgm_database.DgmDatabase, Name: str) -> dgm_data
 		print(f"Please enter one of: {AllowedModes}.")
 
 
-def AskExistingPathCandidate(Candidates: List[dgm_database.ExistingPathInfo]) -> Optional[dgm_database.ExistingPathInfo]:
+def AskExistingPathCandidate(Candidates: List[dgm_database.PartialElementMatch]) -> Optional[dgm_database.PartialElementMatch]:
 	print("\nExisting structured path candidates without DGM values were found:")
-	for Candidate in Candidates:
-		print(f"  {Candidate.Index}. {Candidate.DisplayPath}")
+	for Index, Candidate in enumerate(Candidates, start=1):
+		print(f"  {Index}. {Candidate.DisplayName}")
 
 	while True:
 		Raw = input("Add DGM values to an existing path? [index / empty to skip]: ").strip()
@@ -151,9 +152,8 @@ def AskExistingPathCandidate(Candidates: List[dgm_database.ExistingPathInfo]) ->
 		except ValueError:
 			print("Please enter an integer candidate index or press Enter to skip.")
 			continue
-		for Candidate in Candidates:
-			if Candidate.Index == Value:
-				return Candidate
+		if 1 <= Value <= len(Candidates):
+			return Candidates[Value - 1]
 		print("No candidate with this index exists.")
 
 
