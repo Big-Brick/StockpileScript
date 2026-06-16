@@ -992,8 +992,15 @@ class AddElementDialog(tk.Toplevel):
 		Parts = [Part for Part in self.PartEntry.get().split("/") if Part]
 		if not Parts:
 			Parts = self._DefaultSplit(self.Name)
+		Selection = self.PathList.curselection()
+		InsertIndex = tk.END
+		if Selection:
+			InsertIndex = int(Selection[0])
+			self.PathList.delete(InsertIndex)
 		for Part in Parts:
-			self.PathList.insert(tk.END, Part)
+			self.PathList.insert(InsertIndex, Part)
+			if InsertIndex != tk.END:
+				InsertIndex += 1
 		self.PartEntry.delete(0, tk.END)
 
 	def _AddPart(self) -> None:
