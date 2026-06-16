@@ -883,7 +883,7 @@ class AddElementDialog(tk.Toplevel):
 		self.Db = Db
 		self.Name = Name
 		StructuredResult = Db.FindStructuredElement(dgm_database.NormalizeText(Name), Name)
-		self.Candidates = [Candidate for Candidate in (StructuredResult.PartialMatches or []) if not Candidate.HasDgm and Candidate.Node.tag == "node"]
+		self.Candidates = [Candidate for Candidate in (StructuredResult.PartialMatches or []) if Candidate.Node.tag == "node"]
 		self.title("Add missing element")
 		self.transient(Parent)
 		self.grab_set()
