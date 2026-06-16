@@ -23,7 +23,7 @@ import tkinter.messagebox
 import tkinter.ttk as ttk
 import xml.etree.ElementTree as XmlTree
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 
 import dgm_database
 
@@ -248,8 +248,8 @@ class DgmDatabaseViewer(tk.Tk):
 		self._PopulateCatalogTree()
 
 	def _ApplyCatalogNodeChanges(self, Node: XmlTree.Element, Values: Dict[str, str]) -> None:
-		Text = Values["text"].strip()
-		Name = Values["name"].strip()
+		Text = Values["text"]
+		Name = Values["name"]
 		if not Text:
 			raise RuntimeError("Display text is required")
 
@@ -260,7 +260,7 @@ class DgmDatabaseViewer(tk.Tk):
 			del Node.attrib["name"]
 
 		if Node.tag == "regex":
-			Pattern = Values["pattern"].strip()
+			Pattern = Values["pattern"]
 			if not Pattern:
 				raise RuntimeError("Regex pattern is required for regex nodes")
 			Node.set("pattern", Pattern)
@@ -275,15 +275,12 @@ class DgmDatabaseViewer(tk.Tk):
 		if Node is None:
 			return
 
-		CurrentPath = self.Database.GetNodePathParts(Node)
-		CurrentParentPath = "/".join(CurrentPath[:-1])
-		Dialog = MoveCatalogNodeDialog(self, CurrentParentPath)
+		Dialog = MoveCatalogNodeDialog(self, self.Database.GetNodePathParts(Node)[:-1])
 		if Dialog.Result is None:
 			return
 
 		try:
-			NewParentParts = [Part.strip() for Part in Dialog.Result.split("/") if Part.strip()]
-			self.Database.MoveCatalogNode(Node, NewParentParts)
+			self.Database.MoveCatalogNode(Node, Dialog.Result)
 			self.Database.Save()
 		except Exception as Error:
 			tkinter.messagebox.showerror(WINDOW_TITLE, str(Error), parent=self)
@@ -363,34 +360,132 @@ class CatalogNodeEditDialog(tk.Toplevel):
 
 
 class MoveCatalogNodeDialog(tk.Toplevel):
-	def __init__(self, Parent: tk.Tk, CurrentParentPath: str) -> None:
+	def __init__(self, Parent: tk.Tk, CurrentParentPath: List[str]) -> None:
 		super().__init__(Parent)
-		self.Result: Optional[str] = None
+		self.Result: Optional[List[str]] = None
+
 		self.title("Move catalog node")
 		self.transient(Parent)
 		self.grab_set()
 		self.resizable(False, False)
-		self.columnconfigure(1, weight=1)
 
-		ttk.Label(self, text="New parent path").grid(row=0, column=0, sticky="w", padx=(10, 6), pady=(10, 4))
-		self.PathEntry = ttk.Entry(self, width=48)
-		self.PathEntry.insert(0, CurrentParentPath)
-		self.PathEntry.grid(row=0, column=1, sticky="ew", padx=(0, 10), pady=(10, 4))
-		ttk.Label(self, text="Use / between parent nodes. Leave empty for catalog root.").grid(row=1, column=0, columnspan=2, sticky="w", padx=10, pady=(0, 8))
+		self.columnconfigure(0, weight=1)
+		self.rowconfigure(1, weight=1)
+
+		ttk.Label(self, text="New parent path").grid(row=0, column=0, sticky="w", padx=10, pady=(10, 4))
+
+		self.PathList = tk.Listbox(self, height=8, width=48, exportselection=False)
+		self.PathList.grid(row=1, column=0, sticky="nsew", padx=10, pady=(0, 6))
+
+		for Part in CurrentParentPath:
+			self.PathList.insert(tk.END, Part)
+
+		EditFrame = ttk.Frame(self)
+		EditFrame.grid(row=2, column=0, sticky="ew", padx=10, pady=(0, 6))
+		EditFrame.columnconfigure(0, weight=1)
+
+		self.PartEntry = ttk.Entry(EditFrame)
+		self.PartEntry.grid(row=0, column=0, sticky="ew", padx=(0, 6))
+
+		ttk.Button(EditFrame, text="Add", command=self._AddPart).grid(row=0, column=1, padx=(0, 6))
+		ttk.Button(EditFrame, text="Replace", command=self._ReplacePart).grid(row=0, column=2)
 
 		ButtonFrame = ttk.Frame(self)
-		ButtonFrame.grid(row=2, column=0, columnspan=2, sticky="e", padx=10, pady=(0, 10))
-		ttk.Button(ButtonFrame, text="Cancel", command=self._Cancel).grid(row=0, column=0, padx=(0, 6))
-		ttk.Button(ButtonFrame, text="Move", command=self._Move).grid(row=0, column=1)
+		ButtonFrame.grid(row=3, column=0, sticky="ew", padx=10, pady=(0, 10))
+
+		ttk.Button(ButtonFrame, text="Remove", command=self._RemovePart).grid(row=0, column=0, padx=(0, 6))
+		ttk.Button(ButtonFrame, text="Up", command=self._MovePartUp).grid(row=0, column=1, padx=(0, 6))
+		ttk.Button(ButtonFrame, text="Down", command=self._MovePartDown).grid(row=0, column=2, padx=(0, 6))
+
+		ttk.Button(ButtonFrame, text="Cancel", command=self._Cancel).grid(row=0, column=3, sticky="e", padx=(20, 6))
+		ttk.Button(ButtonFrame, text="Move", command=self._Move).grid(row=0, column=4, sticky="e")
+
+		ttk.Label(
+			self,
+			text="Each row is one parent node. Empty list means catalog root."
+		).grid(row=4, column=0, sticky="w", padx=10, pady=(0, 10))
+
+		self.PathList.bind("<<ListboxSelect>>", self._OnSelect)
 
 		self.bind("<Escape>", lambda _Event: self._Cancel())
 		self.bind("<Return>", lambda _Event: self._Move())
 		self.protocol("WM_DELETE_WINDOW", self._Cancel)
-		self.PathEntry.focus_set()
+
+		self.PartEntry.focus_set()
 		self.wait_window(self)
 
+	def _GetSelectedIndex(self) -> Optional[int]:
+		Selection = self.PathList.curselection()
+		if not Selection:
+			return None
+		return int(Selection[0])
+
+	def _OnSelect(self, _Event: tk.Event) -> None:
+		Index = self._GetSelectedIndex()
+		if Index is None:
+			return
+
+		self.PartEntry.delete(0, tk.END)
+		self.PartEntry.insert(0, self.PathList.get(Index))
+
+	def _AddPart(self) -> None:
+		Part = self.PartEntry.get()
+
+		# ВАЖЛИВО: не робимо .strip(), бо trailing space може бути значущим.
+		if Part == "":
+			return
+
+		self.PathList.insert(tk.END, Part)
+		self.PartEntry.delete(0, tk.END)
+
+	def _ReplacePart(self) -> None:
+		Index = self._GetSelectedIndex()
+		if Index is None:
+			return
+
+		Part = self.PartEntry.get()
+
+		# ВАЖЛИВО: не робимо .strip().
+		if Part == "":
+			return
+
+		self.PathList.delete(Index)
+		self.PathList.insert(Index, Part)
+		self.PathList.selection_set(Index)
+
+	def _RemovePart(self) -> None:
+		Index = self._GetSelectedIndex()
+		if Index is None:
+			return
+
+		self.PathList.delete(Index)
+
+	def _MovePartUp(self) -> None:
+		Index = self._GetSelectedIndex()
+		if Index is None or Index <= 0:
+			return
+
+		Part = self.PathList.get(Index)
+		self.PathList.delete(Index)
+		self.PathList.insert(Index - 1, Part)
+		self.PathList.selection_set(Index - 1)
+
+	def _MovePartDown(self) -> None:
+		Index = self._GetSelectedIndex()
+		if Index is None or Index >= self.PathList.size() - 1:
+			return
+
+		Part = self.PathList.get(Index)
+		self.PathList.delete(Index)
+		self.PathList.insert(Index + 1, Part)
+		self.PathList.selection_set(Index + 1)
+
 	def _Move(self) -> None:
-		self.Result = self.PathEntry.get().strip()
+		self.Result = []
+
+		for Index in range(self.PathList.size()):
+			self.Result.append(self.PathList.get(Index))
+
 		self.destroy()
 
 	def _Cancel(self) -> None:
