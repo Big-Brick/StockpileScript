@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-Read-only GUI viewer for DGM XML databases.
+GUI editor for DGM XML databases.
 
-Stage 1 scope:
-- visualize the structured component catalog in a tree view;
-- visualize ignored item texts in a list view;
-- do not edit or process inventory workbooks.
+Scope:
+- visualize and edit the structured component catalog in a tree view;
+- move catalog nodes between parents;
+- visualize ignored item texts in a list view.
 
 Usage:
     python dgm_gui.py [database.xml]
@@ -15,6 +15,7 @@ If the database argument is omitted, a file selection dialog is shown.
 
 from __future__ import annotations
 
+import decimal
 import sys
 import tkinter as tk
 import tkinter.filedialog
@@ -22,12 +23,12 @@ import tkinter.messagebox
 import tkinter.ttk as ttk
 import xml.etree.ElementTree as XmlTree
 from pathlib import Path
-from typing import Optional
+from typing import Dict, Optional
 
 import dgm_database
 
 
-WINDOW_TITLE = "DGM Database Viewer"
+WINDOW_TITLE = "DGM Database Editor"
 
 
 class DgmDatabaseViewer(tk.Tk):
@@ -35,6 +36,7 @@ class DgmDatabaseViewer(tk.Tk):
 		super().__init__()
 		self.DatabasePath = DatabasePath
 		self.Database = dgm_database.OpenDatabase(DatabasePath)
+		self.CatalogItems: Dict[str, XmlTree.Element] = {}
 
 		self.title(f"{WINDOW_TITLE} - {DatabasePath.name}")
 		self.geometry("1100x700")
@@ -61,7 +63,7 @@ class DgmDatabaseViewer(tk.Tk):
 
 		ttk.Label(Header, text="Database:", style="Heading.TLabel").grid(row=0, column=0, sticky="w")
 		ttk.Label(Header, text=str(self.DatabasePath)).grid(row=0, column=1, sticky="w", padx=(6, 0))
-		ttk.Label(Header, text="Read-only stage 1 viewer").grid(row=0, column=2, sticky="e")
+		ttk.Label(Header, text="Catalog editor").grid(row=0, column=2, sticky="e")
 
 		Content = ttk.PanedWindow(self, orient=tk.HORIZONTAL)
 		Content.grid(row=1, column=0, sticky="nsew", padx=10, pady=(4, 10))
@@ -106,6 +108,12 @@ class DgmDatabaseViewer(tk.Tk):
 		VerticalScrollbar.grid(row=1, column=1, sticky="ns")
 		HorizontalScrollbar.grid(row=2, column=0, sticky="ew")
 
+		self.CatalogContextMenu = tk.Menu(self, tearoff=False)
+		self.CatalogContextMenu.add_command(label="Modify database node...", command=self._ModifySelectedCatalogNode)
+		self.CatalogContextMenu.add_command(label="Move node to another parent...", command=self._MoveSelectedCatalogNode)
+		self.CatalogTree.bind("<Button-3>", self._ShowCatalogContextMenu)
+		self.CatalogTree.bind("<Control-Button-1>", self._ShowCatalogContextMenu)
+
 	def _BuildIgnoredPane(self, Parent: ttk.Frame) -> None:
 		Parent.columnconfigure(0, weight=1)
 		Parent.rowconfigure(1, weight=1)
@@ -134,6 +142,7 @@ class DgmDatabaseViewer(tk.Tk):
 		self._PopulateIgnoredList()
 
 	def _PopulateCatalogTree(self) -> None:
+		self.CatalogItems.clear()
 		for Item in self.CatalogTree.get_children():
 			self.CatalogTree.delete(Item)
 
@@ -179,6 +188,7 @@ class DgmDatabaseViewer(tk.Tk):
 			),
 			open=False,
 		)
+		self.CatalogItems[Item] = Node
 		for Child in list(Node):
 			self._InsertCatalogNode(Item, Child)
 
@@ -201,6 +211,86 @@ class DgmDatabaseViewer(tk.Tk):
 	def _HasDgmValues(self, Node: XmlTree.Element) -> bool:
 		return any(Node.get(f"{MetalKey}_g") is not None for MetalKey, _ in dgm_database.METALS)
 
+
+	def _ShowCatalogContextMenu(self, Event: tk.Event) -> str:
+		ItemId = self.CatalogTree.identify_row(Event.y)
+		if ItemId == "" or ItemId not in self.CatalogItems:
+			return "break"
+
+		self.CatalogTree.selection_set(ItemId)
+		self.CatalogTree.focus(ItemId)
+		self.CatalogContextMenu.tk_popup(Event.x_root, Event.y_root)
+		return "break"
+
+	def _GetSelectedCatalogNode(self) -> Optional[XmlTree.Element]:
+		ItemId = self.CatalogTree.focus()
+		if not ItemId:
+			Selection = self.CatalogTree.selection()
+			ItemId = Selection[0] if Selection else ""
+		return self.CatalogItems.get(ItemId)
+
+	def _ModifySelectedCatalogNode(self) -> None:
+		Node = self._GetSelectedCatalogNode()
+		if Node is None:
+			return
+
+		Dialog = CatalogNodeEditDialog(self, Node)
+		if Dialog.Result is None:
+			return
+
+		try:
+			self._ApplyCatalogNodeChanges(Node, Dialog.Result)
+			self.Database.Save()
+		except Exception as Error:
+			tkinter.messagebox.showerror(WINDOW_TITLE, str(Error), parent=self)
+			return
+
+		self._PopulateCatalogTree()
+
+	def _ApplyCatalogNodeChanges(self, Node: XmlTree.Element, Values: Dict[str, str]) -> None:
+		Text = Values["text"].strip()
+		Name = Values["name"].strip()
+		if not Text:
+			raise RuntimeError("Display text is required")
+
+		Node.set("text", Text)
+		if Name:
+			Node.set("name", Name)
+		elif "name" in Node.attrib:
+			del Node.attrib["name"]
+
+		if Node.tag == "regex":
+			Pattern = Values["pattern"].strip()
+			if not Pattern:
+				raise RuntimeError("Regex pattern is required for regex nodes")
+			Node.set("pattern", Pattern)
+
+		DgmNode = self.Database.EnsureChild(Node, "dgm")
+		for MetalKey, _ in dgm_database.METALS:
+			Value = dgm_database.ReadDecimal(Values[MetalKey])
+			DgmNode.set(f"{MetalKey}_g", dgm_database.DecimalToText(Value))
+
+	def _MoveSelectedCatalogNode(self) -> None:
+		Node = self._GetSelectedCatalogNode()
+		if Node is None:
+			return
+
+		CurrentPath = self.Database.GetNodePathParts(Node)
+		CurrentParentPath = "/".join(CurrentPath[:-1])
+		Dialog = MoveCatalogNodeDialog(self, CurrentParentPath)
+		if Dialog.Result is None:
+			return
+
+		try:
+			NewParentParts = [Part.strip() for Part in Dialog.Result.split("/") if Part.strip()]
+			self.Database.MoveCatalogNode(Node, NewParentParts)
+			self.Database.Save()
+		except Exception as Error:
+			tkinter.messagebox.showerror(WINDOW_TITLE, str(Error), parent=self)
+			return
+
+		self._PopulateCatalogTree()
+
 	def _PopulateIgnoredList(self) -> None:
 		self.IgnoredList.delete(0, tk.END)
 		IgnoredValues = sorted(
@@ -210,6 +300,102 @@ class DgmDatabaseViewer(tk.Tk):
 		for Value in IgnoredValues:
 			self.IgnoredList.insert(tk.END, Value)
 		self.IgnoredCountLabel.configure(text=f"{len(IgnoredValues)} ignored items")
+
+
+class CatalogNodeEditDialog(tk.Toplevel):
+	def __init__(self, Parent: tk.Tk, Node: XmlTree.Element) -> None:
+		super().__init__(Parent)
+		self.Result: Optional[Dict[str, str]] = None
+		self.title("Modify database node")
+		self.transient(Parent)
+		self.grab_set()
+		self.resizable(False, False)
+		self.columnconfigure(1, weight=1)
+
+		self._Entries: Dict[str, tk.Entry] = {}
+		Row = 0
+		for Key, Label, Value in self._BuildFields(Node):
+			ttk.Label(self, text=Label).grid(row=Row, column=0, sticky="w", padx=(10, 6), pady=4)
+			Entry = ttk.Entry(self, width=42)
+			Entry.insert(0, Value)
+			Entry.grid(row=Row, column=1, sticky="ew", padx=(0, 10), pady=4)
+			self._Entries[Key] = Entry
+			Row += 1
+
+		ButtonFrame = ttk.Frame(self)
+		ButtonFrame.grid(row=Row, column=0, columnspan=2, sticky="e", padx=10, pady=(8, 10))
+		ttk.Button(ButtonFrame, text="Cancel", command=self._Cancel).grid(row=0, column=0, padx=(0, 6))
+		ttk.Button(ButtonFrame, text="Save", command=self._Save).grid(row=0, column=1)
+
+		self.bind("<Escape>", lambda _Event: self._Cancel())
+		self.bind("<Return>", lambda _Event: self._Save())
+		self.protocol("WM_DELETE_WINDOW", self._Cancel)
+		self._Entries["text"].focus_set()
+		self.wait_window(self)
+
+	def _BuildFields(self, Node: XmlTree.Element) -> list[tuple[str, str, str]]:
+		DgmNode = Node.find("dgm")
+		SourceNode = DgmNode if DgmNode is not None else Node
+		Fields = [
+			("text", "Display text", Node.get("text", Node.get("name", ""))),
+			("name", "Name", Node.get("name", "")),
+		]
+		if Node.tag == "regex":
+			Fields.append(("pattern", "Regex pattern", Node.get("pattern", "")))
+		for MetalKey, MetalName in dgm_database.METALS:
+			Fields.append((MetalKey, f"{MetalName} g", SourceNode.get(f"{MetalKey}_g", "0")))
+		return Fields
+
+	def _Save(self) -> None:
+		try:
+			for MetalKey, _ in dgm_database.METALS:
+				dgm_database.ReadDecimal(self._Entries[MetalKey].get())
+		except decimal.InvalidOperation as Error:
+			tkinter.messagebox.showerror(WINDOW_TITLE, f"Invalid decimal value: {Error}", parent=self)
+			return
+
+		self.Result = {Key: Entry.get() for Key, Entry in self._Entries.items()}
+		self.destroy()
+
+	def _Cancel(self) -> None:
+		self.Result = None
+		self.destroy()
+
+
+class MoveCatalogNodeDialog(tk.Toplevel):
+	def __init__(self, Parent: tk.Tk, CurrentParentPath: str) -> None:
+		super().__init__(Parent)
+		self.Result: Optional[str] = None
+		self.title("Move catalog node")
+		self.transient(Parent)
+		self.grab_set()
+		self.resizable(False, False)
+		self.columnconfigure(1, weight=1)
+
+		ttk.Label(self, text="New parent path").grid(row=0, column=0, sticky="w", padx=(10, 6), pady=(10, 4))
+		self.PathEntry = ttk.Entry(self, width=48)
+		self.PathEntry.insert(0, CurrentParentPath)
+		self.PathEntry.grid(row=0, column=1, sticky="ew", padx=(0, 10), pady=(10, 4))
+		ttk.Label(self, text="Use / between parent nodes. Leave empty for catalog root.").grid(row=1, column=0, columnspan=2, sticky="w", padx=10, pady=(0, 8))
+
+		ButtonFrame = ttk.Frame(self)
+		ButtonFrame.grid(row=2, column=0, columnspan=2, sticky="e", padx=10, pady=(0, 10))
+		ttk.Button(ButtonFrame, text="Cancel", command=self._Cancel).grid(row=0, column=0, padx=(0, 6))
+		ttk.Button(ButtonFrame, text="Move", command=self._Move).grid(row=0, column=1)
+
+		self.bind("<Escape>", lambda _Event: self._Cancel())
+		self.bind("<Return>", lambda _Event: self._Move())
+		self.protocol("WM_DELETE_WINDOW", self._Cancel)
+		self.PathEntry.focus_set()
+		self.wait_window(self)
+
+	def _Move(self) -> None:
+		self.Result = self.PathEntry.get().strip()
+		self.destroy()
+
+	def _Cancel(self) -> None:
+		self.Result = None
+		self.destroy()
 
 
 def SelectDatabaseWithDialog() -> Optional[Path]:

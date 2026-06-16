@@ -489,6 +489,66 @@ class DgmDatabase:
 				Infos.append(SiblingInfo(Index, "regex", Child.get("text", ""), Child.get("pattern", ""), Child.find("dgm") is not None))
 		return Infos
 
+	def GetNodePathParts(self, Node: XmlTree.Element) -> List[str]:
+		PathParts: List[str] = []
+		Found = False
+
+		def Walk(Parent: XmlTree.Element, Parts: List[str]) -> None:
+			nonlocal PathParts, Found
+			if Found:
+				return
+			for Child in list(Parent):
+				if Child.tag not in ("node", "regex"):
+					continue
+				ChildParts = Parts + [Child.get("text", Child.get("name", Child.tag))]
+				if Child is Node:
+					PathParts = ChildParts
+					Found = True
+					return
+				Walk(Child, ChildParts)
+
+		Walk(self.CatalogNode, [])
+		return PathParts
+
+	def FindCatalogParentOfNode(self, Node: XmlTree.Element) -> Optional[XmlTree.Element]:
+		if Node is self.CatalogNode:
+			return None
+
+		def Walk(Parent: XmlTree.Element) -> Optional[XmlTree.Element]:
+			for Child in list(Parent):
+				if Child is Node:
+					return Parent
+				if Child.tag in ("node", "regex"):
+					FoundParent = Walk(Child)
+					if FoundParent is not None:
+						return FoundParent
+			return None
+
+		return Walk(self.CatalogNode)
+
+	def IsCatalogDescendant(self, CandidateParent: XmlTree.Element, Node: XmlTree.Element) -> bool:
+		for Child in list(Node):
+			if Child is CandidateParent:
+				return True
+			if Child.tag in ("node", "regex") and self.IsCatalogDescendant(CandidateParent, Child):
+				return True
+		return False
+
+	def MoveCatalogNode(self, Node: XmlTree.Element, NewParentPathParts: Sequence[str]) -> None:
+		if Node is self.CatalogNode or Node.tag not in ("node", "regex"):
+			raise RuntimeError("Only catalog node and regex entries can be moved")
+
+		OldParent = self.FindCatalogParentOfNode(Node)
+		if OldParent is None:
+			raise RuntimeError("Selected catalog entry is not attached to the database")
+
+		NewParent = self.FindOrCreateParent(NewParentPathParts)
+		if NewParent is Node or self.IsCatalogDescendant(NewParent, Node):
+			raise RuntimeError("Cannot move a catalog entry under itself or one of its children")
+
+		OldParent.remove(Node)
+		NewParent.append(Node)
+
 	def IsIgnoredText(self, Text: str) -> bool:
 		Key = NormalizeText(Text)
 		if not Key:
