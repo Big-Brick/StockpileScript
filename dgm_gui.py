@@ -80,7 +80,17 @@ class DgmDatabaseViewer(tk.Tk):
 		Parent.columnconfigure(0, weight=1)
 		Parent.rowconfigure(1, weight=1)
 
-		ttk.Label(Parent, text="Component database", style="Heading.TLabel").grid(row=0, column=0, sticky="w", pady=(0, 4))
+		HeaderFrame = ttk.Frame(Parent)
+		HeaderFrame.grid(row=0, column=0, sticky="ew", pady=(0, 4))
+		HeaderFrame.columnconfigure(1, weight=1)
+
+		ttk.Label(HeaderFrame, text="Component database", style="Heading.TLabel").grid(row=0, column=0, sticky="w", padx=(0, 10))
+		self.SearchEntry = ttk.Entry(HeaderFrame)
+		self.SearchEntry.grid(row=0, column=1, sticky="ew", padx=(0, 6))
+		ttk.Button(HeaderFrame, text="Search", command=self._SearchCatalog).grid(row=0, column=2)
+		self.SearchStatusLabel = ttk.Label(Parent, text="Enter a component name and click Search to test exact and partial matches.")
+		self.SearchStatusLabel.grid(row=3, column=0, sticky="ew", pady=(4, 0))
+		self.SearchEntry.bind("<Return>", lambda _Event: self._SearchCatalog())
 
 		Columns = ("kind", "name", "gold", "silver", "platinum", "mpg", "pattern")
 		self.CatalogTree = ttk.Treeview(Parent, columns=Columns, show="tree headings", selectmode="browse")
@@ -287,6 +297,33 @@ class DgmDatabaseViewer(tk.Tk):
 			return
 
 		self._PopulateCatalogTree()
+
+
+	def _SearchCatalog(self) -> None:
+		SearchText = self.SearchEntry.get().strip()
+		if not SearchText:
+			self.SearchStatusLabel.configure(text="Enter a component name to search.")
+			return
+
+		Result = self.Database.FindElement(SearchText)
+		Messages: List[str] = []
+		if Result.Record is not None:
+			MatchType = "regex" if Result.MatchedByRegex else "exact"
+			Messages.append(f"Found {MatchType} match: {Result.Record.DisplayName}")
+		else:
+			Messages.append("No exact match found.")
+
+		PartialMatches = Result.PartialMatches or []
+		if PartialMatches:
+			PartialText = "; ".join(
+				f"{Match.DisplayName}{' (has DGM)' if Match.HasDgm else ''}"
+				for Match in PartialMatches
+			)
+			Messages.append(f"Partial matches: {PartialText}")
+		else:
+			Messages.append("No partial matches.")
+
+		self.SearchStatusLabel.configure(text=" ".join(Messages))
 
 	def _PopulateIgnoredList(self) -> None:
 		self.IgnoredList.delete(0, tk.END)
