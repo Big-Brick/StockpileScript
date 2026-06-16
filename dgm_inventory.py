@@ -24,9 +24,7 @@ import dgm_database
 try:
 	import openpyxl
 except ImportError:
-	print("Missing dependency: openpyxl", file=sys.stderr)
-	print("Install it with: pip install openpyxl", file=sys.stderr)
-	sys.exit(2)
+	openpyxl = None  # type: ignore[assignment]
 
 
 CREATE_BACKUP = False
@@ -279,6 +277,9 @@ def FormatRange(Column: str, Start: int, End: int) -> str:
 
 
 def ProcessWorkbook(FilePath: Path, Db: dgm_database.DgmDatabase) -> Tuple[int, int]:
+	if openpyxl is None:
+		raise RuntimeError("Missing dependency: openpyxl. Install it with: pip install openpyxl")
+
 	Workbook = openpyxl.load_workbook(FilePath, data_only=False)
 	Sheet = Workbook.active
 
@@ -378,6 +379,10 @@ def ResolveFolderArgument(Argument: Optional[str]) -> Optional[Path]:
 def Main() -> int:
 	if len(sys.argv) not in (2, 3):
 		print("Usage: python dgm_inventory.py database.xml [folder_with_xlsx_files]", file=sys.stderr)
+		return 2
+	if openpyxl is None:
+		print("Missing dependency: openpyxl", file=sys.stderr)
+		print("Install it with: pip install openpyxl", file=sys.stderr)
 		return 2
 
 	DatabasePath = Path(sys.argv[1]).expanduser().resolve()
