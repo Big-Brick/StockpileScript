@@ -308,20 +308,26 @@ class DgmDatabaseViewer(tk.Tk):
 	def _ApplyCatalogNodeChanges(self, Node: XmlTree.Element, Values: Dict[str, str]) -> None:
 		Text = Values["text"]
 		Name = Values["name"]
+		NodeKind = Values["kind"]
 		if not Text:
 			raise RuntimeError("Display text is required")
+		if NodeKind not in ("node", "regex"):
+			raise RuntimeError("Unsupported catalog node type")
 
+		Node.tag = NodeKind
 		Node.set("text", Text)
 		if Name:
 			Node.set("name", Name)
 		elif "name" in Node.attrib:
 			del Node.attrib["name"]
 
-		if Node.tag == "regex":
+		if NodeKind == "regex":
 			Pattern = Values["pattern"]
 			if not Pattern:
 				raise RuntimeError("Regex pattern is required for regex nodes")
 			Node.set("pattern", Pattern)
+		elif "pattern" in Node.attrib:
+			del Node.attrib["pattern"]
 
 		DgmNode = self.Database.EnsureChild(Node, "dgm")
 		for MetalKey, _ in dgm_database.METALS:
@@ -515,7 +521,16 @@ class CatalogNodeEditDialog(tk.Toplevel):
 		self.columnconfigure(1, weight=1)
 
 		self._Entries: Dict[str, tk.Entry] = {}
+		self._Kind = tk.StringVar(value="regex" if Node.tag == "regex" else "node")
+
 		Row = 0
+		ttk.Label(self, text="Node type").grid(row=Row, column=0, sticky="w", padx=(10, 6), pady=4)
+		TypeFrame = ttk.Frame(self)
+		TypeFrame.grid(row=Row, column=1, sticky="w", padx=(0, 10), pady=4)
+		ttk.Radiobutton(TypeFrame, text="Regular node", variable=self._Kind, value="node", command=self._UpdatePatternState).grid(row=0, column=0, sticky="w", padx=(0, 10))
+		ttk.Radiobutton(TypeFrame, text="Regex node", variable=self._Kind, value="regex", command=self._UpdatePatternState).grid(row=0, column=1, sticky="w")
+		Row += 1
+
 		for Key, Label, Value in self._BuildFields(Node):
 			ttk.Label(self, text=Label).grid(row=Row, column=0, sticky="w", padx=(10, 6), pady=4)
 			Entry = ttk.Entry(self, width=42)
@@ -523,6 +538,7 @@ class CatalogNodeEditDialog(tk.Toplevel):
 			Entry.grid(row=Row, column=1, sticky="ew", padx=(0, 10), pady=4)
 			self._Entries[Key] = Entry
 			Row += 1
+		self._UpdatePatternState()
 
 		ButtonFrame = ttk.Frame(self)
 		ButtonFrame.grid(row=Row, column=0, columnspan=2, sticky="e", padx=10, pady=(8, 10))
@@ -541,12 +557,18 @@ class CatalogNodeEditDialog(tk.Toplevel):
 		Fields = [
 			("text", "Display text", Node.get("text", Node.get("name", ""))),
 			("name", "Name", Node.get("name", "")),
+			("pattern", "Regex pattern", Node.get("pattern", "")),
 		]
-		if Node.tag == "regex":
-			Fields.append(("pattern", "Regex pattern", Node.get("pattern", "")))
 		for MetalKey, MetalName in dgm_database.METALS:
 			Fields.append((MetalKey, f"{MetalName} g", SourceNode.get(f"{MetalKey}_g", "0")))
 		return Fields
+
+	def _UpdatePatternState(self) -> None:
+		PatternEntry = self._Entries.get("pattern")
+		if PatternEntry is None:
+			return
+		State = "normal" if self._Kind.get() == "regex" else "disabled"
+		PatternEntry.configure(state=State)
 
 	def _Save(self) -> None:
 		try:
@@ -557,6 +579,7 @@ class CatalogNodeEditDialog(tk.Toplevel):
 			return
 
 		self.Result = {Key: Entry.get() for Key, Entry in self._Entries.items()}
+		self.Result["kind"] = self._Kind.get()
 		self.destroy()
 
 	def _Cancel(self) -> None:
