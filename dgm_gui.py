@@ -140,10 +140,11 @@ class DgmDatabaseViewer(tk.Tk):
 		self.SearchStatusLabel.grid(row=3, column=0, sticky="ew", pady=(4, 0))
 		self.SearchEntry.bind("<Return>", lambda _Event: self._SearchCatalog())
 
-		Columns = ("kind", "name", "gold", "silver", "platinum", "mpg", "pattern")
+		Columns = ("kind", "optional", "name", "gold", "silver", "platinum", "mpg", "pattern")
 		self.CatalogTree = ttk.Treeview(Parent, columns=Columns, show="tree headings", selectmode="browse")
 		self.CatalogTree.heading("#0", text="Component / structure")
 		self.CatalogTree.heading("kind", text="Type")
+		self.CatalogTree.heading("optional", text="Optional")
 		self.CatalogTree.heading("name", text="Name")
 		self.CatalogTree.heading("gold", text="Gold g")
 		self.CatalogTree.heading("silver", text="Silver g")
@@ -153,6 +154,7 @@ class DgmDatabaseViewer(tk.Tk):
 
 		self.CatalogTree.column("#0", width=260, minwidth=180, stretch=True)
 		self.CatalogTree.column("kind", width=85, minwidth=65, anchor="center", stretch=False)
+		self.CatalogTree.column("optional", width=75, minwidth=65, anchor="center", stretch=False)
 		self.CatalogTree.column("name", width=180, minwidth=120, stretch=True)
 		for Column in ("gold", "silver", "platinum", "mpg"):
 			self.CatalogTree.column(Column, width=90, minwidth=70, anchor="e", stretch=False)
@@ -204,13 +206,13 @@ class DgmDatabaseViewer(tk.Tk):
 		for Item in self.CatalogTree.get_children():
 			self.CatalogTree.delete(Item)
 
-		CatalogRoot = self.CatalogTree.insert("", "end", text="catalog", values=("root", "", "", "", "", "", ""), open=True)
+		CatalogRoot = self.CatalogTree.insert("", "end", text="catalog", values=("root", "", "", "", "", "", "", ""), open=True)
 		for Child in list(self.Database.CatalogNode):
 			self._InsertCatalogNode(CatalogRoot, Child)
 
 		LegacyElements = self.Database.LegacyElementsNode.findall("element")
 		if LegacyElements:
-			LegacyRoot = self.CatalogTree.insert("", "end", text="legacy elements", values=("legacy", "", "", "", "", "", ""), open=True)
+			LegacyRoot = self.CatalogTree.insert("", "end", text="legacy elements", values=("legacy", "", "", "", "", "", "", ""), open=True)
 			for ElementNode in LegacyElements:
 				self._InsertLegacyElement(LegacyRoot, ElementNode)
 
@@ -240,6 +242,7 @@ class DgmDatabaseViewer(tk.Tk):
 			text=Text,
 			values=(
 				"regex" if Node.tag == "regex" else "node",
+				"yes" if dgm_database.IsOptionalNode(Node) else "",
 				Node.get("name", ""),
 				*self._ReadDgmColumns(Node),
 				Node.get("pattern", ""),
@@ -256,7 +259,7 @@ class DgmDatabaseViewer(tk.Tk):
 			ParentItem,
 			"end",
 			text=Name,
-			values=("legacy", Name, *self._ReadDgmColumns(Node), ""),
+			values=("legacy", "", Name, *self._ReadDgmColumns(Node), ""),
 		)
 
 	def _ReadDgmColumns(self, Node: XmlTree.Element) -> tuple[str, str, str, str]:
@@ -320,6 +323,8 @@ class DgmDatabaseViewer(tk.Tk):
 			Node.set("name", Name)
 		elif "name" in Node.attrib:
 			del Node.attrib["name"]
+
+		dgm_database.SetOptionalNode(Node, NodeKind == "node" and Values.get("optional") == "true")
 
 		if NodeKind == "regex":
 			Pattern = Values["pattern"]
@@ -522,13 +527,19 @@ class CatalogNodeEditDialog(tk.Toplevel):
 
 		self._Entries: Dict[str, tk.Entry] = {}
 		self._Kind = tk.StringVar(value="regex" if Node.tag == "regex" else "node")
+		self._Optional = tk.BooleanVar(value=dgm_database.IsOptionalNode(Node))
 
 		Row = 0
 		ttk.Label(self, text="Node type").grid(row=Row, column=0, sticky="w", padx=(10, 6), pady=4)
 		TypeFrame = ttk.Frame(self)
 		TypeFrame.grid(row=Row, column=1, sticky="w", padx=(0, 10), pady=4)
-		ttk.Radiobutton(TypeFrame, text="Regular node", variable=self._Kind, value="node", command=self._UpdatePatternState).grid(row=0, column=0, sticky="w", padx=(0, 10))
-		ttk.Radiobutton(TypeFrame, text="Regex node", variable=self._Kind, value="regex", command=self._UpdatePatternState).grid(row=0, column=1, sticky="w")
+		ttk.Radiobutton(TypeFrame, text="Regular node", variable=self._Kind, value="node", command=self._UpdateNodeState).grid(row=0, column=0, sticky="w", padx=(0, 10))
+		ttk.Radiobutton(TypeFrame, text="Regex node", variable=self._Kind, value="regex", command=self._UpdateNodeState).grid(row=0, column=1, sticky="w")
+		Row += 1
+
+		ttk.Label(self, text="Optional").grid(row=Row, column=0, sticky="w", padx=(10, 6), pady=4)
+		self._OptionalCheck = ttk.Checkbutton(self, text="Search children even when this node text is absent", variable=self._Optional)
+		self._OptionalCheck.grid(row=Row, column=1, sticky="w", padx=(0, 10), pady=4)
 		Row += 1
 
 		for Key, Label, Value in self._BuildFields(Node):
@@ -538,7 +549,7 @@ class CatalogNodeEditDialog(tk.Toplevel):
 			Entry.grid(row=Row, column=1, sticky="ew", padx=(0, 10), pady=4)
 			self._Entries[Key] = Entry
 			Row += 1
-		self._UpdatePatternState()
+		self._UpdateNodeState()
 
 		ButtonFrame = ttk.Frame(self)
 		ButtonFrame.grid(row=Row, column=0, columnspan=2, sticky="e", padx=10, pady=(8, 10))
@@ -563,12 +574,14 @@ class CatalogNodeEditDialog(tk.Toplevel):
 			Fields.append((MetalKey, f"{MetalName} g", SourceNode.get(f"{MetalKey}_g", "0")))
 		return Fields
 
-	def _UpdatePatternState(self) -> None:
+	def _UpdateNodeState(self) -> None:
+		IsRegex = self._Kind.get() == "regex"
 		PatternEntry = self._Entries.get("pattern")
-		if PatternEntry is None:
-			return
-		State = "normal" if self._Kind.get() == "regex" else "disabled"
-		PatternEntry.configure(state=State)
+		if PatternEntry is not None:
+			PatternEntry.configure(state="normal" if IsRegex else "disabled")
+		self._OptionalCheck.configure(state="disabled" if IsRegex else "normal")
+		if IsRegex:
+			self._Optional.set(False)
 
 	def _Save(self) -> None:
 		try:
@@ -580,6 +593,7 @@ class CatalogNodeEditDialog(tk.Toplevel):
 
 		self.Result = {Key: Entry.get() for Key, Entry in self._Entries.items()}
 		self.Result["kind"] = self._Kind.get()
+		self.Result["optional"] = "true" if self._Optional.get() else "false"
 		self.destroy()
 
 	def _Cancel(self) -> None:
