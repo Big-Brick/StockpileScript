@@ -433,7 +433,7 @@ class AddElementDialog(tk.Toplevel):
 			return
 		self.PathList.delete(0, tk.END)
 		PathParts = self.Db.GetNodePathParts(Candidate.Node)
-		LeafRemainder = self._GetNameRemainderAfterCandidatePath(PathParts)
+		LeafRemainder = Candidate.Remainder.strip() or self._GetNameRemainderAfterCandidatePath(PathParts)
 		for Part in PathParts + [LeafRemainder]:
 			self.PathList.insert(tk.END, Part)
 

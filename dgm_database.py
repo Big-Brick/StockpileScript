@@ -102,6 +102,7 @@ class PartialElementMatch:
 	DisplayName: str
 	MatchedByRegex: bool = False
 	HasDgm: bool = False
+	Remainder: str = ""
 
 
 @dataclass
@@ -290,6 +291,7 @@ class DgmDatabase:
 						DisplayName=" => ".join(PathTexts),
 						MatchedByRegex=MatchedRegex,
 						HasDgm=DgmNode is not None,
+						Remainder=self._GetOriginalRemainder(NormalizedName, OriginalName, MatchedLength),
 					)
 
 			if Remaining == "" and PathTexts:
@@ -325,6 +327,15 @@ class DgmDatabase:
 						continue
 					States.append((Child, Remaining[len(MatchedPart):], True, PathTexts + [MatchedPart or Child.get("text", Pattern)]))
 		return ElementSearchResult(BestRecord, BestRegexState, list(PartialMatchesByNode.values()))
+
+	def _GetOriginalRemainder(self, NormalizedName: str, OriginalName: str, MatchedLength: int) -> str:
+		if MatchedLength <= 0:
+			return OriginalName
+		if MatchedLength >= len(NormalizedName):
+			return ""
+		if len(OriginalName) >= MatchedLength and NormalizeText(OriginalName[:MatchedLength]) == NormalizedName[:MatchedLength]:
+			return OriginalName[MatchedLength:]
+		return NormalizedName[MatchedLength:]
 
 	def _FindEmptyRegexChildRecord(self, Parent: XmlTree.Element, PathTexts: List[str], OriginalName: str) -> Optional[ElementRecord]:
 		for Child in list(Parent):

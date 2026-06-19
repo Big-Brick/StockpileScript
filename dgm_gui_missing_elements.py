@@ -258,7 +258,10 @@ class MissingElementsMixin:
 			GroupKey = "match:" + dgm_database.NormalizeText(Best[0].DisplayName)
 			Title = Best[0].DisplayName
 			InitialPathParts = self.Database.GetNodePathParts(Best[0].Node)
-			if Best[0] is not Matches[0] or Item.Name.casefold() != "".join(InitialPathParts).casefold():
+			Remainder = Best[0].Remainder.strip()
+			if Remainder:
+				InitialPathParts = InitialPathParts + [Remainder]
+			elif Best[0] is not Matches[0] and Item.Name.casefold() != "".join(InitialPathParts).casefold():
 				InitialPathParts = InitialPathParts + [Item.Name]
 		else:
 			Simple = Item.Name[:1].upper() if Item.Name else "#"
