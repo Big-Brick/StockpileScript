@@ -434,6 +434,7 @@
                 <alias>перемикачі</alias>
                 <alias>переключатель</alias>
                 <alias>переключатели</alias>
+                <alias>мікрокнопка</alias>
                 <alias>тумблер</alias>
                 <alias>кнопка</alias>
                 <alias>клавіша</alias>
@@ -583,13 +584,23 @@
             <replacement>КМ-$1-$2</replacement>
         </rule>
         <rule id="km_subtype_latin_a_to_cyrillic" enabled="true">
-            <description>Normalize lowercase Latin a to Cyrillic а in КМ subtype like КМ-5a-Н90</description>
+            <description>Normalize Latin a/A to lowercase Cyrillic а in КМ subtype like КМ-5a-Н90</description>
             <pattern>\bКМ-(\d+)a(?=-)</pattern>
             <replacement>КМ-$1а</replacement>
         </rule>
         <rule id="km_subtype_latin_b_to_cyrillic" enabled="true">
-            <description>Normalize lowercase Latin b to Cyrillic б in КМ subtype like КМ-5b-Н90</description>
+            <description>Normalize Latin b/B to lowercase Cyrillic б in КМ subtype like КМ-5b-Н90</description>
             <pattern>\bКМ-(\d+)b(?=-)</pattern>
+            <replacement>КМ-$1б</replacement>
+        </rule>
+        <rule id="km_subtype_cyrillic_a_to_lowercase" enabled="true">
+            <description>Normalize Cyrillic А to lowercase а in КМ subtype like КМ-5А-Н90</description>
+            <pattern>\bКМ-(\d+)А(?=-)</pattern>
+            <replacement>КМ-$1а</replacement>
+        </rule>
+        <rule id="km_subtype_cyrillic_b_to_lowercase" enabled="true">
+            <description>Normalize Cyrillic Б to lowercase б in КМ subtype like КМ-5Б-Н90</description>
+            <pattern>\bКМ-(\d+)Б(?=-)</pattern>
             <replacement>КМ-$1б</replacement>
         </rule>
         <rule id="km_temperature_remove_internal_space" enabled="true">
