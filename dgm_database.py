@@ -291,10 +291,10 @@ class DgmDatabase:
 				if Child.tag == "node":
 					ChildText = Child.get("text", "")
 					ChildKey = NormalizeStructureText(ChildText)
-					if IsOptionalNode(Child):
-						States.append((Child, Remaining, MatchedRegex, PathTexts + [FormatOptionalPathText(ChildText)]))
 					if ChildKey and Remaining.startswith(ChildKey):
 						States.append((Child, Remaining[len(ChildKey):], MatchedRegex, PathTexts + [ChildText]))
+					elif IsOptionalNode(Child):
+						States.append((Child, Remaining, MatchedRegex, PathTexts + [FormatOptionalPathText(ChildText)]))
 				elif Child.tag == "regex":
 					Pattern = Child.get("pattern", "")
 					if not Pattern:
