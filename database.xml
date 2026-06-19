@@ -232,6 +232,16 @@
 				<node text="ДВЧТ-3" name="Дроссель ДВЧТ-3">
 					<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
 				</node>
+				<node text="ВЧ">
+					<regex pattern="^.*$" text=".*" name="Дросель ВЧ ПБТ4.712.002">
+						<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
+					</regex>
+				</node>
+				<node text="Д">
+					<regex pattern="^.*$" text=".*" name="Дросель Д313">
+						<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
+					</regex>
+				</node>
 			</node>
 			<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
 		</node>
@@ -995,6 +1005,7 @@
 						<regex pattern="^.*$" text=".*" name="К50-6-1-15 В-20 мкФ">
 							<dgm gold_g="0" silver_g="0.000557" platinum_g="0" mpg_g="0" />
 						</regex>
+						<dgm gold_g="0" silver_g="0.026" platinum_g="0" mpg_g="0" />
 					</node>
 					<node text="24" name="К50-24">
 						<dgm gold_g="0" silver_g="0.0003" platinum_g="0" mpg_g="0" />
@@ -1013,12 +1024,18 @@
 							<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
 						</regex>
 					</node>
+					<node text="29" name="Конденсатор К50-29">
+						<dgm gold_g="0" silver_g="0.0084" platinum_g="0" mpg_g="0" />
+					</node>
 				</node>
 				<node text="К53-">
 					<node text="14" name="К53-14">
 						<regex pattern="^.*$" text=".*" name="К53-14В">
 							<dgm gold_g="0" silver_g="0.0086" platinum_g="0" mpg_g="0" />
 						</regex>
+						<dgm gold_g="0" silver_g="0.0086" platinum_g="0" mpg_g="0" />
+					</node>
+					<node text="1" name="Конденсатор К53-1">
 						<dgm gold_g="0" silver_g="0.0086" platinum_g="0" mpg_g="0" />
 					</node>
 				</node>
@@ -1045,6 +1062,9 @@
 						<regex pattern="^.*$" text=".*" name="К73-9-100в-0,01 мкФ">
 							<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
 						</regex>
+						<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
+					</node>
+					<node text="15" name="Конденсатор К73-15">
 						<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
 					</node>
 				</node>
