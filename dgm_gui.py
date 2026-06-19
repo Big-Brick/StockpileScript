@@ -730,6 +730,8 @@ class XlsxReviewWindow(tk.Toplevel):
 		self.Index = Index
 		self.MissingItems = list(Result.Missing)
 		self.ConflictItems = list(Result.Conflicts)
+		self.MissingSortColumn = "name"
+		self.MissingSortReverse = False
 
 		self.title(f"XLSX review - {Result.FilePath.name}")
 		self.geometry("1100x620")
@@ -767,8 +769,8 @@ class XlsxReviewWindow(tk.Toplevel):
 		Parent.rowconfigure(1, weight=1)
 		ttk.Label(Parent, text="Missing database elements", style="Heading.TLabel").grid(row=0, column=0, sticky="w")
 		self.MissingTree = ttk.Treeview(Parent, columns=("row", "name"), show="headings", selectmode="browse")
-		self.MissingTree.heading("row", text="Row")
-		self.MissingTree.heading("name", text="Element text")
+		self.MissingTree.heading("row", text="Row", command=lambda: self.SortMissingTree("row"))
+		self.MissingTree.heading("name", text="Element text", command=lambda: self.SortMissingTree("name"))
 		self.MissingTree.column("row", width=70, stretch=False, anchor="e")
 		self.MissingTree.column("name", width=360, stretch=True)
 		self.MissingTree.grid(row=1, column=0, sticky="nsew", pady=4)
@@ -779,6 +781,37 @@ class XlsxReviewWindow(tk.Toplevel):
 		ttk.Button(Buttons, text="Add to database...", command=self._AddMissingToDatabase).grid(row=0, column=0, padx=(0, 6))
 		ttk.Button(Buttons, text="Add to ignore list", command=self._IgnoreMissing).grid(row=0, column=1, padx=(0, 6))
 		ttk.Button(Buttons, text="Rename in XLSX...", command=self._RenameMissing).grid(row=0, column=2)
+		self.SortMissingTree("name")
+
+	def GetMissingTreeSortKey(self, Iid, Column):
+		Value = self.MissingTree.set(Iid, Column)
+
+		if Column == "row":
+			try:
+				return int(Value)
+			except ValueError:
+				return 0
+
+		return str(Value).casefold()
+
+	def SortMissingTree(self, Column):
+		if self.MissingSortColumn == Column:
+			Reverse = not self.MissingSortReverse
+		else:
+			Reverse = False
+
+		Rows = list(self.MissingTree.get_children(""))
+
+		Rows.sort(
+			key=lambda Iid: self.GetMissingTreeSortKey(Iid, Column),
+			reverse=Reverse
+		)
+
+		for Index, Iid in enumerate(Rows):
+			self.MissingTree.move(Iid, "", Index)
+
+		self.MissingSortColumn = Column
+		self.MissingSortReverse = Reverse
 
 	def _BuildConflictPane(self, Parent: ttk.Frame) -> None:
 		Parent.columnconfigure(0, weight=1)
