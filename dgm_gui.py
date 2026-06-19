@@ -76,14 +76,15 @@ class GuiAddElementResult:
 WINDOW_TITLE = "DGM Database Editor"
 
 
-class DgmDatabaseViewer(tk.Tk):
-	def __init__(self, DatabasePath: Path) -> None:
-		super().__init__()
-		self.DatabasePath = DatabasePath
-		self.Database = dgm_database.OpenDatabase(DatabasePath)
+class DgmDatabaseViewer(tk.Toplevel):
+	def __init__(self, Parent: tk.Tk) -> None:
+		super().__init__(Parent)
+		self.ParentApplication = Parent
+		self.DatabasePath = Parent.DatabasePath  # type: ignore[attr-defined]
+		self.Database = Parent.Database  # type: ignore[attr-defined]
 		self.CatalogItems: Dict[str, XmlTree.Element] = {}
 
-		self.title(f"{WINDOW_TITLE} - {DatabasePath.name}")
+		self.title(f"{WINDOW_TITLE} - {self.DatabasePath.name}")
 		self.geometry("1100x700")
 		self.minsize(850, 500)
 
@@ -108,10 +109,6 @@ class DgmDatabaseViewer(tk.Tk):
 
 		ttk.Label(Header, text="Database:", style="Heading.TLabel").grid(row=0, column=0, sticky="w")
 		ttk.Label(Header, text=str(self.DatabasePath)).grid(row=0, column=1, sticky="w", padx=(6, 0))
-		ButtonFrame = ttk.Frame(Header)
-		ButtonFrame.grid(row=0, column=2, sticky="e")
-		ttk.Button(ButtonFrame, text="Fill XLSX file...", command=self._SelectAndProcessXlsxFile).grid(row=0, column=0, padx=(0, 6))
-		ttk.Button(ButtonFrame, text="Fill XLSX folder...", command=self._SelectAndProcessXlsxFolder).grid(row=0, column=1)
 
 		Content = ttk.PanedWindow(self, orient=tk.HORIZONTAL)
 		Content.grid(row=1, column=0, sticky="nsew", padx=10, pady=(4, 10))
@@ -513,6 +510,67 @@ class DgmDatabaseViewer(tk.Tk):
 		for Value in IgnoredValues:
 			self.IgnoredList.insert(tk.END, Value)
 		self.IgnoredCountLabel.configure(text=f"{len(IgnoredValues)} ignored items")
+
+
+class DgmMainWindow(tk.Tk):
+	def __init__(self, DatabasePath: Path) -> None:
+		super().__init__()
+		self.DatabasePath = DatabasePath
+		self.Database = dgm_database.OpenDatabase(DatabasePath)
+		self.DatabaseEditor: Optional[DgmDatabaseViewer] = None
+
+		self.title(f"DGM Inventory Tools - {DatabasePath.name}")
+		self.geometry("360x180")
+		self.minsize(320, 160)
+
+		self._ConfigureStyle()
+		self._BuildLayout()
+
+	def _ConfigureStyle(self) -> None:
+		Style = ttk.Style(self)
+		if "clam" in Style.theme_names():
+			Style.theme_use("clam")
+		Style.configure("Heading.TLabel", font=("TkDefaultFont", 10, "bold"))
+
+	def _BuildLayout(self) -> None:
+		self.columnconfigure(0, weight=1)
+		ttk.Label(self, text="DGM inventory tools", style="Heading.TLabel").grid(row=0, column=0, sticky="ew", padx=16, pady=(16, 8))
+		ttk.Button(self, text="Open database editor", command=self._OpenDatabaseEditor).grid(row=1, column=0, sticky="ew", padx=16, pady=4)
+		ttk.Button(self, text="Fill .xlsx file", command=self._SelectAndProcessXlsxFile).grid(row=2, column=0, sticky="ew", padx=16, pady=4)
+		ttk.Button(self, text="Fill folder", command=self._SelectAndProcessXlsxFolder).grid(row=3, column=0, sticky="ew", padx=16, pady=(4, 16))
+
+	def _OpenDatabaseEditor(self) -> None:
+		if self.DatabaseEditor is not None and self.DatabaseEditor.winfo_exists():
+			self.DatabaseEditor.lift()
+			self.DatabaseEditor.focus_force()
+			return
+		self.DatabaseEditor = DgmDatabaseViewer(self)
+		self.DatabaseEditor.protocol("WM_DELETE_WINDOW", self._CloseDatabaseEditor)
+
+	def _CloseDatabaseEditor(self) -> None:
+		if self.DatabaseEditor is not None and self.DatabaseEditor.winfo_exists():
+			self.DatabaseEditor.destroy()
+		self.DatabaseEditor = None
+
+	def _PopulateDatabaseViews(self) -> None:
+		if self.DatabaseEditor is not None and self.DatabaseEditor.winfo_exists():
+			self.DatabaseEditor._PopulateDatabaseViews()
+
+	def _PopulateIgnoredList(self) -> None:
+		if self.DatabaseEditor is not None and self.DatabaseEditor.winfo_exists():
+			self.DatabaseEditor._PopulateIgnoredList()
+
+
+for _MethodName in (
+	"_SelectAndProcessXlsxFile",
+	"_SelectAndProcessXlsxFolder",
+	"_ProcessXlsxQueue",
+	"_ProcessXlsxFile",
+	"_RowHasConflictingDgmValues",
+	"_ReadSheetDgmValue",
+	"_BuildConflict",
+):
+	setattr(DgmMainWindow, _MethodName, getattr(DgmDatabaseViewer, _MethodName))
 
 
 class CatalogNodeEditDialog(tk.Toplevel):
@@ -1164,7 +1222,7 @@ def Main() -> int:
 		return 2
 
 	try:
-		Application = DgmDatabaseViewer(DatabasePath)
+		Application = DgmMainWindow(DatabasePath)
 	except Exception as Error:
 		try:
 			tkinter.messagebox.showerror(WINDOW_TITLE, str(Error))
