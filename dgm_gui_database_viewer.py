@@ -146,12 +146,6 @@ class DgmDatabaseViewer(tk.Toplevel, XlsxProcessingMixin):
 		for Child in list(self.Database.CatalogNode):
 			self._InsertCatalogNode(CatalogRoot, Child)
 
-		LegacyElements = self.Database.LegacyElementsNode.findall("element")
-		if LegacyElements:
-			LegacyRoot = self.CatalogTree.insert("", "end", text="legacy elements", values=("legacy", "", "", "", "", "", "", ""), open=True)
-			for ElementNode in LegacyElements:
-				self._InsertLegacyElement(LegacyRoot, ElementNode)
-
 		self._SortCatalogTreeChildren()
 
 	def _SortCatalogTreeChildren(self, ParentItemId: str = "") -> None:
@@ -188,15 +182,6 @@ class DgmDatabaseViewer(tk.Toplevel, XlsxProcessingMixin):
 		self.CatalogItems[Item] = Node
 		for Child in list(Node):
 			self._InsertCatalogNode(Item, Child)
-
-	def _InsertLegacyElement(self, ParentItem: str, Node: XmlTree.Element) -> None:
-		Name = Node.get("name", "")
-		self.CatalogTree.insert(
-			ParentItem,
-			"end",
-			text=Name,
-			values=("legacy", "", Name, *self._ReadDgmColumns(Node), ""),
-		)
 
 	def _ReadDgmColumns(self, Node: XmlTree.Element) -> tuple[str, str, str, str]:
 		DgmNode = Node.find("dgm")

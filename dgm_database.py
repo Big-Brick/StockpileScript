@@ -167,11 +167,6 @@ class ElementRecord:
 		DgmNode.set("silver_g", DecimalToText(self.Values.SilverG))
 		DgmNode.set("platinum_g", DecimalToText(self.Values.PlatinumG))
 		DgmNode.set("mpg_g", DecimalToText(self.Values.MpgG))
-		if self.Node.tag == "element":
-			self.Node.set("gold_g", DecimalToText(self.Values.GoldG))
-			self.Node.set("silver_g", DecimalToText(self.Values.SilverG))
-			self.Node.set("platinum_g", DecimalToText(self.Values.PlatinumG))
-			self.Node.set("mpg_g", DecimalToText(self.Values.MpgG))
 
 
 class DgmDatabase:
@@ -182,7 +177,6 @@ class DgmDatabase:
 		self.SettingsNode: XmlTree.Element
 		self.ColumnsNode: XmlTree.Element
 		self.CatalogNode: XmlTree.Element
-		self.LegacyElementsNode: XmlTree.Element
 		self.IgnoredNode: XmlTree.Element
 		self.Columns: Columns
 
@@ -197,7 +191,6 @@ class DgmDatabase:
 		self.SettingsNode = XmlTree.SubElement(self.Root, "settings")
 		self.ColumnsNode = XmlTree.SubElement(self.SettingsNode, "columns", copy.deepcopy(DEFAULT_COLUMNS))
 		self.CatalogNode = XmlTree.SubElement(self.Root, "catalog")
-		self.LegacyElementsNode = XmlTree.SubElement(self.Root, "elements")
 		self.IgnoredNode = XmlTree.SubElement(self.Root, "ignored")
 		self.Tree = XmlTree.ElementTree(self.Root)
 		self.Columns = self.ReadColumns()
@@ -216,7 +209,8 @@ class DgmDatabase:
 		self.SettingsNode = self.EnsureChild(self.Root, "settings")
 		self.ColumnsNode = self.EnsureChild(self.SettingsNode, "columns", DEFAULT_COLUMNS)
 		self.CatalogNode = self.EnsureChild(self.Root, "catalog")
-		self.LegacyElementsNode = self.EnsureChild(self.Root, "elements")
+		for ElementsNode in self.Root.findall("elements"):
+			self.Root.remove(ElementsNode)
 		self.IgnoredNode = self.EnsureChild(self.Root, "ignored")
 		self.Columns = self.ReadColumns()
 
@@ -262,10 +256,6 @@ class DgmDatabase:
 		StructuredResult = self.FindStructuredElement(NormalizedName, Name)
 		if StructuredResult.Record is not None:
 			return StructuredResult
-
-		LegacyRecord = self.FindLegacyElement(NormalizedName)
-		if LegacyRecord is not None:
-			return ElementSearchResult(LegacyRecord, False, StructuredResult.PartialMatches)
 
 		return StructuredResult
 
@@ -352,24 +342,6 @@ class DgmDatabase:
 			if Match is None or Match.group(0) != "":
 				continue
 			return self.MakeRecord(Child, OriginalName or "".join(PathTexts), DgmNode)
-		return None
-
-	def FindLegacyElement(self, NormalizedName: str) -> Optional[ElementRecord]:
-		for Node in self.LegacyElementsNode.findall("element"):
-			Name = Node.get("name", "").strip()
-			Key = Node.get("key") or NormalizeText(Name)
-			if NormalizeText(Key) != NormalizedName:
-				continue
-
-			DgmNode = Node.find("dgm")
-			SourceNode = DgmNode if DgmNode is not None else Node
-			Values = DgmValues(
-				GoldG=ReadDecimal(SourceNode.get("gold_g", "0")),
-				SilverG=ReadDecimal(SourceNode.get("silver_g", "0")),
-				PlatinumG=ReadDecimal(SourceNode.get("platinum_g", "0")),
-				MpgG=ReadDecimal(SourceNode.get("mpg_g", "0")),
-			)
-			return ElementRecord(self, Node, Name, Values)
 		return None
 
 	def MakeRecord(self, Node: XmlTree.Element, DisplayName: str, DgmNode: Optional[XmlTree.Element]) -> ElementRecord:
