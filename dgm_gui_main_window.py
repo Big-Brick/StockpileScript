@@ -9,9 +9,10 @@ import dgm_database
 from dgm_gui_database_viewer import DgmDatabaseViewer
 from dgm_gui_xlsx_processor import XlsxProcessingMixin
 from dgm_gui_xlsx_preprocessor import XlsxPreprocessingMixin
+from dgm_gui_missing_elements import MissingElementsMixin
 
 
-class DgmMainWindow(tk.Tk, XlsxProcessingMixin, XlsxPreprocessingMixin):
+class DgmMainWindow(tk.Tk, XlsxProcessingMixin, XlsxPreprocessingMixin, MissingElementsMixin):
 	def __init__(self, DatabasePath: Path) -> None:
 		super().__init__()
 		self.DatabasePath = DatabasePath
@@ -19,8 +20,8 @@ class DgmMainWindow(tk.Tk, XlsxProcessingMixin, XlsxPreprocessingMixin):
 		self.DatabaseEditor: Optional[DgmDatabaseViewer] = None
 
 		self.title(f"DGM Inventory Tools - {DatabasePath.name}")
-		self.geometry("360x220")
-		self.minsize(320, 200)
+		self.geometry("360x300")
+		self.minsize(320, 260)
 
 		self._ConfigureStyle()
 		self._BuildLayout()
@@ -37,7 +38,9 @@ class DgmMainWindow(tk.Tk, XlsxProcessingMixin, XlsxPreprocessingMixin):
 		ttk.Button(self, text="Open database editor", command=self._OpenDatabaseEditor).grid(row=1, column=0, sticky="ew", padx=16, pady=4)
 		ttk.Button(self, text="Preprocess .xlsx file", command=self._SelectAndPreprocessXlsxFile).grid(row=2, column=0, sticky="ew", padx=16, pady=4)
 		ttk.Button(self, text="Fill .xlsx file", command=self._SelectAndProcessXlsxFile).grid(row=3, column=0, sticky="ew", padx=16, pady=4)
-		ttk.Button(self, text="Fill folder", command=self._SelectAndProcessXlsxFolder).grid(row=4, column=0, sticky="ew", padx=16, pady=(4, 16))
+		ttk.Button(self, text="Fill folder", command=self._SelectAndProcessXlsxFolder).grid(row=4, column=0, sticky="ew", padx=16, pady=4)
+		ttk.Button(self, text="List missing elements in .xlsx file", command=self._SelectAndListMissingXlsxFile).grid(row=5, column=0, sticky="ew", padx=16, pady=4)
+		ttk.Button(self, text="List missing elements in folder", command=self._SelectAndListMissingXlsxFolder).grid(row=6, column=0, sticky="ew", padx=16, pady=(4, 16))
 
 	def _OpenDatabaseEditor(self) -> None:
 		if self.DatabaseEditor is not None and self.DatabaseEditor.winfo_exists():
