@@ -283,48 +283,65 @@ class AddElementDialog(tk.Toplevel):
 		self.grab_set()
 		self.geometry("620x650")
 		self.columnconfigure(0, weight=1)
-		self.rowconfigure(4, weight=1)
-		ttk.Label(self, text=f"Element: {Name}", style="Heading.TLabel").grid(row=0, column=0, sticky="w", padx=10, pady=(10, 4))
-		self.UseCandidate = tk.BooleanVar(value=bool(self.Candidates))
-		ttk.Checkbutton(self, text="Add DGM to selected partial/existing path candidate", variable=self.UseCandidate).grid(row=1, column=0, sticky="w", padx=10)
-		self.CandidateList = tk.Listbox(self, height=4, exportselection=False)
-		self.CandidateList.grid(row=2, column=0, sticky="ew", padx=10, pady=4)
+		self.rowconfigure(3, weight=1)
+		tk.Label(self, text=f"Element: {Name}").grid(row=0, column=0, sticky="w", padx=10, pady=(10, 4))
+
+		ModeFrame = ttk.LabelFrame(self, text="Action")
+		ModeFrame.grid(row=1, column=0, sticky="ew", padx=10, pady=(0, 8))
+		self.DialogMode = tk.StringVar(value="existing" if self.Candidates else "new")
+		ttk.Radiobutton(ModeFrame, text="Add DGM values to existing database node", variable=self.DialogMode, value="existing", command=self._UpdateModeState).grid(row=0, column=0, sticky="w", padx=6, pady=4)
+		ttk.Radiobutton(ModeFrame, text="Add new database element", variable=self.DialogMode, value="new", command=self._UpdateModeState).grid(row=1, column=0, sticky="w", padx=6, pady=(0, 4))
+
+		self.ExistingFrame = ttk.LabelFrame(self, text="Existing matches without usable DGM values")
+		self.ExistingFrame.grid(row=2, column=0, sticky="ew", padx=10, pady=(0, 8))
+		self.CandidateList = tk.Listbox(self.ExistingFrame, height=5, exportselection=False)
+		self.CandidateList.grid(row=0, column=0, sticky="ew", padx=6, pady=6)
+		self.ExistingFrame.columnconfigure(0, weight=1)
 		for Candidate in self.Candidates:
-			self.CandidateList.insert(tk.END, Candidate.DisplayName)
+			Marker = "has zero DGM" if Candidate.HasDgm else "no DGM"
+			self.CandidateList.insert(tk.END, f"{Candidate.DisplayName} ({Marker})")
 		if self.Candidates:
 			self.CandidateList.selection_set(0)
-		ttk.Label(self, text="Structured node chain (one node per line)").grid(row=3, column=0, sticky="w", padx=10, pady=(8, 4))
-		self.PathList = tk.Listbox(self, height=8, exportselection=False)
-		self.PathList.grid(row=4, column=0, sticky="nsew", padx=10)
+		else:
+			self.CandidateList.insert(tk.END, "No existing node candidates found.")
+
+		self.NewFrame = ttk.Frame(self)
+		self.NewFrame.grid(row=3, column=0, sticky="nsew", padx=10)
+		self.NewFrame.columnconfigure(0, weight=1)
+		self.NewFrame.rowconfigure(1, weight=1)
+		ttk.Label(self.NewFrame, text="Structured node chain (one node per line)").grid(row=0, column=0, sticky="w", pady=(0, 4))
+		self.PathList = tk.Listbox(self.NewFrame, height=8, exportselection=False)
+		self.PathList.grid(row=1, column=0, sticky="nsew")
 		for Part in (InitialPathParts if InitialPathParts is not None else self._DefaultSplit(Name)):
 			self.PathList.insert(tk.END, Part)
 		self.PathList.bind("<<ListboxSelect>>", self._OnPathPartSelect)
-		Edit = ttk.Frame(self)
-		Edit.grid(row=5, column=0, sticky="ew", padx=10, pady=4)
+		Edit = ttk.Frame(self.NewFrame)
+		Edit.grid(row=2, column=0, sticky="ew", pady=4)
 		Edit.columnconfigure(0, weight=1)
 		self.PartEntry = ttk.Entry(Edit)
 		self.PartEntry.grid(row=0, column=0, sticky="ew", padx=(0, 6))
 		ttk.Button(Edit, text="Split by /", command=self._SplitEntry).grid(row=0, column=1, padx=(0, 6))
 		ttk.Button(Edit, text="Add", command=self._AddPart).grid(row=0, column=2, padx=(0, 6))
 		ttk.Button(Edit, text="Replace", command=self._ReplacePart).grid(row=0, column=3)
-		Controls = ttk.Frame(self)
-		Controls.grid(row=6, column=0, sticky="w", padx=10)
+		Controls = ttk.Frame(self.NewFrame)
+		Controls.grid(row=3, column=0, sticky="w")
 		ttk.Button(Controls, text="Remove", command=self._RemovePart).grid(row=0, column=0, padx=(0, 6))
-		ttk.Button(Controls, text="Use candidate as parent", command=self._UseCandidateAsParent).grid(row=0, column=1)
-		ModeFrame = ttk.LabelFrame(self, text="Add mode")
-		ModeFrame.grid(row=7, column=0, sticky="ew", padx=10, pady=(8, 0))
-		ModeFrame.columnconfigure(1, weight=1)
+		ttk.Button(Controls, text="Use existing candidate as parent", command=self._UseCandidateAsParent).grid(row=0, column=1)
+		AddModeFrame = ttk.LabelFrame(self.NewFrame, text="New element type")
+		AddModeFrame.grid(row=4, column=0, sticky="ew", pady=(8, 0))
+		AddModeFrame.columnconfigure(1, weight=1)
 		self.AddMode = tk.StringVar(value="node")
-		ttk.Radiobutton(ModeFrame, text="Exact structured node", variable=self.AddMode, value="node").grid(row=0, column=0, sticky="w", padx=(6, 12), pady=4)
-		ttk.Radiobutton(ModeFrame, text="Regex leaf node", variable=self.AddMode, value="regex").grid(row=0, column=1, sticky="w", pady=4)
-		ttk.Label(ModeFrame, text="Regex pattern").grid(row=1, column=0, sticky="w", padx=6, pady=(0, 4))
-		self.RegexPatternEntry = ttk.Entry(ModeFrame)
+		ttk.Radiobutton(AddModeFrame, text="Exact structured node", variable=self.AddMode, value="node").grid(row=0, column=0, sticky="w", padx=(6, 12), pady=4)
+		ttk.Radiobutton(AddModeFrame, text="Regex leaf node", variable=self.AddMode, value="regex").grid(row=0, column=1, sticky="w", pady=4)
+		ttk.Label(AddModeFrame, text="Regex pattern").grid(row=1, column=0, sticky="w", padx=6, pady=(0, 4))
+		self.RegexPatternEntry = ttk.Entry(AddModeFrame)
 		self.RegexPatternEntry.grid(row=1, column=1, sticky="ew", padx=(0, 6), pady=(0, 4))
-		ttk.Label(ModeFrame, text="Display text").grid(row=2, column=0, sticky="w", padx=6, pady=(0, 6))
-		self.RegexDisplayEntry = ttk.Entry(ModeFrame)
+		ttk.Label(AddModeFrame, text="Display text").grid(row=2, column=0, sticky="w", padx=6, pady=(0, 6))
+		self.RegexDisplayEntry = ttk.Entry(AddModeFrame)
 		self.RegexDisplayEntry.grid(row=2, column=1, sticky="ew", padx=(0, 6), pady=(0, 6))
+
 		Values = ttk.LabelFrame(self, text="DGM values, g")
-		Values.grid(row=8, column=0, sticky="ew", padx=10, pady=8)
+		Values.grid(row=4, column=0, sticky="ew", padx=10, pady=8)
 		self.ValueEntries: Dict[str, ttk.Entry] = {}
 		for Index, (MetalKey, MetalName) in enumerate(dgm_database.METALS):
 			ttk.Label(Values, text=MetalName).grid(row=0, column=Index, sticky="w")
@@ -333,9 +350,10 @@ class AddElementDialog(tk.Toplevel):
 			Entry.grid(row=1, column=Index, padx=(0, 6))
 			self.ValueEntries[MetalKey] = Entry
 		Buttons = ttk.Frame(self)
-		Buttons.grid(row=9, column=0, sticky="e", padx=10, pady=(0, 10))
+		Buttons.grid(row=5, column=0, sticky="e", padx=10, pady=(0, 10))
 		ttk.Button(Buttons, text="Cancel", command=self._Cancel).grid(row=0, column=0, padx=(0, 6))
 		ttk.Button(Buttons, text="Add", command=self._Save).grid(row=0, column=1)
+		self._UpdateModeState()
 		self.wait_window(self)
 
 	def GetElementName(self) -> str:
@@ -348,9 +366,20 @@ class AddElementDialog(tk.Toplevel):
 	def _DefaultSplit(self, Name: str) -> List[str]:
 		return [Part for Part in Name.split("/") if Part] or [Name]
 
+	def _UpdateModeState(self) -> None:
+		if self.DialogMode.get() == "existing":
+			self.ExistingFrame.grid()
+			self.NewFrame.grid_remove()
+		else:
+			self.ExistingFrame.grid_remove()
+			self.NewFrame.grid()
+
 	def _GetCandidate(self) -> Optional[dgm_database.PartialElementMatch]:
 		Selection = self.CandidateList.curselection()
-		return self.Candidates[int(Selection[0])] if Selection else None
+		if not Selection or not self.Candidates:
+			return None
+		Index = int(Selection[0])
+		return self.Candidates[Index] if Index < len(self.Candidates) else None
 
 	def _OnPathPartSelect(self, _Event: tk.Event) -> None:
 		Selection = self.PathList.curselection()
@@ -368,7 +397,6 @@ class AddElementDialog(tk.Toplevel):
 		LeafRemainder = self._GetNameRemainderAfterCandidatePath(PathParts)
 		for Part in PathParts + [LeafRemainder]:
 			self.PathList.insert(tk.END, Part)
-		self.UseCandidate.set(False)
 
 	def _GetNameRemainderAfterCandidatePath(self, PathParts: List[str]) -> str:
 		CandidatePrefix = "".join(PathParts)
@@ -421,8 +449,11 @@ class AddElementDialog(tk.Toplevel):
 		except decimal.InvalidOperation as Error:
 			tkinter.messagebox.showerror(WINDOW_TITLE, f"Invalid DGM value: {Error}", parent=self)
 			return
-		Candidate = self._GetCandidate() if self.UseCandidate.get() else None
-		if Candidate is not None:
+		if self.DialogMode.get() == "existing":
+			Candidate = self._GetCandidate()
+			if Candidate is None:
+				tkinter.messagebox.showerror(WINDOW_TITLE, "Select an existing node candidate or choose Add new.", parent=self)
+				return
 			self.Result = GuiAddElementResult("existing", Values, self.Db.GetNodePathParts(Candidate.Node))
 		else:
 			PathParts = [self.PathList.get(Index) for Index in range(self.PathList.size())]
@@ -430,10 +461,8 @@ class AddElementDialog(tk.Toplevel):
 				tkinter.messagebox.showerror(WINDOW_TITLE, "Enter at least one node.", parent=self)
 				return
 			if self.AddMode.get() == "regex":
-				Pattern = self.RegexPatternEntry.get().strip()
+				Pattern = self.RegexPatternEntry.get().strip() or PathParts[-1]
 				DisplayText = self.RegexDisplayEntry.get().strip()
-				if not Pattern:
-					Pattern = PathParts[-1]
 				if not Pattern:
 					tkinter.messagebox.showerror(WINDOW_TITLE, "Regex pattern cannot be empty.", parent=self)
 					return
@@ -445,5 +474,3 @@ class AddElementDialog(tk.Toplevel):
 	def _Cancel(self) -> None:
 		self.Result = None
 		self.destroy()
-
-

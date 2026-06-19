@@ -77,6 +77,9 @@ class DgmValues:
 			return self.MpgG
 		raise ValueError(f"Unknown metal key: {MetalKey}")
 
+	def IsZero(self) -> bool:
+		return all(self.GetMetalValue(MetalKey) == 0 for MetalKey, _ in METALS)
+
 	def SetMetalValue(self, MetalKey: str, ValueG: decimal.Decimal) -> None:
 		if MetalKey == "gold":
 			self.GoldG = ValueG
@@ -266,13 +269,19 @@ class DgmDatabase:
 		while States:
 			Parent, Remaining, MatchedRegex, PathTexts = States.pop()
 			MatchedLength = len(NormalizedName) - len(Remaining)
+			DgmNode = Parent.find("dgm")
+			HasUsableDgm = False
+			if DgmNode is not None:
+				try:
+					HasUsableDgm = not self.ReadDgmValues(DgmNode).IsZero()
+				except decimal.InvalidOperation:
+					HasUsableDgm = True
 
-			if PathTexts and Remaining != "":
+			if PathTexts and (Remaining != "" or not HasUsableDgm):
 				if MatchedLength > DeepestPartialLength:
 					PartialMatchesByNode.clear()
 					DeepestPartialLength = MatchedLength
 				if MatchedLength == DeepestPartialLength:
-					DgmNode = Parent.find("dgm")
 					PartialMatchesByNode[id(Parent)] = PartialElementMatch(
 						Node=Parent,
 						DisplayName=" => ".join(PathTexts),
@@ -280,12 +289,10 @@ class DgmDatabase:
 						HasDgm=DgmNode is not None,
 					)
 
-			if Remaining == "":
-				DgmNode = Parent.find("dgm")
-				if DgmNode is not None:
-					BestRecord = self.MakeRecord(Parent, OriginalName or "".join(PathTexts), DgmNode)
-					BestRegexState = MatchedRegex
-					break
+			if Remaining == "" and HasUsableDgm and DgmNode is not None:
+				BestRecord = self.MakeRecord(Parent, OriginalName or "".join(PathTexts), DgmNode)
+				BestRegexState = MatchedRegex
+				break
 
 			for Child in list(Parent):
 				if Child.tag == "node":
@@ -306,9 +313,9 @@ class DgmDatabase:
 					if Match is None:
 						continue
 					MatchedPart = Match.group(0)
-					if MatchedPart == "":
+					if MatchedPart == "" and Remaining != "":
 						continue
-					States.append((Child, Remaining[len(MatchedPart):], True, PathTexts + [MatchedPart]))
+					States.append((Child, Remaining[len(MatchedPart):], True, PathTexts + [MatchedPart or Child.get("text", Pattern)]))
 		return ElementSearchResult(BestRecord, BestRegexState, list(PartialMatchesByNode.values()))
 
 	def FindLegacyElement(self, NormalizedName: str) -> Optional[ElementRecord]:
@@ -330,13 +337,15 @@ class DgmDatabase:
 		return None
 
 	def MakeRecord(self, Node: XmlTree.Element, DisplayName: str, DgmNode: XmlTree.Element) -> ElementRecord:
-		Values = DgmValues(
+		return ElementRecord(self, Node, DisplayName, self.ReadDgmValues(DgmNode))
+
+	def ReadDgmValues(self, DgmNode: XmlTree.Element) -> DgmValues:
+		return DgmValues(
 			GoldG=ReadDecimal(DgmNode.get("gold_g", "0")),
 			SilverG=ReadDecimal(DgmNode.get("silver_g", "0")),
 			PlatinumG=ReadDecimal(DgmNode.get("platinum_g", "0")),
 			MpgG=ReadDecimal(DgmNode.get("mpg_g", "0")),
 		)
-		return ElementRecord(self, Node, DisplayName, Values)
 
 	def AddElement(self, Name: str, Values: DgmValues, PathParts: Sequence[str]) -> ElementRecord:
 		CleanParts = [Part for Part in PathParts if Part != ""]
