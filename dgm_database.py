@@ -47,7 +47,7 @@ DEFAULT_COLUMNS = {
 }
 
 DATABASE_VERSION = "2"
-DATABASE_CODE_VERSION = "2026-06-09.2"
+DATABASE_CODE_VERSION = "2026-06-19.1"
 COLUMN_LETTERS = set(string.ascii_uppercase)
 
 
@@ -291,6 +291,8 @@ class DgmDatabase:
 				if Child.tag == "node":
 					ChildText = Child.get("text", "")
 					ChildKey = NormalizeStructureText(ChildText)
+					if IsOptionalNode(Child):
+						States.append((Child, Remaining, MatchedRegex, PathTexts + [FormatOptionalPathText(ChildText)]))
 					if ChildKey and Remaining.startswith(ChildKey):
 						States.append((Child, Remaining[len(ChildKey):], MatchedRegex, PathTexts + [ChildText]))
 				elif Child.tag == "regex":
@@ -576,6 +578,18 @@ def NormalizeText(Value: str) -> str:
 
 def NormalizeStructureText(Value: str) -> str:
 	return str(Value or "").casefold()
+
+def IsOptionalNode(Node: XmlTree.Element) -> bool:
+	return Node.tag == "node" and NormalizeText(Node.get("optional", "")) in ("1", "true", "yes", "on")
+
+def SetOptionalNode(Node: XmlTree.Element, IsOptional: bool) -> None:
+	if IsOptional:
+		Node.set("optional", "true")
+	elif "optional" in Node.attrib:
+		del Node.attrib["optional"]
+
+def FormatOptionalPathText(Text: str) -> str:
+	return f"{Text} (optional)" if Text else "(optional)"
 
 def ReadDecimal(Value: str) -> decimal.Decimal:
 	Value = (Value or "0").strip().replace(",", ".")
