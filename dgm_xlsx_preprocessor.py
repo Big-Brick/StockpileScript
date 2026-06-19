@@ -47,6 +47,7 @@ class PreprocessRules:
 	CollapseWhitespace: bool = True
 	TrimWhitespace: bool = True
 	AutoUpdateCache: bool = True
+	IgnoredTextRules: List[PreprocessRegexRule] = field(default_factory=list)
 	StageOneRules: List[PreprocessRegexRule] = field(default_factory=list)
 	StageThreeRules: List[PreprocessRegexRule] = field(default_factory=list)
 	ElementTypes: List[PreprocessElementType] = field(default_factory=list)
@@ -101,16 +102,20 @@ class XlsxPreprocessor:
 				ConsecutiveIgnoredRows += 1
 			else:
 				Original = str(RawName)
-				Change = self.PreprocessText(Row, Original)
-				if Change.NewText != Change.OriginalText:
-					ChangedRows.append(Change)
-					if Change.Ambiguous:
-						AmbiguousRows.append(Change)
-					elif not Change.DatabaseVerified:
-						MissingDatabaseMatches.append(Change)
-				else:
+				if self.IsIgnoredText(Original):
 					UnchangedRows += 1
-				ConsecutiveIgnoredRows = 0
+					ConsecutiveIgnoredRows += 1
+				else:
+					Change = self.PreprocessText(Row, Original)
+					if Change.NewText != Change.OriginalText:
+						ChangedRows.append(Change)
+						if Change.Ambiguous:
+							AmbiguousRows.append(Change)
+						elif not Change.DatabaseVerified:
+							MissingDatabaseMatches.append(Change)
+					else:
+						UnchangedRows += 1
+					ConsecutiveIgnoredRows = 0
 
 			if ConsecutiveIgnoredRows >= dgm_inventory.STOP_AFTER_CONSECUTIVE_IGNORED_ROWS:
 				break
@@ -126,6 +131,18 @@ class XlsxPreprocessor:
 			MissingDatabaseMatches=MissingDatabaseMatches,
 			CacheChanged=self.CacheChanged,
 		)
+
+	def IsIgnoredText(self, Text: str) -> bool:
+		Current = self._CleanWhitespace(Text)
+		for Rule in self.Rules.IgnoredTextRules:
+			if not Rule.Enabled or not Rule.Pattern:
+				continue
+			try:
+				if re.search(Rule.Pattern, Current, flags=self.RegexFlags):
+					return True
+			except re.error:
+				continue
+		return False
 
 	def ApplyChanges(self, Result: PreprocessResult, Changes: Sequence[PreprocessChange]) -> None:
 		if openpyxl is None:
@@ -147,6 +164,9 @@ class XlsxPreprocessor:
 		Current = self._CleanWhitespace(Text)
 		if Current != Text:
 			Notes.append("Cleaned whitespace")
+		if self.IsIgnoredText(Current):
+			Notes.append("Ignored block/header row")
+			return PreprocessChange(Row, Original, Current, Notes, False, False)
 
 		Current = self._ApplyRules(Current, self.Rules.StageOneRules, "Stage 1", Notes)
 		Current, TypeVerified, TypeAmbiguous = self._NormalizeType(Current, Notes)
@@ -285,6 +305,10 @@ def LoadPreprocessRules(PathToRules: Path) -> PreprocessRules:
 		if Cache is not None:
 			Rules.AutoUpdateCache = ReadBool(Cache.get("auto_update"), True)
 
+	IgnoredTextsNode = Root.find("ignored_texts")
+	if IgnoredTextsNode is not None:
+		Rules.IgnoredTextRules.extend(ParseIgnoreRule(Node) for Node in IgnoredTextsNode.findall("pattern"))
+
 	for Stage in Root.findall("stage"):
 		StageName = Stage.get("name", "")
 		ParsedRules = [ParseRegexRule(Node) for Node in Stage.findall("rule")]
@@ -319,6 +343,20 @@ def LoadPreprocessRules(PathToRules: Path) -> PreprocessRules:
 	return Rules
 
 
+def ParseIgnoreRule(Node: XmlTree.Element) -> PreprocessRegexRule:
+	DescriptionNode = Node.find("description")
+	Description = Node.get("description", "")
+	if DescriptionNode is not None and DescriptionNode.text is not None:
+		Description = DescriptionNode.text
+	return PreprocessRegexRule(
+		Id=Node.get("id", "unnamed_ignore_pattern"),
+		Pattern=(Node.get("regex") or Node.text or "").strip(),
+		Replacement="",
+		Description=Description,
+		Enabled=ReadBool(Node.get("enabled"), True),
+	)
+
+
 def ParseRegexRule(Node: XmlTree.Element) -> PreprocessRegexRule:
 	PatternNode = Node.find("pattern")
 	ReplacementNode = Node.find("replacement")
@@ -345,6 +383,14 @@ def CreateDefaultPreprocessRules(PathToRules: Path) -> None:
 	XmlTree.SubElement(Settings, "whitespace", {"collapse": "true", "trim": "true"})
 	XmlTree.SubElement(Settings, "cache", {"auto_update": "true"})
 
+	IgnoredTexts = XmlTree.SubElement(Root, "ignored_texts")
+	AddIgnorePattern(IgnoredTexts, "board_contains_placed", "Board/block header listing placed components", r"\b(плата|блок|модуль|вузол)\b.*\b(на\s+н(і|и)й|де|в\s+якому|у\s+якому)\b.*\b(розміщен[іи]|встановлен[іи]|змонтован[іи]|наявн[іи]|присутн[іи]|розташован[іи])\b")
+	AddIgnorePattern(IgnoredTexts, "board_contains_short", "Short board header: на ній:", r"\b(плата|блок|модуль|вузол)\b.*\bна\s+н(і|и)й\b\s*:?$")
+	AddIgnorePattern(IgnoredTexts, "board_missing_elements", "Board/block header listing missing components", r"\b(плата|блок|модуль|вузол)\b.*\b(відсутн[іи]|немає|відсутнє|без)\b")
+	AddIgnorePattern(IgnoredTexts, "board_except_elements", "Board/block header listing present except missing components", r"\b(плата|блок|модуль|вузол)\b.*\b(в\s+наявності|наявн[іи]|присутн[іи])\b.*\b(за\s+виключенням|за\s+винятком|крім|окрім)\b")
+	AddIgnorePattern(IgnoredTexts, "generic_placed_marker", "Generic phrase marker for placed/listed contents rows", r"\b(на\s+н(і|и)й|на\s+якій|де)\b\s*:?\s*$|\b(на\s+н(і|и)й|на\s+якій|де)\b.*\b(розміщен[іи]|розташован[іи]|встановлен[іи]|змонтован[іи])\b")
+	AddIgnorePattern(IgnoredTexts, "generic_missing_marker", "Generic phrase marker for missing/excluded contents rows", r"\b(відсутн[іи]|немає)\b\s*:?$|\b(в\s+наявності|наявн[іи])\b.*\b(за\s+виключенням|за\s+винятком|крім|окрім)\b")
+
 	StageOne = XmlTree.SubElement(Root, "stage", {"id": "1", "name": "language_normalization"})
 	AddRule(StageOne, "ru_relay_res", "Russian РЭС relay spelling to Ukrainian РЕС", r"\bРЭС\b", "РЕС")
 	AddRule(StageOne, "ru_diode_to_uk_diode", "Russian диод to Ukrainian діод", r"\bдиод\b", "діод")
@@ -362,6 +408,11 @@ def CreateDefaultPreprocessRules(PathToRules: Path) -> None:
 	Tree = XmlTree.ElementTree(Root)
 	IndentXml(Root)
 	Tree.write(PathToRules, encoding="utf-8", xml_declaration=True)
+
+
+def AddIgnorePattern(Parent: XmlTree.Element, PatternId: str, Description: str, Pattern: str) -> None:
+	PatternNode = XmlTree.SubElement(Parent, "pattern", {"id": PatternId, "enabled": "true", "description": Description})
+	PatternNode.text = Pattern
 
 
 def AddRule(Parent: XmlTree.Element, RuleId: str, Description: str, Pattern: str, Replacement: str) -> None:

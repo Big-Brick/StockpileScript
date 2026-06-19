@@ -9,6 +9,7 @@ import tkinter.messagebox
 
 import dgm_database
 import dgm_inventory
+import dgm_xlsx_preprocessor
 from dgm_gui_common import GuiConflictRow, GuiMissingElement, GuiProcessResult, WINDOW_TITLE, openpyxl
 from dgm_gui_xlsx_review import XlsxReviewWindow
 
@@ -62,6 +63,10 @@ class XlsxProcessingMixin:
 
 		Workbook = openpyxl.load_workbook(FilePath, data_only=False)
 		Sheet = Workbook.active
+		Preprocessor = dgm_xlsx_preprocessor.XlsxPreprocessor(
+			self.Database,
+			self.DatabasePath.with_name(dgm_xlsx_preprocessor.DEFAULT_RULES_FILENAME),
+		)
 
 		ProcessedRows: List[int] = []
 		IgnoredRows = 0
@@ -79,7 +84,7 @@ class XlsxProcessingMixin:
 				ConsecutiveIgnoredRows += 1
 			else:
 				Name = " ".join(str(RawName).strip().split())
-				if self.Database.IsIgnoredText(Name):
+				if self.Database.IsIgnoredText(Name) or Preprocessor.IsIgnoredText(Name):
 					IgnoredRows += 1
 					ConsecutiveIgnoredRows += 1
 				else:

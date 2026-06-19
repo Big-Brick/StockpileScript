@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+Copy this section into preprocess_rules.xml directly under <xlsx_preprocess_rules>.
+These patterns filter table block/header rows such as:
+  - Плата ЕЯ3.1840.0001, на ній розміщені:
+  - Плата ЕЯ3.1840.0001, на ній:
+  - Плата ЕЯ3.1840.0001, на ній відсутні:
+  - Плата ЕЯ3.1840.0001, в наявності за виключенням:
+-->
+<ignored_texts>
+	<pattern
+		id="board_contains_placed"
+		enabled="true"
+		description="Board/block header listing placed or available components">
+		\b(плата|блок|модуль|вузол)\b.*\b(на\s+н(і|и)й|де|в\s+якому|у\s+якому)\b.*\b(розміщен[іи]|розташован[іи]|встановлен[іи]|змонтован[іи]|наявн[іи]|присутн[іи])\b
+	</pattern>
+
+	<pattern
+		id="board_contains_short"
+		enabled="true"
+		description="Short board/block header ending with на ній:">
+		\b(плата|блок|модуль|вузол)\b.*\bна\s+н(і|и)й\b\s*:?$
+	</pattern>
+
+	<pattern
+		id="board_missing_elements"
+		enabled="true"
+		description="Board/block header listing missing components">
+		\b(плата|блок|модуль|вузол)\b.*\b(відсутн[іи]|немає|відсутнє|без)\b
+	</pattern>
+
+	<pattern
+		id="board_available_except"
+		enabled="true"
+		description="Board/block header listing available components except missing ones">
+		\b(плата|блок|модуль|вузол)\b.*\b(в\s+наявності|наявн[іи]|присутн[іи])\b.*\b(за\s+виключенням|за\s+винятком|крім|окрім)\b
+	</pattern>
+
+	<pattern
+		id="generic_placed_marker"
+		enabled="true"
+		description="Generic phrase marker for placed/listed contents rows">
+		\b(на\s+н(і|и)й|на\s+якій|де)\b\s*:?\s*$|\b(на\s+н(і|и)й|на\s+якій|де)\b.*\b(розміщен[іи]|розташован[іи]|встановлен[іи]|змонтован[іи])\b
+	</pattern>
+
+	<pattern
+		id="generic_missing_marker"
+		enabled="true"
+		description="Generic phrase marker for missing/excluded contents rows">
+		\b(відсутн[іи]|немає)\b\s*:?$|\b(в\s+наявності|наявн[іи])\b.*\b(за\s+виключенням|за\s+винятком|крім|окрім)\b
+	</pattern>
+</ignored_texts>
