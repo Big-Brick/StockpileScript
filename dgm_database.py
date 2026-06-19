@@ -109,7 +109,6 @@ class ElementSearchResult:
 	Record: Optional["ElementRecord"]
 	MatchedByRegex: bool = False
 	PartialMatches: Optional[List[PartialElementMatch]] = None
-	ExactMatch: Optional[PartialElementMatch] = None
 
 	def __post_init__(self) -> None:
 		if self.PartialMatches is None:
@@ -135,11 +134,20 @@ class ExistingPathInfo:
 
 
 class ElementRecord:
-	def __init__(self, Database: "DgmDatabase", Node: XmlTree.Element, DisplayName: str, Values: DgmValues) -> None:
+	def __init__(self, Database: "DgmDatabase", Node: XmlTree.Element, DisplayName: str, Values: DgmValues, HasDgm: bool = True) -> None:
 		self.Database = Database
 		self.Node = Node
 		self.DisplayName = DisplayName
 		self.Values = Values
+		self.HasDgm = HasDgm
+
+	@property
+	def HasNonZeroDgm(self) -> bool:
+		return self.HasDgm and not self.Values.IsZero()
+
+	@property
+	def IsUsableForInventoryFill(self) -> bool:
+		return self.HasDgm
 
 	def GetMetalValue(self, MetalKey: str) -> decimal.Decimal:
 		return self.Values.GetMetalValue(MetalKey)
@@ -256,7 +264,7 @@ class DgmDatabase:
 
 		LegacyRecord = self.FindLegacyElement(NormalizedName)
 		if LegacyRecord is not None:
-			return ElementSearchResult(LegacyRecord, False, StructuredResult.PartialMatches, StructuredResult.ExactMatch)
+			return ElementSearchResult(LegacyRecord, False, StructuredResult.PartialMatches)
 
 		return StructuredResult
 
@@ -264,7 +272,6 @@ class DgmDatabase:
 		States: List[Tuple[XmlTree.Element, str, bool, List[str]]] = [(self.CatalogNode, NormalizedName, False, [])]
 		BestRecord: Optional[ElementRecord] = None
 		BestRegexState = False
-		ExactMatch: Optional[PartialElementMatch] = None
 		PartialMatchesByNode: Dict[int, PartialElementMatch] = {}
 		DeepestPartialLength = 0
 
@@ -272,12 +279,6 @@ class DgmDatabase:
 			Parent, Remaining, MatchedRegex, PathTexts = States.pop()
 			MatchedLength = len(NormalizedName) - len(Remaining)
 			DgmNode = Parent.find("dgm")
-			HasNonZeroDgm = False
-			if DgmNode is not None:
-				try:
-					HasNonZeroDgm = not self.ReadDgmValues(DgmNode).IsZero()
-				except decimal.InvalidOperation:
-					HasNonZeroDgm = True
 
 			if PathTexts and Remaining != "":
 				if MatchedLength > DeepestPartialLength:
@@ -297,16 +298,9 @@ class DgmDatabase:
 					BestRecord = EmptyRegexRecord
 					BestRegexState = True
 					break
-				if DgmNode is not None and (Parent.tag == "regex" or HasNonZeroDgm):
-					BestRecord = self.MakeRecord(Parent, OriginalName or "".join(PathTexts), DgmNode)
-					BestRegexState = MatchedRegex
-					break
-				ExactMatch = PartialElementMatch(
-					Node=Parent,
-					DisplayName=" => ".join(PathTexts),
-					MatchedByRegex=MatchedRegex,
-					HasDgm=DgmNode is not None,
-				)
+				BestRecord = self.MakeRecord(Parent, OriginalName or "".join(PathTexts), DgmNode)
+				BestRegexState = MatchedRegex
+				break
 
 			for Child in list(Parent):
 				if Child.tag == "node":
@@ -330,7 +324,7 @@ class DgmDatabase:
 					if MatchedPart == "" and Remaining != "":
 						continue
 					States.append((Child, Remaining[len(MatchedPart):], True, PathTexts + [MatchedPart or Child.get("text", Pattern)]))
-		return ElementSearchResult(BestRecord, BestRegexState, list(PartialMatchesByNode.values()), ExactMatch)
+		return ElementSearchResult(BestRecord, BestRegexState, list(PartialMatchesByNode.values()))
 
 	def _FindEmptyRegexChildRecord(self, Parent: XmlTree.Element, PathTexts: List[str], OriginalName: str) -> Optional[ElementRecord]:
 		for Child in list(Parent):
@@ -367,8 +361,16 @@ class DgmDatabase:
 			return ElementRecord(self, Node, Name, Values)
 		return None
 
-	def MakeRecord(self, Node: XmlTree.Element, DisplayName: str, DgmNode: XmlTree.Element) -> ElementRecord:
-		return ElementRecord(self, Node, DisplayName, self.ReadDgmValues(DgmNode))
+	def MakeRecord(self, Node: XmlTree.Element, DisplayName: str, DgmNode: Optional[XmlTree.Element]) -> ElementRecord:
+		if DgmNode is None:
+			return ElementRecord(
+				self,
+				Node,
+				DisplayName,
+				DgmValues(decimal.Decimal("0"), decimal.Decimal("0"), decimal.Decimal("0"), decimal.Decimal("0")),
+				False,
+			)
+		return ElementRecord(self, Node, DisplayName, self.ReadDgmValues(DgmNode), True)
 
 	def ReadDgmValues(self, DgmNode: XmlTree.Element) -> DgmValues:
 		return DgmValues(

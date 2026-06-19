@@ -278,7 +278,14 @@ class AddElementDialog(tk.Toplevel):
 		self.Name = Name
 		self.InitialPathParts = InitialPathParts
 		StructuredResult = Db.FindStructuredElement(dgm_database.NormalizeText(Name), Name)
-		self.ExactCandidate = StructuredResult.ExactMatch if StructuredResult.ExactMatch is not None and StructuredResult.ExactMatch.Node.tag == "node" else None
+		self.ExactCandidate = None
+		if StructuredResult.Record is not None and not StructuredResult.Record.HasDgm and StructuredResult.Record.Node.tag == "node":
+			self.ExactCandidate = dgm_database.PartialElementMatch(
+				Node=StructuredResult.Record.Node,
+				DisplayName=" => ".join(Db.GetNodePathParts(StructuredResult.Record.Node)),
+				MatchedByRegex=StructuredResult.MatchedByRegex,
+				HasDgm=False,
+			)
 		self.Candidates = []
 		if self.ExactCandidate is not None:
 			self.Candidates.append(self.ExactCandidate)

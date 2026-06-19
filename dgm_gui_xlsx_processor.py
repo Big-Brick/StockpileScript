@@ -90,7 +90,7 @@ class XlsxProcessingMixin:
 				else:
 					SearchResult = self.Database.FindElement(Name)
 					Entry = SearchResult.Record
-					if Entry is None:
+					if Entry is None or not Entry.HasDgm:
 						MissingByKey[(Sheet.title, Row, Name)] = GuiMissingElement(FilePath, Sheet.title, Row, Name)
 						ConsecutiveIgnoredRows = 0
 					elif self._RowHasConflictingDgmValues(Sheet, Row, Entry):

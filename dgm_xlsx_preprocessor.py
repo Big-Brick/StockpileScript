@@ -177,7 +177,8 @@ class XlsxPreprocessor:
 			Current = CaseNormalized
 		Current = self._CleanWhitespace(Current)
 
-		DatabaseVerified = TypeVerified or self.Database.FindElement(Current).Record is not None
+		DatabaseRecord = self.Database.FindElement(Current).Record
+		DatabaseVerified = TypeVerified or (DatabaseRecord is not None and DatabaseRecord.HasDgm)
 		if DatabaseVerified and not TypeVerified:
 			Notes.append("Verified final text against database")
 		if not Notes and Original == Current:
@@ -261,7 +262,8 @@ class XlsxPreprocessor:
 	def _DatabaseAccepts(self, ElementType: PreprocessElementType, Candidate: str) -> bool:
 		if not ElementType.DatabaseCheck:
 			return True
-		return self.Database.FindElement(Candidate).Record is not None
+		Record = self.Database.FindElement(Candidate).Record
+		return Record is not None and Record.HasDgm
 
 	def _RememberPrefix(self, ElementType: PreprocessElementType, Text: str, Notes: List[str]) -> None:
 		if not self.Rules.AutoUpdateCache or ElementType.XmlNode is None:

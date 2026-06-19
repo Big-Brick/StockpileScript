@@ -173,7 +173,7 @@ class MissingElementsWindow(tk.Toplevel):
 		self._RemoveSummaries(lambda Item: Item is Summary)
 
 	def _RemoveResolvedSummaries(self) -> None:
-		self._RemoveSummaries(lambda Item: self.ParentViewer.Database.FindElement(Item.Name).Record is not None)
+		self._RemoveSummaries(lambda Item: (lambda Record: Record is not None and Record.HasDgm)(self.ParentViewer.Database.FindElement(Item.Name).Record))
 
 	def _RemoveSummaries(self, ShouldRemove: Callable[[MissingElementSummary], bool]) -> None:
 		for Group in self.Groups:
@@ -236,10 +236,15 @@ class MissingElementsMixin:
 						ConsecutiveIgnoredRows += 1
 					else:
 						SearchResult = self.Database.FindElement(Name)
-						if SearchResult.Record is None:
+						if SearchResult.Record is None or not SearchResult.Record.HasDgm:
 							Matches = list(SearchResult.PartialMatches or [])
-							if SearchResult.ExactMatch is not None:
-								Matches.insert(0, SearchResult.ExactMatch)
+							if SearchResult.Record is not None and SearchResult.Record.Node.tag == "node":
+								Matches.insert(0, dgm_database.PartialElementMatch(
+									Node=SearchResult.Record.Node,
+									DisplayName=" => ".join(self.Database.GetNodePathParts(SearchResult.Record.Node)),
+									MatchedByRegex=SearchResult.MatchedByRegex,
+									HasDgm=False,
+								))
 							self._AddMissingElement(GroupsByKey, GuiMissingElement(FilePath, Sheet.title, Row, Name), Matches)
 						ConsecutiveIgnoredRows = 0
 				if ConsecutiveIgnoredRows >= dgm_inventory.STOP_AFTER_CONSECUTIVE_IGNORED_ROWS:

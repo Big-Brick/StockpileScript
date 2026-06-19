@@ -61,8 +61,13 @@ def AskElementOrIgnore(FilePath: Path, SheetName: str, Row: int, Text: str, Db: 
 def AddElementInteractively(Db: dgm_database.DgmDatabase, Name: str) -> dgm_database.ElementRecord:
 	StructuredResult = Db.FindStructuredElement(dgm_database.NormalizeText(Name), Name)
 	MatchingPaths = []
-	if StructuredResult.ExactMatch is not None and StructuredResult.ExactMatch.Node.tag == "node":
-		MatchingPaths.append(StructuredResult.ExactMatch)
+	if StructuredResult.Record is not None and not StructuredResult.Record.HasDgm and StructuredResult.Record.Node.tag == "node":
+		MatchingPaths.append(dgm_database.PartialElementMatch(
+			Node=StructuredResult.Record.Node,
+			DisplayName=" => ".join(Db.GetNodePathParts(StructuredResult.Record.Node)),
+			MatchedByRegex=StructuredResult.MatchedByRegex,
+			HasDgm=False,
+		))
 	MatchingPaths.extend(Candidate for Candidate in (StructuredResult.PartialMatches or []) if not Candidate.HasDgm and Candidate.Node.tag == "node")
 	if MatchingPaths:
 		SelectedPath = AskExistingPathCandidate(MatchingPaths)
@@ -308,7 +313,7 @@ def ProcessWorkbook(FilePath: Path, Db: dgm_database.DgmDatabase) -> Tuple[int, 
 			else:
 				SearchResult = Db.FindElement(Name)
 				Entry = SearchResult.Record
-				if Entry is None:
+				if Entry is None or not Entry.HasDgm:
 					Entry = AskElementOrIgnore(FilePath, Sheet.title, Row, Name, Db)
 					if Entry is None:
 						Db.AddIgnoredText(Name)

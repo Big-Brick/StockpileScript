@@ -365,10 +365,11 @@ class DgmDatabaseViewer(tk.Toplevel, XlsxProcessingMixin):
 		Messages: List[str] = []
 		if Result.Record is not None:
 			MatchType = "regex" if Result.MatchedByRegex else "exact"
-			Messages.append(f"Found {MatchType} match with DGM: {Result.Record.DisplayName}")
-		elif Result.ExactMatch is not None:
-			Marker = "has DGM but all values are zero" if Result.ExactMatch.HasDgm else "has no DGM"
-			Messages.append(f"Found exact match without usable DGM: {Result.ExactMatch.DisplayName} ({Marker}).")
+			if Result.Record.HasDgm:
+				Marker = "non-zero DGM" if Result.Record.HasNonZeroDgm else "zero DGM"
+				Messages.append(f"Found {MatchType} match with {Marker}: {Result.Record.DisplayName}")
+			else:
+				Messages.append(f"Found {MatchType} match without DGM: {Result.Record.DisplayName}")
 		else:
 			Messages.append("No exact match found.")
 
