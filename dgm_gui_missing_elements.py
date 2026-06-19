@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple
 
 import tkinter as tk
 import tkinter.filedialog
@@ -41,19 +41,18 @@ class MissingElementsWindow(tk.Toplevel):
 		self.TreeItems: Dict[str, Tuple[MissingElementGroup, Optional[MissingElementSummary]]] = {}
 
 		FileLabel = Files[0].name if len(Files) == 1 else f"{len(Files)} files"
-		MissingCount = sum(len(Group.ItemsByName) for Group in Groups)
-		OccurrenceCount = sum(len(Item.Occurrences) for Group in Groups for Item in Group.ItemsByName.values())
 		self.title(f"Missing elements - {FileLabel}")
 		self.geometry("1050x650")
 		self.minsize(780, 420)
 		self.columnconfigure(0, weight=1)
 		self.rowconfigure(1, weight=1)
 
-		ttk.Label(
+		self.SummaryLabel = ttk.Label(
 			self,
-			text=f"Missing unique elements: {MissingCount}. Occurrences: {OccurrenceCount}. Ignored rows: {IgnoredRows}.",
 			style="Heading.TLabel",
-		).grid(row=0, column=0, sticky="ew", padx=10, pady=(10, 4))
+		)
+		self.SummaryLabel.grid(row=0, column=0, sticky="ew", padx=10, pady=(10, 4))
+		self._UpdateSummaryLabel()
 
 		Columns = ("count", "files", "first_location")
 		self.Tree = ttk.Treeview(self, columns=Columns, show="tree headings", selectmode="browse")
@@ -77,23 +76,52 @@ class MissingElementsWindow(tk.Toplevel):
 		ttk.Button(Buttons, text="Add selected to ignore list", command=self._IgnoreSelected).grid(row=0, column=1, padx=(0, 6))
 		ttk.Button(Buttons, text="Close", command=self.destroy).grid(row=0, column=2)
 
-	def _PopulateTree(self) -> None:
+	def _UpdateSummaryLabel(self) -> None:
+		MissingCount = sum(len(Group.ItemsByName) for Group in self.Groups)
+		OccurrenceCount = sum(len(Item.Occurrences) for Group in self.Groups for Item in Group.ItemsByName.values())
+		self.SummaryLabel.configure(text=f"Missing unique elements: {MissingCount}. Occurrences: {OccurrenceCount}. Ignored rows: {self.IgnoredRows}.")
+
+	def _PopulateTree(self, PreserveExpansion: bool = False) -> None:
+		ExpandedItems = self._GetExpandedItems() if PreserveExpansion else set()
 		for Existing in self.Tree.get_children(""):
 			self.Tree.delete(Existing)
 		self.TreeItems.clear()
-		for GroupIndex, Group in enumerate(sorted(self.Groups, key=lambda Group: Group.SortText.casefold())):
+		self._UpdateSummaryLabel()
+		for Group in sorted(self.Groups, key=lambda Group: Group.SortText.casefold()):
 			GroupOccurrenceCount = sum(len(Item.Occurrences) for Item in Group.ItemsByName.values())
 			GroupFiles = self._FormatFiles([Occurrence for Item in Group.ItemsByName.values() for Occurrence in Item.Occurrences])
-			GroupId = f"group:{GroupIndex}"
-			self.Tree.insert("", "end", iid=GroupId, text=Group.Title, values=(GroupOccurrenceCount, GroupFiles, ""), open=False)
+			GroupId = self._GroupTreeId(Group)
+			self.Tree.insert("", "end", iid=GroupId, text=Group.Title, values=(GroupOccurrenceCount, GroupFiles, ""), open=(GroupId in ExpandedItems))
 			self.TreeItems[GroupId] = (Group, None)
-			for ItemIndex, Item in enumerate(sorted(Group.ItemsByName.values(), key=lambda Item: Item.Name.casefold())):
+			for Item in sorted(Group.ItemsByName.values(), key=lambda Item: Item.Name.casefold()):
 				First = Item.Occurrences[0]
-				ItemId = f"item:{GroupIndex}:{ItemIndex}"
-				self.Tree.insert(GroupId, "end", iid=ItemId, text=Item.Name, values=(len(Item.Occurrences), self._FormatFiles(Item.Occurrences), self._FormatLocation(First)), open=False)
+				ItemId = self._SummaryTreeId(Group, Item)
+				self.Tree.insert(GroupId, "end", iid=ItemId, text=Item.Name, values=(len(Item.Occurrences), self._FormatFiles(Item.Occurrences), self._FormatLocation(First)), open=(ItemId in ExpandedItems))
 				self.TreeItems[ItemId] = (Group, Item)
 				for OccurrenceIndex, Occurrence in enumerate(Item.Occurrences):
-					self.Tree.insert(ItemId, "end", iid=f"occ:{GroupIndex}:{ItemIndex}:{OccurrenceIndex}", text=self._FormatLocation(Occurrence), values=("", Occurrence.FilePath.name, ""), open=False)
+					self.Tree.insert(ItemId, "end", iid=self._OccurrenceTreeId(Group, Item, OccurrenceIndex), text=self._FormatLocation(Occurrence), values=("", Occurrence.FilePath.name, ""), open=False)
+
+	def _GetExpandedItems(self) -> set[str]:
+		Expanded: set[str] = set()
+
+		def Collect(ItemId: str) -> None:
+			if self.Tree.item(ItemId, "open"):
+				Expanded.add(ItemId)
+			for ChildId in self.Tree.get_children(ItemId):
+				Collect(ChildId)
+
+		for RootId in self.Tree.get_children(""):
+			Collect(RootId)
+		return Expanded
+
+	def _GroupTreeId(self, Group: MissingElementGroup) -> str:
+		return f"group:{Group.Key}"
+
+	def _SummaryTreeId(self, Group: MissingElementGroup, Summary: MissingElementSummary) -> str:
+		return f"item:{Group.Key}:{dgm_database.NormalizeText(Summary.Name)}"
+
+	def _OccurrenceTreeId(self, Group: MissingElementGroup, Summary: MissingElementSummary, OccurrenceIndex: int) -> str:
+		return f"occ:{Group.Key}:{dgm_database.NormalizeText(Summary.Name)}:{OccurrenceIndex}"
 
 	def _FormatFiles(self, Occurrences: List[GuiMissingElement]) -> str:
 		Names = sorted({Occurrence.FilePath.name for Occurrence in Occurrences}, key=str.casefold)
@@ -128,7 +156,7 @@ class MissingElementsWindow(tk.Toplevel):
 				self.ParentViewer.Database.AddElement(Item.Name, Result.Values, Result.PathParts)
 			self.ParentViewer.Database.Save()
 			self.ParentViewer._PopulateDatabaseViews()
-			self._RemoveSummary(Item)
+			self._RemoveResolvedSummaries()
 		except Exception as Error:
 			tkinter.messagebox.showerror(WINDOW_TITLE, str(Error), parent=self)
 
@@ -142,12 +170,18 @@ class MissingElementsWindow(tk.Toplevel):
 		self._RemoveSummary(Item)
 
 	def _RemoveSummary(self, Summary: MissingElementSummary) -> None:
+		self._RemoveSummaries(lambda Item: Item is Summary)
+
+	def _RemoveResolvedSummaries(self) -> None:
+		self._RemoveSummaries(lambda Item: self.ParentViewer.Database.FindElement(Item.Name).Record is not None)
+
+	def _RemoveSummaries(self, ShouldRemove: Callable[[MissingElementSummary], bool]) -> None:
 		for Group in self.Groups:
 			for Key, Item in list(Group.ItemsByName.items()):
-				if Item is Summary:
+				if ShouldRemove(Item):
 					del Group.ItemsByName[Key]
 		self.Groups = [Group for Group in self.Groups if Group.ItemsByName]
-		self._PopulateTree()
+		self._PopulateTree(PreserveExpansion=True)
 
 
 class MissingElementsMixin:
