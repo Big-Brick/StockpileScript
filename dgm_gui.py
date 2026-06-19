@@ -166,8 +166,11 @@ class DgmDatabaseViewer(tk.Toplevel):
 		HorizontalScrollbar.grid(row=2, column=0, sticky="ew")
 
 		self.CatalogContextMenu = tk.Menu(self, tearoff=False)
+		self.CatalogContextMenu.add_command(label="Add node...", command=self._AddCatalogNode)
 		self.CatalogContextMenu.add_command(label="Modify database node...", command=self._ModifySelectedCatalogNode)
 		self.CatalogContextMenu.add_command(label="Move node to another parent...", command=self._MoveSelectedCatalogNode)
+		self.CatalogContextMenu.add_separator()
+		self.CatalogContextMenu.add_command(label="Remove node", command=self._RemoveSelectedCatalogNode)
 		self.CatalogTree.bind("<Button-3>", self._ShowCatalogContextMenu)
 		self.CatalogTree.bind("<Control-Button-1>", self._ShowCatalogContextMenu)
 
@@ -287,6 +290,40 @@ class DgmDatabaseViewer(tk.Toplevel):
 			ItemId = Selection[0] if Selection else ""
 		return self.CatalogItems.get(ItemId)
 
+	def _ApplyAddElementResult(self, Name: str, Result: GuiAddElementResult) -> None:
+		if Result.Mode == "existing":
+			self.Database.AddDgmToExistingPath(Name, Result.Values, Result.PathParts)
+		elif Result.Mode == "regex":
+			self.Database.AddRegexElement(Name, Result.Values, Result.PathParts, Result.Pattern, Result.DisplayText)
+		else:
+			self.Database.AddElement(Name, Result.Values, Result.PathParts)
+
+	def _AddCatalogNode(self) -> None:
+		ParentNode = self._GetSelectedCatalogNode()
+		if ParentNode is None:
+			return
+
+		DefaultName = "New node"
+		Dialog = AddElementDialog(
+			self,
+			self.Database,
+			DefaultName,
+			InitialPathParts=self.Database.GetNodePathParts(ParentNode) + [DefaultName],
+			Title="Add database node",
+		)
+		if Dialog.Result is None:
+			return
+
+		try:
+			Name = Dialog.GetElementName()
+			self._ApplyAddElementResult(Name, Dialog.Result)
+			self.Database.Save()
+		except Exception as Error:
+			tkinter.messagebox.showerror(WINDOW_TITLE, str(Error), parent=self)
+			return
+
+		self._PopulateCatalogTree()
+
 	def _ModifySelectedCatalogNode(self) -> None:
 		Node = self._GetSelectedCatalogNode()
 		if Node is None:
@@ -347,6 +384,32 @@ class DgmDatabaseViewer(tk.Toplevel):
 
 		try:
 			self.Database.MoveCatalogNode(Node, Dialog.Result)
+			self.Database.Save()
+		except Exception as Error:
+			tkinter.messagebox.showerror(WINDOW_TITLE, str(Error), parent=self)
+			return
+
+		self._PopulateCatalogTree()
+
+	def _RemoveSelectedCatalogNode(self) -> None:
+		Node = self._GetSelectedCatalogNode()
+		if Node is None:
+			return
+
+		Warnings: List[str] = []
+		if any(Child.tag in ("node", "regex") for Child in list(Node)):
+			Warnings.append("it has child nodes")
+		if self.Database.CatalogNodeHasNonZeroDgmValues(Node):
+			Warnings.append("it has non-zero DGM values")
+
+		if Warnings:
+			Name = Node.get("text", Node.get("name", Node.tag))
+			Message = f"Remove '{Name}' and its subtree? This node is not empty because " + " and ".join(Warnings) + "."
+			if not tkinter.messagebox.askyesno(WINDOW_TITLE, Message, parent=self):
+				return
+
+		try:
+			self.Database.RemoveCatalogNode(Node)
 			self.Database.Save()
 		except Exception as Error:
 			tkinter.messagebox.showerror(WINDOW_TITLE, str(Error), parent=self)
@@ -1016,14 +1079,22 @@ class RenameElementDialog(tk.Toplevel):
 
 
 class AddElementDialog(tk.Toplevel):
-	def __init__(self, Parent: tk.Toplevel, Db: dgm_database.DgmDatabase, Name: str) -> None:
+	def __init__(
+		self,
+		Parent: tk.Toplevel,
+		Db: dgm_database.DgmDatabase,
+		Name: str,
+		InitialPathParts: Optional[List[str]] = None,
+		Title: str = "Add missing element",
+	) -> None:
 		super().__init__(Parent)
 		self.Result: Optional[GuiAddElementResult] = None
 		self.Db = Db
 		self.Name = Name
+		self.InitialPathParts = InitialPathParts
 		StructuredResult = Db.FindStructuredElement(dgm_database.NormalizeText(Name), Name)
 		self.Candidates = [Candidate for Candidate in (StructuredResult.PartialMatches or []) if Candidate.Node.tag == "node"]
-		self.title("Add missing element")
+		self.title(Title)
 		self.transient(Parent)
 		self.grab_set()
 		self.geometry("620x650")
@@ -1041,7 +1112,7 @@ class AddElementDialog(tk.Toplevel):
 		ttk.Label(self, text="Structured node chain (one node per line)").grid(row=3, column=0, sticky="w", padx=10, pady=(8, 4))
 		self.PathList = tk.Listbox(self, height=8, exportselection=False)
 		self.PathList.grid(row=4, column=0, sticky="nsew", padx=10)
-		for Part in self._DefaultSplit(Name):
+		for Part in (InitialPathParts if InitialPathParts is not None else self._DefaultSplit(Name)):
 			self.PathList.insert(tk.END, Part)
 		self.PathList.bind("<<ListboxSelect>>", self._OnPathPartSelect)
 		Edit = ttk.Frame(self)
@@ -1082,6 +1153,13 @@ class AddElementDialog(tk.Toplevel):
 		ttk.Button(Buttons, text="Cancel", command=self._Cancel).grid(row=0, column=0, padx=(0, 6))
 		ttk.Button(Buttons, text="Add", command=self._Save).grid(row=0, column=1)
 		self.wait_window(self)
+
+	def GetElementName(self) -> str:
+		if self.Result is not None and self.Result.Mode == "regex":
+			return self.Result.DisplayText or self.Result.Pattern or self.Name
+		if self.Result is not None and self.Result.PathParts:
+			return "".join(self.Result.PathParts)
+		return self.Name
 
 	def _DefaultSplit(self, Name: str) -> List[str]:
 		return [Part for Part in Name.split("/") if Part] or [Name]

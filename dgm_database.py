@@ -544,6 +544,31 @@ class DgmDatabase:
 		OldParent.remove(Node)
 		NewParent.append(Node)
 
+	def CatalogNodeHasNonZeroDgmValues(self, Node: XmlTree.Element) -> bool:
+		NodesToCheck = [Node]
+		while NodesToCheck:
+			Current = NodesToCheck.pop()
+			DgmNode = Current.find("dgm")
+			SourceNode = DgmNode if DgmNode is not None else Current
+			for MetalKey, _ in METALS:
+				try:
+					if ReadDecimal(SourceNode.get(f"{MetalKey}_g", "0")) != 0:
+						return True
+				except decimal.InvalidOperation:
+					return True
+			NodesToCheck.extend(Child for Child in list(Current) if Child.tag in ("node", "regex"))
+		return False
+
+	def RemoveCatalogNode(self, Node: XmlTree.Element) -> None:
+		if Node is self.CatalogNode or Node.tag not in ("node", "regex"):
+			raise RuntimeError("Only catalog node and regex entries can be removed")
+
+		Parent = self.FindCatalogParentOfNode(Node)
+		if Parent is None:
+			raise RuntimeError("Selected catalog entry is not attached to the database")
+
+		Parent.remove(Node)
+
 	def IsIgnoredText(self, Text: str) -> bool:
 		Key = NormalizeText(Text)
 		if not Key:
