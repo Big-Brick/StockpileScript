@@ -263,6 +263,19 @@ class RenameElementDialog(tk.Toplevel):
 
 
 class AddElementDialog(tk.Toplevel):
+
+	WINDOW_WIDTH = 620
+	TITLE_SECTION_HEIGHT = 34
+	ACTION_SECTION_HEIGHT = 82
+	CANDIDATE_SECTION_HEIGHT = 132
+	NEW_SECTION_HEIGHT = 318
+	VALUES_SECTION_HEIGHT = 82
+	BUTTON_SECTION_HEIGHT = 48
+	WINDOW_VERTICAL_PADDING = 32
+	CANDIDATE_LIST_ROWS = 5
+	PATH_LIST_ROWS = 8
+	EXISTING_MODE_HEIGHT = TITLE_SECTION_HEIGHT + ACTION_SECTION_HEIGHT + CANDIDATE_SECTION_HEIGHT + VALUES_SECTION_HEIGHT + BUTTON_SECTION_HEIGHT + WINDOW_VERTICAL_PADDING
+	NEW_MODE_HEIGHT = EXISTING_MODE_HEIGHT + NEW_SECTION_HEIGHT
 	def __init__(
 		self,
 		Parent: tk.Toplevel,
@@ -290,26 +303,28 @@ class AddElementDialog(tk.Toplevel):
 		if self.ExactCandidate is not None:
 			self.Candidates.append(self.ExactCandidate)
 		self.Candidates.extend(Candidate for Candidate in (StructuredResult.PartialMatches or []) if Candidate.Node.tag == "node" and Candidate is not self.ExactCandidate)
+		DefaultMode = "existing" if self.ExactCandidate is not None else "new"
+		if InitialMode in ("existing", "new"):
+			DefaultMode = InitialMode
 		self.title(Title)
 		self.transient(Parent)
 		self.grab_set()
-		self.geometry("620x650")
+		self.geometry(self._ModeGeometry(DefaultMode))
 		self.columnconfigure(0, weight=1)
 		self.rowconfigure(3, weight=1)
 		tk.Label(self, text=f"Element: {Name}").grid(row=0, column=0, sticky="w", padx=10, pady=(10, 4))
 
-		ModeFrame = ttk.LabelFrame(self, text="Action")
+		ModeFrame = ttk.LabelFrame(self, text="Action", height=self.ACTION_SECTION_HEIGHT)
 		ModeFrame.grid(row=1, column=0, sticky="ew", padx=10, pady=(0, 8))
-		DefaultMode = "existing" if self.ExactCandidate is not None else "new"
-		if InitialMode in ("existing", "new"):
-			DefaultMode = InitialMode
+		ModeFrame.grid_propagate(False)
 		self.DialogMode = tk.StringVar(value=DefaultMode)
 		ttk.Radiobutton(ModeFrame, text="Add DGM values to existing database node", variable=self.DialogMode, value="existing", command=self._UpdateModeState).grid(row=0, column=0, sticky="w", padx=6, pady=4)
 		ttk.Radiobutton(ModeFrame, text="Add new database element", variable=self.DialogMode, value="new", command=self._UpdateModeState).grid(row=1, column=0, sticky="w", padx=6, pady=(0, 4))
 
-		self.ExistingFrame = ttk.LabelFrame(self, text="Database candidates")
+		self.ExistingFrame = ttk.LabelFrame(self, text="Database candidates", height=self.CANDIDATE_SECTION_HEIGHT)
 		self.ExistingFrame.grid(row=2, column=0, sticky="ew", padx=10, pady=(0, 8))
-		self.CandidateList = tk.Listbox(self.ExistingFrame, height=5, exportselection=False)
+		self.ExistingFrame.grid_propagate(False)
+		self.CandidateList = tk.Listbox(self.ExistingFrame, height=self.CANDIDATE_LIST_ROWS, exportselection=False)
 		self.CandidateList.grid(row=0, column=0, sticky="ew", padx=6, pady=6)
 		self.ExistingFrame.columnconfigure(0, weight=1)
 		for Candidate in self.Candidates:
@@ -321,12 +336,13 @@ class AddElementDialog(tk.Toplevel):
 		else:
 			self.CandidateList.insert(tk.END, "No database candidates found.")
 
-		self.NewFrame = ttk.Frame(self)
+		self.NewFrame = ttk.Frame(self, height=self.NEW_SECTION_HEIGHT)
 		self.NewFrame.grid(row=3, column=0, sticky="nsew", padx=10)
+		self.NewFrame.grid_propagate(False)
 		self.NewFrame.columnconfigure(0, weight=1)
 		self.NewFrame.rowconfigure(1, weight=1)
 		ttk.Label(self.NewFrame, text="Structured node chain (one node per line)").grid(row=0, column=0, sticky="w", pady=(0, 4))
-		self.PathList = tk.Listbox(self.NewFrame, height=8, exportselection=False)
+		self.PathList = tk.Listbox(self.NewFrame, height=self.PATH_LIST_ROWS, exportselection=False)
 		self.PathList.grid(row=1, column=0, sticky="nsew")
 		for Part in (InitialPathParts if InitialPathParts is not None else self._DefaultSplit(Name)):
 			self.PathList.insert(tk.END, Part)
@@ -356,8 +372,9 @@ class AddElementDialog(tk.Toplevel):
 		self.RegexDisplayEntry = ttk.Entry(AddModeFrame)
 		self.RegexDisplayEntry.grid(row=2, column=1, sticky="ew", padx=(0, 6), pady=(0, 6))
 
-		Values = ttk.LabelFrame(self, text="DGM values, g")
+		Values = ttk.LabelFrame(self, text="DGM values, g", height=self.VALUES_SECTION_HEIGHT)
 		Values.grid(row=4, column=0, sticky="ew", padx=10, pady=8)
+		Values.grid_propagate(False)
 		self.ValueEntries: Dict[str, ttk.Entry] = {}
 		for Index, (MetalKey, MetalName) in enumerate(dgm_database.METALS):
 			ttk.Label(Values, text=MetalName).grid(row=0, column=Index, sticky="w")
@@ -365,8 +382,9 @@ class AddElementDialog(tk.Toplevel):
 			Entry.insert(0, "0")
 			Entry.grid(row=1, column=Index, padx=(0, 6))
 			self.ValueEntries[MetalKey] = Entry
-		Buttons = ttk.Frame(self)
+		Buttons = ttk.Frame(self, height=self.BUTTON_SECTION_HEIGHT)
 		Buttons.grid(row=5, column=0, sticky="e", padx=10, pady=(0, 10))
+		Buttons.grid_propagate(False)
 		ttk.Button(Buttons, text="Cancel", command=self._Cancel).grid(row=0, column=0, padx=(0, 6))
 		ttk.Button(Buttons, text="Add", command=self._Save).grid(row=0, column=1)
 		self._UpdateModeState()
@@ -382,9 +400,15 @@ class AddElementDialog(tk.Toplevel):
 	def _DefaultSplit(self, Name: str) -> List[str]:
 		return [Part for Part in Name.split("/") if Part] or [Name]
 
+	def _ModeGeometry(self, Mode: str) -> str:
+		Height = self.EXISTING_MODE_HEIGHT if Mode == "existing" else self.NEW_MODE_HEIGHT
+		return f"{self.WINDOW_WIDTH}x{Height}"
+
 	def _UpdateModeState(self) -> None:
+		Mode = self.DialogMode.get()
+		self.geometry(self._ModeGeometry(Mode))
 		self.ExistingFrame.grid()
-		if self.DialogMode.get() == "existing":
+		if Mode == "existing":
 			self.NewFrame.grid_remove()
 		else:
 			self.NewFrame.grid()
