@@ -8,9 +8,10 @@ import tkinter.ttk as ttk
 import dgm_database
 from dgm_gui_database_viewer import DgmDatabaseViewer
 from dgm_gui_xlsx_processor import XlsxProcessingMixin
+from dgm_gui_xlsx_preprocessor import XlsxPreprocessingMixin
 
 
-class DgmMainWindow(tk.Tk, XlsxProcessingMixin):
+class DgmMainWindow(tk.Tk, XlsxProcessingMixin, XlsxPreprocessingMixin):
 	def __init__(self, DatabasePath: Path) -> None:
 		super().__init__()
 		self.DatabasePath = DatabasePath
@@ -18,8 +19,8 @@ class DgmMainWindow(tk.Tk, XlsxProcessingMixin):
 		self.DatabaseEditor: Optional[DgmDatabaseViewer] = None
 
 		self.title(f"DGM Inventory Tools - {DatabasePath.name}")
-		self.geometry("360x180")
-		self.minsize(320, 160)
+		self.geometry("360x220")
+		self.minsize(320, 200)
 
 		self._ConfigureStyle()
 		self._BuildLayout()
@@ -34,8 +35,9 @@ class DgmMainWindow(tk.Tk, XlsxProcessingMixin):
 		self.columnconfigure(0, weight=1)
 		ttk.Label(self, text="DGM inventory tools", style="Heading.TLabel").grid(row=0, column=0, sticky="ew", padx=16, pady=(16, 8))
 		ttk.Button(self, text="Open database editor", command=self._OpenDatabaseEditor).grid(row=1, column=0, sticky="ew", padx=16, pady=4)
-		ttk.Button(self, text="Fill .xlsx file", command=self._SelectAndProcessXlsxFile).grid(row=2, column=0, sticky="ew", padx=16, pady=4)
-		ttk.Button(self, text="Fill folder", command=self._SelectAndProcessXlsxFolder).grid(row=3, column=0, sticky="ew", padx=16, pady=(4, 16))
+		ttk.Button(self, text="Preprocess .xlsx file", command=self._SelectAndPreprocessXlsxFile).grid(row=2, column=0, sticky="ew", padx=16, pady=4)
+		ttk.Button(self, text="Fill .xlsx file", command=self._SelectAndProcessXlsxFile).grid(row=3, column=0, sticky="ew", padx=16, pady=4)
+		ttk.Button(self, text="Fill folder", command=self._SelectAndProcessXlsxFolder).grid(row=4, column=0, sticky="ew", padx=16, pady=(4, 16))
 
 	def _OpenDatabaseEditor(self) -> None:
 		if self.DatabaseEditor is not None and self.DatabaseEditor.winfo_exists():
