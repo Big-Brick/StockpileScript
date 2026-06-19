@@ -246,6 +246,7 @@ class DgmDatabaseViewer(tk.Toplevel, XlsxProcessingMixin):
 			DefaultName,
 			InitialPathParts=self.Database.GetNodePathParts(ParentNode) + [DefaultName],
 			Title="Add database node",
+			InitialMode="new",
 		)
 		if Dialog.Result is None:
 			return
@@ -364,7 +365,10 @@ class DgmDatabaseViewer(tk.Toplevel, XlsxProcessingMixin):
 		Messages: List[str] = []
 		if Result.Record is not None:
 			MatchType = "regex" if Result.MatchedByRegex else "exact"
-			Messages.append(f"Found {MatchType} match: {Result.Record.DisplayName}")
+			Messages.append(f"Found {MatchType} match with DGM: {Result.Record.DisplayName}")
+		elif Result.ExactMatch is not None:
+			Marker = "has DGM but all values are zero" if Result.ExactMatch.HasDgm else "has no DGM"
+			Messages.append(f"Found exact match without usable DGM: {Result.ExactMatch.DisplayName} ({Marker}).")
 		else:
 			Messages.append("No exact match found.")
 

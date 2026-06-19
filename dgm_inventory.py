@@ -60,7 +60,10 @@ def AskElementOrIgnore(FilePath: Path, SheetName: str, Row: int, Text: str, Db: 
 
 def AddElementInteractively(Db: dgm_database.DgmDatabase, Name: str) -> dgm_database.ElementRecord:
 	StructuredResult = Db.FindStructuredElement(dgm_database.NormalizeText(Name), Name)
-	MatchingPaths = [Candidate for Candidate in (StructuredResult.PartialMatches or []) if not Candidate.HasDgm and Candidate.Node.tag == "node"]
+	MatchingPaths = []
+	if StructuredResult.ExactMatch is not None and StructuredResult.ExactMatch.Node.tag == "node":
+		MatchingPaths.append(StructuredResult.ExactMatch)
+	MatchingPaths.extend(Candidate for Candidate in (StructuredResult.PartialMatches or []) if not Candidate.HasDgm and Candidate.Node.tag == "node")
 	if MatchingPaths:
 		SelectedPath = AskExistingPathCandidate(MatchingPaths)
 		if SelectedPath is not None:

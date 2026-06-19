@@ -109,6 +109,7 @@ class ElementSearchResult:
 	Record: Optional["ElementRecord"]
 	MatchedByRegex: bool = False
 	PartialMatches: Optional[List[PartialElementMatch]] = None
+	ExactMatch: Optional[PartialElementMatch] = None
 
 	def __post_init__(self) -> None:
 		if self.PartialMatches is None:
@@ -255,7 +256,7 @@ class DgmDatabase:
 
 		LegacyRecord = self.FindLegacyElement(NormalizedName)
 		if LegacyRecord is not None:
-			return ElementSearchResult(LegacyRecord, False, StructuredResult.PartialMatches)
+			return ElementSearchResult(LegacyRecord, False, StructuredResult.PartialMatches, StructuredResult.ExactMatch)
 
 		return StructuredResult
 
@@ -263,6 +264,7 @@ class DgmDatabase:
 		States: List[Tuple[XmlTree.Element, str, bool, List[str]]] = [(self.CatalogNode, NormalizedName, False, [])]
 		BestRecord: Optional[ElementRecord] = None
 		BestRegexState = False
+		ExactMatch: Optional[PartialElementMatch] = None
 		PartialMatchesByNode: Dict[int, PartialElementMatch] = {}
 		DeepestPartialLength = 0
 
@@ -270,14 +272,14 @@ class DgmDatabase:
 			Parent, Remaining, MatchedRegex, PathTexts = States.pop()
 			MatchedLength = len(NormalizedName) - len(Remaining)
 			DgmNode = Parent.find("dgm")
-			HasUsableDgm = False
+			HasNonZeroDgm = False
 			if DgmNode is not None:
 				try:
-					HasUsableDgm = not self.ReadDgmValues(DgmNode).IsZero()
+					HasNonZeroDgm = not self.ReadDgmValues(DgmNode).IsZero()
 				except decimal.InvalidOperation:
-					HasUsableDgm = True
+					HasNonZeroDgm = True
 
-			if PathTexts and (Remaining != "" or not HasUsableDgm):
+			if PathTexts and Remaining != "":
 				if MatchedLength > DeepestPartialLength:
 					PartialMatchesByNode.clear()
 					DeepestPartialLength = MatchedLength
@@ -289,10 +291,22 @@ class DgmDatabase:
 						HasDgm=DgmNode is not None,
 					)
 
-			if Remaining == "" and HasUsableDgm and DgmNode is not None:
-				BestRecord = self.MakeRecord(Parent, OriginalName or "".join(PathTexts), DgmNode)
-				BestRegexState = MatchedRegex
-				break
+			if Remaining == "" and PathTexts:
+				EmptyRegexRecord = self._FindEmptyRegexChildRecord(Parent, PathTexts, OriginalName)
+				if EmptyRegexRecord is not None:
+					BestRecord = EmptyRegexRecord
+					BestRegexState = True
+					break
+				if DgmNode is not None and (Parent.tag == "regex" or HasNonZeroDgm):
+					BestRecord = self.MakeRecord(Parent, OriginalName or "".join(PathTexts), DgmNode)
+					BestRegexState = MatchedRegex
+					break
+				ExactMatch = PartialElementMatch(
+					Node=Parent,
+					DisplayName=" => ".join(PathTexts),
+					MatchedByRegex=MatchedRegex,
+					HasDgm=DgmNode is not None,
+				)
 
 			for Child in list(Parent):
 				if Child.tag == "node":
@@ -316,7 +330,24 @@ class DgmDatabase:
 					if MatchedPart == "" and Remaining != "":
 						continue
 					States.append((Child, Remaining[len(MatchedPart):], True, PathTexts + [MatchedPart or Child.get("text", Pattern)]))
-		return ElementSearchResult(BestRecord, BestRegexState, list(PartialMatchesByNode.values()))
+		return ElementSearchResult(BestRecord, BestRegexState, list(PartialMatchesByNode.values()), ExactMatch)
+
+	def _FindEmptyRegexChildRecord(self, Parent: XmlTree.Element, PathTexts: List[str], OriginalName: str) -> Optional[ElementRecord]:
+		for Child in list(Parent):
+			if Child.tag != "regex":
+				continue
+			Pattern = Child.get("pattern", "")
+			DgmNode = Child.find("dgm")
+			if not Pattern or DgmNode is None:
+				continue
+			try:
+				Match = re.match(Pattern, "", flags=re.IGNORECASE)
+			except re.error:
+				continue
+			if Match is None or Match.group(0) != "":
+				continue
+			return self.MakeRecord(Child, OriginalName or "".join(PathTexts), DgmNode)
+		return None
 
 	def FindLegacyElement(self, NormalizedName: str) -> Optional[ElementRecord]:
 		for Node in self.LegacyElementsNode.findall("element"):

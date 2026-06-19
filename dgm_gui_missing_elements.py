@@ -237,7 +237,10 @@ class MissingElementsMixin:
 					else:
 						SearchResult = self.Database.FindElement(Name)
 						if SearchResult.Record is None:
-							self._AddMissingElement(GroupsByKey, GuiMissingElement(FilePath, Sheet.title, Row, Name), SearchResult.PartialMatches or [])
+							Matches = list(SearchResult.PartialMatches or [])
+							if SearchResult.ExactMatch is not None:
+								Matches.insert(0, SearchResult.ExactMatch)
+							self._AddMissingElement(GroupsByKey, GuiMissingElement(FilePath, Sheet.title, Row, Name), Matches)
 						ConsecutiveIgnoredRows = 0
 				if ConsecutiveIgnoredRows >= dgm_inventory.STOP_AFTER_CONSECUTIVE_IGNORED_ROWS:
 					break
@@ -247,9 +250,11 @@ class MissingElementsMixin:
 	def _AddMissingElement(self, GroupsByKey: Dict[str, MissingElementGroup], Item: GuiMissingElement, Matches: List[dgm_database.PartialElementMatch]) -> None:
 		Best = sorted(Matches, key=lambda Match: len(dgm_database.NormalizeText(Match.DisplayName)), reverse=True)
 		if Best:
-			GroupKey = "partial:" + dgm_database.NormalizeText(Best[0].DisplayName)
+			GroupKey = "match:" + dgm_database.NormalizeText(Best[0].DisplayName)
 			Title = Best[0].DisplayName
-			InitialPathParts = self.Database.GetNodePathParts(Best[0].Node) + [Item.Name]
+			InitialPathParts = self.Database.GetNodePathParts(Best[0].Node)
+			if Best[0] is not Matches[0] or Item.Name.casefold() != "".join(InitialPathParts).casefold():
+				InitialPathParts = InitialPathParts + [Item.Name]
 		else:
 			Simple = Item.Name[:1].upper() if Item.Name else "#"
 			GroupKey = "text:" + Simple.casefold()

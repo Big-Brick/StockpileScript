@@ -270,6 +270,7 @@ class AddElementDialog(tk.Toplevel):
 		Name: str,
 		InitialPathParts: Optional[List[str]] = None,
 		Title: str = "Add missing element",
+		InitialMode: str = "auto",
 	) -> None:
 		super().__init__(Parent)
 		self.Result: Optional[GuiAddElementResult] = None
@@ -277,7 +278,11 @@ class AddElementDialog(tk.Toplevel):
 		self.Name = Name
 		self.InitialPathParts = InitialPathParts
 		StructuredResult = Db.FindStructuredElement(dgm_database.NormalizeText(Name), Name)
-		self.Candidates = [Candidate for Candidate in (StructuredResult.PartialMatches or []) if Candidate.Node.tag == "node"]
+		self.ExactCandidate = StructuredResult.ExactMatch if StructuredResult.ExactMatch is not None and StructuredResult.ExactMatch.Node.tag == "node" else None
+		self.Candidates = []
+		if self.ExactCandidate is not None:
+			self.Candidates.append(self.ExactCandidate)
+		self.Candidates.extend(Candidate for Candidate in (StructuredResult.PartialMatches or []) if Candidate.Node.tag == "node" and Candidate is not self.ExactCandidate)
 		self.title(Title)
 		self.transient(Parent)
 		self.grab_set()
@@ -288,22 +293,26 @@ class AddElementDialog(tk.Toplevel):
 
 		ModeFrame = ttk.LabelFrame(self, text="Action")
 		ModeFrame.grid(row=1, column=0, sticky="ew", padx=10, pady=(0, 8))
-		self.DialogMode = tk.StringVar(value="existing" if self.Candidates else "new")
+		DefaultMode = "existing" if self.ExactCandidate is not None else "new"
+		if InitialMode in ("existing", "new"):
+			DefaultMode = InitialMode
+		self.DialogMode = tk.StringVar(value=DefaultMode)
 		ttk.Radiobutton(ModeFrame, text="Add DGM values to existing database node", variable=self.DialogMode, value="existing", command=self._UpdateModeState).grid(row=0, column=0, sticky="w", padx=6, pady=4)
 		ttk.Radiobutton(ModeFrame, text="Add new database element", variable=self.DialogMode, value="new", command=self._UpdateModeState).grid(row=1, column=0, sticky="w", padx=6, pady=(0, 4))
 
-		self.ExistingFrame = ttk.LabelFrame(self, text="Existing matches without usable DGM values")
+		self.ExistingFrame = ttk.LabelFrame(self, text="Database candidates")
 		self.ExistingFrame.grid(row=2, column=0, sticky="ew", padx=10, pady=(0, 8))
 		self.CandidateList = tk.Listbox(self.ExistingFrame, height=5, exportselection=False)
 		self.CandidateList.grid(row=0, column=0, sticky="ew", padx=6, pady=6)
 		self.ExistingFrame.columnconfigure(0, weight=1)
 		for Candidate in self.Candidates:
-			Marker = "has zero DGM" if Candidate.HasDgm else "no DGM"
-			self.CandidateList.insert(tk.END, f"{Candidate.DisplayName} ({Marker})")
+			Kind = "full match" if Candidate is self.ExactCandidate else "partial match"
+			Marker = "has DGM" if Candidate.HasDgm else "no DGM"
+			self.CandidateList.insert(tk.END, f"{Candidate.DisplayName} ({Kind}, {Marker})")
 		if self.Candidates:
 			self.CandidateList.selection_set(0)
 		else:
-			self.CandidateList.insert(tk.END, "No existing node candidates found.")
+			self.CandidateList.insert(tk.END, "No database candidates found.")
 
 		self.NewFrame = ttk.Frame(self)
 		self.NewFrame.grid(row=3, column=0, sticky="nsew", padx=10)
@@ -367,11 +376,10 @@ class AddElementDialog(tk.Toplevel):
 		return [Part for Part in Name.split("/") if Part] or [Name]
 
 	def _UpdateModeState(self) -> None:
+		self.ExistingFrame.grid()
 		if self.DialogMode.get() == "existing":
-			self.ExistingFrame.grid()
 			self.NewFrame.grid_remove()
 		else:
-			self.ExistingFrame.grid_remove()
 			self.NewFrame.grid()
 
 	def _GetCandidate(self) -> Optional[dgm_database.PartialElementMatch]:
@@ -451,8 +459,8 @@ class AddElementDialog(tk.Toplevel):
 			return
 		if self.DialogMode.get() == "existing":
 			Candidate = self._GetCandidate()
-			if Candidate is None:
-				tkinter.messagebox.showerror(WINDOW_TITLE, "Select an existing node candidate or choose Add new.", parent=self)
+			if Candidate is None or Candidate is not self.ExactCandidate:
+				tkinter.messagebox.showerror(WINDOW_TITLE, "Select the full existing match or choose Add new.", parent=self)
 				return
 			self.Result = GuiAddElementResult("existing", Values, self.Db.GetNodePathParts(Candidate.Node))
 		else:
