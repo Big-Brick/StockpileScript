@@ -280,7 +280,7 @@ class DgmDatabase:
 			MatchedLength = len(NormalizedName) - len(Remaining)
 			DgmNode = Parent.find("dgm")
 
-			if PathTexts and Remaining != "":
+			if PathTexts and Remaining != "" and MatchedLength > 0:
 				if MatchedLength > DeepestPartialLength:
 					PartialMatchesByNode.clear()
 					DeepestPartialLength = MatchedLength
