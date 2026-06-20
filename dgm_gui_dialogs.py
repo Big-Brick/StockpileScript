@@ -279,30 +279,25 @@ class AddElementDialog(tk.Toplevel):
 	def __init__(
 		self,
 		Parent: tk.Toplevel,
-		Db: dgm_database.DgmDatabase,
 		Name: str,
+		StructuredResult: dgm_database.ElementSearchResult,
 		InitialPathParts: Optional[List[str]] = None,
 		Title: str = "Add missing element",
 		InitialMode: str = "auto",
 	) -> None:
 		super().__init__(Parent)
 		self.Result: Optional[GuiAddElementResult] = None
-		self.Db = Db
 		self.Name = Name
 		self.InitialPathParts = InitialPathParts
-		StructuredResult = Db.FindStructuredElement(dgm_database.NormalizeText(Name), Name)
 		self.ExactCandidate = None
 		if StructuredResult.Record is not None and not StructuredResult.Record.HasDgm and StructuredResult.Record.Node.tag == "node":
 			self.ExactCandidate = dgm_database.PartialElementMatch(
-				Node=StructuredResult.Record.Node,
-				DisplayName=" => ".join(Db.GetNodePathParts(StructuredResult.Record.Node)),
-				MatchedByRegex=StructuredResult.MatchedByRegex,
-				HasDgm=False,
+				Record=StructuredResult.Record,
 			)
 		self.Candidates = []
 		if self.ExactCandidate is not None:
 			self.Candidates.append(self.ExactCandidate)
-		self.Candidates.extend(Candidate for Candidate in (StructuredResult.PartialMatches or []) if Candidate.Node.tag == "node" and Candidate is not self.ExactCandidate)
+		self.Candidates.extend(Candidate for Candidate in (StructuredResult.PartialMatches) if Candidate.Node.tag == "node" and Candidate is not self.ExactCandidate)
 		DefaultMode = "existing" if self.ExactCandidate is not None else "new"
 		if InitialMode in ("existing", "new"):
 			DefaultMode = InitialMode
@@ -432,7 +427,7 @@ class AddElementDialog(tk.Toplevel):
 		if Candidate is None:
 			return
 		self.PathList.delete(0, tk.END)
-		PathParts = self.Db.GetNodePathParts(Candidate.Node)
+		PathParts = Candidate.Record.PathParts
 		LeafRemainder = Candidate.Remainder.strip() or self._GetNameRemainderAfterCandidatePath(PathParts)
 		for Part in PathParts + [LeafRemainder]:
 			self.PathList.insert(tk.END, Part)
@@ -493,7 +488,7 @@ class AddElementDialog(tk.Toplevel):
 			if Candidate is None or Candidate is not self.ExactCandidate:
 				tkinter.messagebox.showerror(WINDOW_TITLE, "Select the full existing match or choose Add new.", parent=self)
 				return
-			self.Result = GuiAddElementResult("existing", Values, self.Db.GetNodePathParts(Candidate.Node))
+			self.Result = GuiAddElementResult("existing", Values, Candidate.Record.PathParts)
 		else:
 			PathParts = [self.PathList.get(Index) for Index in range(self.PathList.size())]
 			if not PathParts:

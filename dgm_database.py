@@ -16,7 +16,7 @@ import decimal
 import re
 import string
 import xml.etree.ElementTree as XmlTree
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple
 
@@ -98,22 +98,31 @@ class DgmValues:
 
 @dataclass
 class PartialElementMatch:
-	Node: XmlTree.Element
-	DisplayName: str
-	MatchedByRegex: bool = False
-	HasDgm: bool = False
+	Record: "ElementRecord"
 	Remainder: str = ""
+
+	@property
+	def Node(self) -> XmlTree.Element:
+		return self.Record.Node
+
+	@property
+	def DisplayName(self) -> str:
+		return self.Record.DisplayName
+
+	@property
+	def MatchedByRegex(self) -> bool:
+		return self.Record.MatchedByRegex
+
+	@property
+	def HasDgm(self) -> bool:
+		return self.Record.HasDgm
 
 
 @dataclass
 class ElementSearchResult:
 	Record: Optional["ElementRecord"]
 	MatchedByRegex: bool = False
-	PartialMatches: Optional[List[PartialElementMatch]] = None
-
-	def __post_init__(self) -> None:
-		if self.PartialMatches is None:
-			self.PartialMatches = []
+	PartialMatches: List[PartialElementMatch] = field(default_factory=list)
 
 
 @dataclass
@@ -125,22 +134,34 @@ class SiblingInfo:
 	HasDgm: bool
 
 
-@dataclass
-class ExistingPathInfo:
-	Index: int
-	PathParts: List[str]
-	DisplayPath: str
-	DisplayName: str
-	HasDgm: bool
-
-
 class ElementRecord:
-	def __init__(self, Database: "DgmDatabase", Node: XmlTree.Element, DisplayName: str, Values: DgmValues, HasDgm: bool = True) -> None:
+	def __init__(
+		self,
+		Database: "DgmDatabase",
+		Node: XmlTree.Element,
+		DisplayText: str,
+		Values: DgmValues,
+		HasDgm: bool = True,
+		Parent: Optional["ElementRecord"] = None,
+		PathText: str = "",
+		ConsumedText: str = "",
+		MatchedByRegex: bool = False,
+		IsRoot: bool = False,
+	) -> None:
 		self.Database = Database
 		self.Node = Node
-		self.DisplayName = DisplayName
+		self.DisplayText = DisplayText
 		self.Values = Values
 		self.HasDgm = HasDgm
+		self.Parent = Parent
+		self.PathText = PathText or DisplayText
+		self.ConsumedText = ConsumedText
+		self.MatchedByRegex = MatchedByRegex
+		self.IsRoot = IsRoot
+
+	@property
+	def DisplayName(self) -> str:
+		return self.DisplayPath
 
 	@property
 	def HasNonZeroDgm(self) -> bool:
@@ -149,6 +170,28 @@ class ElementRecord:
 	@property
 	def IsUsableForInventoryFill(self) -> bool:
 		return self.HasDgm
+
+	def IterPath(self) -> List["ElementRecord"]:
+		Path: List[ElementRecord] = []
+		Current: Optional[ElementRecord] = self
+		while Current is not None:
+			if not Current.IsRoot:
+				Path.append(Current)
+			Current = Current.Parent
+		Path.reverse()
+		return Path
+
+	@property
+	def PathParts(self) -> List[str]:
+		return [Record.PathText for Record in self.IterPath()]
+
+	@property
+	def DisplayPathParts(self) -> List[str]:
+		return [Record.DisplayText for Record in self.IterPath()]
+
+	@property
+	def DisplayPath(self) -> str:
+		return " => ".join(self.DisplayPathParts)
 
 	def GetMetalValue(self, MetalKey: str) -> decimal.Decimal:
 		return self.Values.GetMetalValue(MetalKey)
@@ -260,38 +303,46 @@ class DgmDatabase:
 		return StructuredResult
 
 	def FindStructuredElement(self, NormalizedName: str, OriginalName: str) -> ElementSearchResult:
-		States: List[Tuple[XmlTree.Element, str, bool, List[str]]] = [(self.CatalogNode, NormalizedName, False, [])]
+		RootRecord = ElementRecord(
+			self,
+			self.CatalogNode,
+			"catalog",
+			DgmValues(decimal.Decimal("0"), decimal.Decimal("0"), decimal.Decimal("0"), decimal.Decimal("0")),
+			False,
+			None,
+			"",
+			"",
+			False,
+			True,
+		)
+		States: List[Tuple[XmlTree.Element, str, ElementRecord]] = [(self.CatalogNode, NormalizedName, RootRecord)]
 		BestRecord: Optional[ElementRecord] = None
 		BestRegexState = False
 		PartialMatchesByNode: Dict[int, PartialElementMatch] = {}
 		DeepestPartialLength = 0
 
 		while States:
-			Parent, Remaining, MatchedRegex, PathTexts = States.pop()
+			Parent, Remaining, ParentRecord = States.pop()
 			MatchedLength = len(NormalizedName) - len(Remaining)
-			DgmNode = Parent.find("dgm")
 
-			if PathTexts and Remaining != "" and MatchedLength > 0:
+			if not ParentRecord.IsRoot and Remaining != "" and MatchedLength > 0:
 				if MatchedLength > DeepestPartialLength:
 					PartialMatchesByNode.clear()
 					DeepestPartialLength = MatchedLength
 				if MatchedLength == DeepestPartialLength:
 					PartialMatchesByNode[id(Parent)] = PartialElementMatch(
-						Node=Parent,
-						DisplayName=" => ".join(PathTexts),
-						MatchedByRegex=MatchedRegex,
-						HasDgm=DgmNode is not None,
+						Record=ParentRecord,
 						Remainder=self._GetOriginalRemainder(NormalizedName, OriginalName, MatchedLength),
 					)
 
-			if Remaining == "" and PathTexts:
-				EmptyRegexRecord = self._FindEmptyRegexChildRecord(Parent, PathTexts, OriginalName)
+			if Remaining == "" and not ParentRecord.IsRoot:
+				EmptyRegexRecord = self._FindEmptyRegexChildRecord(Parent, ParentRecord, OriginalName)
 				if EmptyRegexRecord is not None:
 					BestRecord = EmptyRegexRecord
 					BestRegexState = True
 					break
-				BestRecord = self.MakeRecord(Parent, OriginalName or "".join(PathTexts), DgmNode)
-				BestRegexState = MatchedRegex
+				BestRecord = ParentRecord
+				BestRegexState = ParentRecord.MatchedByRegex
 				break
 
 			for Child in list(Parent):
@@ -299,9 +350,27 @@ class DgmDatabase:
 					ChildText = Child.get("text", "")
 					ChildKey = NormalizeStructureText(ChildText)
 					if ChildKey and Remaining.startswith(ChildKey):
-						States.append((Child, Remaining[len(ChildKey):], MatchedRegex, PathTexts + [ChildText]))
+						ChildRecord = self.MakeRecord(
+							Child,
+							ChildText,
+							Child.find("dgm"),
+							ParentRecord,
+							ChildText,
+							ChildText,
+							ParentRecord.MatchedByRegex,
+						)
+						States.append((Child, Remaining[len(ChildKey):], ChildRecord))
 					elif IsOptionalNode(Child):
-						States.append((Child, Remaining, MatchedRegex, PathTexts + [FormatOptionalPathText(ChildText)]))
+						ChildRecord = self.MakeRecord(
+							Child,
+							FormatOptionalPathText(ChildText),
+							Child.find("dgm"),
+							ParentRecord,
+							ChildText,
+							"",
+							ParentRecord.MatchedByRegex,
+						)
+						States.append((Child, Remaining, ChildRecord))
 				elif Child.tag == "regex":
 					Pattern = Child.get("pattern", "")
 					if not Pattern:
@@ -315,7 +384,17 @@ class DgmDatabase:
 					MatchedPart = Match.group(0)
 					if MatchedPart == "" and Remaining != "":
 						continue
-					States.append((Child, Remaining[len(MatchedPart):], True, PathTexts + [MatchedPart or Child.get("text", Pattern)]))
+					PathText = Child.get("text", Child.get("name", Pattern))
+					ChildRecord = self.MakeRecord(
+						Child,
+						MatchedPart or PathText,
+						Child.find("dgm"),
+						ParentRecord,
+						PathText,
+						MatchedPart,
+						True,
+					)
+					States.append((Child, Remaining[len(MatchedPart):], ChildRecord))
 		return ElementSearchResult(BestRecord, BestRegexState, list(PartialMatchesByNode.values()))
 
 	def _GetOriginalRemainder(self, NormalizedName: str, OriginalName: str, MatchedLength: int) -> str:
@@ -327,7 +406,7 @@ class DgmDatabase:
 			return OriginalName[MatchedLength:]
 		return NormalizedName[MatchedLength:]
 
-	def _FindEmptyRegexChildRecord(self, Parent: XmlTree.Element, PathTexts: List[str], OriginalName: str) -> Optional[ElementRecord]:
+	def _FindEmptyRegexChildRecord(self, Parent: XmlTree.Element, ParentRecord: ElementRecord, OriginalName: str) -> Optional[ElementRecord]:
 		for Child in list(Parent):
 			if Child.tag != "regex":
 				continue
@@ -341,19 +420,33 @@ class DgmDatabase:
 				continue
 			if Match is None or Match.group(0) != "":
 				continue
-			return self.MakeRecord(Child, OriginalName or "".join(PathTexts), DgmNode)
+			PathText = Child.get("text", Child.get("name", Pattern))
+			return self.MakeRecord(Child, PathText, DgmNode, ParentRecord, PathText, "", True)
 		return None
 
-	def MakeRecord(self, Node: XmlTree.Element, DisplayName: str, DgmNode: Optional[XmlTree.Element]) -> ElementRecord:
+	def MakeRecord(
+		self,
+		Node: XmlTree.Element,
+		DisplayText: str,
+		DgmNode: Optional[XmlTree.Element],
+		Parent: Optional[ElementRecord] = None,
+		PathText: str = "",
+		ConsumedText: str = "",
+		MatchedByRegex: bool = False,
+	) -> ElementRecord:
 		if DgmNode is None:
 			return ElementRecord(
 				self,
 				Node,
-				DisplayName,
+				DisplayText,
 				DgmValues(decimal.Decimal("0"), decimal.Decimal("0"), decimal.Decimal("0"), decimal.Decimal("0")),
 				False,
+				Parent,
+				PathText,
+				ConsumedText,
+				MatchedByRegex,
 			)
-		return ElementRecord(self, Node, DisplayName, self.ReadDgmValues(DgmNode), True)
+		return ElementRecord(self, Node, DisplayText, self.ReadDgmValues(DgmNode), True, Parent, PathText, ConsumedText, MatchedByRegex)
 
 	def ReadDgmValues(self, DgmNode: XmlTree.Element) -> DgmValues:
 		return DgmValues(
@@ -478,24 +571,6 @@ class DgmDatabase:
 		Record.WriteValuesToXml()
 		return Record
 
-	def GetRegularPathInfo(self, PathParts: Sequence[str]) -> Optional[ExistingPathInfo]:
-		CleanParts = [Part for Part in (Part.strip() for Part in PathParts) if Part]
-		if not CleanParts:
-			return None
-
-		Node = self.FindParent(CleanParts)
-		if Node is None or Node is self.CatalogNode or Node.tag != "node":
-			return None
-
-		DisplayName = Node.get("name", "".join(CleanParts))
-		return ExistingPathInfo(
-			Index=1,
-			PathParts=CleanParts,
-			DisplayPath="/".join(CleanParts),
-			DisplayName=DisplayName,
-			HasDgm=Node.find("dgm") is not None,
-		)
-
 	def GetSiblingInfos(self, ParentPathParts: Sequence[str]) -> List[SiblingInfo]:
 		Parent = self.FindParent(ParentPathParts)
 		if Parent is None:
@@ -508,27 +583,6 @@ class DgmDatabase:
 			elif Child.tag == "regex":
 				Infos.append(SiblingInfo(Index, "regex", Child.get("text", ""), Child.get("pattern", ""), Child.find("dgm") is not None))
 		return Infos
-
-	def GetNodePathParts(self, Node: XmlTree.Element) -> List[str]:
-		PathParts: List[str] = []
-		Found = False
-
-		def Walk(Parent: XmlTree.Element, Parts: List[str]) -> None:
-			nonlocal PathParts, Found
-			if Found:
-				return
-			for Child in list(Parent):
-				if Child.tag not in ("node", "regex"):
-					continue
-				ChildParts = Parts + [Child.get("text", Child.get("name", Child.tag))]
-				if Child is Node:
-					PathParts = ChildParts
-					Found = True
-					return
-				Walk(Child, ChildParts)
-
-		Walk(self.CatalogNode, [])
-		return PathParts
 
 	def FindCatalogParentOfNode(self, Node: XmlTree.Element) -> Optional[XmlTree.Element]:
 		if Node is self.CatalogNode:

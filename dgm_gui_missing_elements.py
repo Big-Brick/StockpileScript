@@ -143,7 +143,8 @@ class MissingElementsWindow(tk.Toplevel):
 		Item = self._SelectedItem()
 		if Item is None:
 			return
-		Dialog = AddElementDialog(self, self.ParentViewer.Database, Item.Name, Item.InitialPathParts)
+		StructuredResult = self.ParentViewer.Database.FindStructuredElement(dgm_database.NormalizeText(Item.Name), Item.Name)
+		Dialog = AddElementDialog(self, Item.Name, StructuredResult, Item.InitialPathParts)
 		if Dialog.Result is None:
 			return
 		try:
@@ -237,13 +238,10 @@ class MissingElementsMixin:
 					else:
 						SearchResult = self.Database.FindElement(Name)
 						if SearchResult.Record is None or not SearchResult.Record.HasDgm:
-							Matches = list(SearchResult.PartialMatches or [])
+							Matches = list(SearchResult.PartialMatches)
 							if SearchResult.Record is not None and SearchResult.Record.Node.tag == "node":
 								Matches.insert(0, dgm_database.PartialElementMatch(
-									Node=SearchResult.Record.Node,
-									DisplayName=" => ".join(self.Database.GetNodePathParts(SearchResult.Record.Node)),
-									MatchedByRegex=SearchResult.MatchedByRegex,
-									HasDgm=False,
+									Record=SearchResult.Record,
 								))
 							self._AddMissingElement(GroupsByKey, GuiMissingElement(FilePath, Sheet.title, Row, Name), Matches)
 						ConsecutiveIgnoredRows = 0
@@ -257,7 +255,7 @@ class MissingElementsMixin:
 		if Best:
 			GroupKey = "match:" + dgm_database.NormalizeText(Best[0].DisplayName)
 			Title = Best[0].DisplayName
-			InitialPathParts = self.Database.GetNodePathParts(Best[0].Node)
+			InitialPathParts = Best[0].Record.PathParts
 			Remainder = Best[0].Remainder.strip()
 			if Remainder:
 				InitialPathParts = InitialPathParts + [Remainder]
