@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import decimal
 from typing import Dict, List, Optional
 import tkinter as tk
 import tkinter.messagebox
@@ -7,7 +8,7 @@ import tkinter.ttk as ttk
 import xml.etree.ElementTree as XmlTree
 
 import dgm_database
-from dgm_gui_common import WINDOW_TITLE
+from dgm_gui_common import GuiAddElementResult, WINDOW_TITLE
 from dgm_gui_dialogs import AddElementDialog, CatalogNodeEditDialog, MoveCatalogNodeDialog
 from dgm_gui_xlsx_processor import XlsxProcessingMixin
 
@@ -223,6 +224,44 @@ class DgmDatabaseViewer(tk.Toplevel, XlsxProcessingMixin):
 	def _GetSelectedCatalogPathParts(self) -> List[str]:
 		return self.CatalogItemPaths.get(self._GetSelectedCatalogItemId(), [])
 
+	def _GetSelectedCatalogSearchResult(self) -> dgm_database.ElementSearchResult:
+		ItemId = self._GetSelectedCatalogItemId()
+		if not ItemId or ItemId not in self.CatalogItems:
+			return dgm_database.ElementSearchResult(None)
+
+		NodeChain: List[XmlTree.Element] = []
+		CurrentItem = ItemId
+		while CurrentItem in self.CatalogItems:
+			NodeChain.append(self.CatalogItems[CurrentItem])
+			CurrentItem = self.CatalogTree.parent(CurrentItem)
+		NodeChain.reverse()
+
+		RootRecord = dgm_database.ElementRecord(
+			self.Database,
+			self.Database.CatalogNode,
+			"catalog",
+			dgm_database.DgmValues(decimal.Decimal("0"), decimal.Decimal("0"), decimal.Decimal("0"), decimal.Decimal("0")),
+			False,
+			None,
+			"",
+			"",
+			False,
+			True,
+		)
+		ParentRecord = RootRecord
+		for Node in NodeChain:
+			PathText = Node.get("text", Node.get("name", Node.tag))
+			DisplayText = dgm_database.FormatOptionalPathText(PathText) if dgm_database.IsOptionalNode(Node) else PathText
+			ParentRecord = self.Database.MakeRecord(
+				Node,
+				DisplayText,
+				ParentRecord,
+				PathText,
+				PathText,
+				ParentRecord.MatchedByRegex or Node.tag == "regex",
+			)
+		return dgm_database.ElementSearchResult(ParentRecord)
+
 	def _ApplyAddElementResult(self, Name: str, Result: GuiAddElementResult) -> None:
 		if Result.Mode == "existing":
 			self.Database.AddDgmToExistingPath(Name, Result.Values, Result.PathParts)
@@ -240,9 +279,7 @@ class DgmDatabaseViewer(tk.Toplevel, XlsxProcessingMixin):
 		Dialog = AddElementDialog(
 			self,
 			DefaultName,
-			dgm_database.ElementSearchResult(None),
-			InitialPathParts=self._GetSelectedCatalogPathParts() + [DefaultName],
-			Title="Add database node",
+			self._GetSelectedCatalogSearchResult(),
 			InitialMode="new",
 		)
 		if Dialog.Result is None:
@@ -391,5 +428,3 @@ class DgmDatabaseViewer(tk.Toplevel, XlsxProcessingMixin):
 		for Value in IgnoredValues:
 			self.IgnoredList.insert(tk.END, Value)
 		self.IgnoredCountLabel.configure(text=f"{len(IgnoredValues)} ignored items")
-
-

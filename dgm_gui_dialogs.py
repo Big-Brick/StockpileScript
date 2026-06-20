@@ -276,32 +276,25 @@ class AddElementDialog(tk.Toplevel):
 	PATH_LIST_ROWS = 8
 	EXISTING_MODE_HEIGHT = TITLE_SECTION_HEIGHT + ACTION_SECTION_HEIGHT + CANDIDATE_SECTION_HEIGHT + VALUES_SECTION_HEIGHT + BUTTON_SECTION_HEIGHT + WINDOW_VERTICAL_PADDING
 	NEW_MODE_HEIGHT = EXISTING_MODE_HEIGHT + NEW_SECTION_HEIGHT
+
 	def __init__(
 		self,
 		Parent: tk.Toplevel,
 		Name: str,
 		StructuredResult: dgm_database.ElementSearchResult,
-		InitialPathParts: Optional[List[str]] = None,
-		Title: str = "Add missing element",
 		InitialMode: str = "auto",
 	) -> None:
 		super().__init__(Parent)
 		self.Result: Optional[GuiAddElementResult] = None
 		self.Name = Name
-		self.InitialPathParts = InitialPathParts
-		self.ExactCandidate = None
-		if StructuredResult.Record is not None and not StructuredResult.Record.HasDgm and StructuredResult.Record.Node.tag == "node":
-			self.ExactCandidate = dgm_database.PartialElementMatch(
-				Record=StructuredResult.Record,
-			)
-		self.Candidates = []
-		if self.ExactCandidate is not None:
-			self.Candidates.append(self.ExactCandidate)
-		self.Candidates.extend(Candidate for Candidate in (StructuredResult.PartialMatches) if Candidate.Node.tag == "node" and Candidate is not self.ExactCandidate)
-		DefaultMode = "existing" if self.ExactCandidate is not None else "new"
+		self.AllCandidateRows = self._BuildCandidateRows(StructuredResult)
+		self.CandidateRows: List[Optional[dgm_database.PartialElementMatch]] = []
+
+		DefaultMode = "existing" if self._ExistingRows() else "new"
 		if InitialMode in ("existing", "new"):
 			DefaultMode = InitialMode
-		self.title(Title)
+
+		self.title("Add missing element")
 		self.transient(Parent)
 		self.grab_set()
 		self.geometry(self._ModeGeometry(DefaultMode))
@@ -321,26 +314,17 @@ class AddElementDialog(tk.Toplevel):
 		self.ExistingFrame.grid_propagate(False)
 		self.CandidateList = tk.Listbox(self.ExistingFrame, height=self.CANDIDATE_LIST_ROWS, exportselection=False)
 		self.CandidateList.grid(row=0, column=0, sticky="ew", padx=6, pady=6)
+		self.CandidateList.bind("<<ListboxSelect>>", self._OnCandidateSelect)
 		self.ExistingFrame.columnconfigure(0, weight=1)
-		for Candidate in self.Candidates:
-			Kind = "full match" if Candidate is self.ExactCandidate else "partial match"
-			Marker = "has DGM" if Candidate.HasDgm else "no DGM"
-			self.CandidateList.insert(tk.END, f"{Candidate.DisplayName} ({Kind}, {Marker})")
-		if self.Candidates:
-			self.CandidateList.selection_set(0)
-		else:
-			self.CandidateList.insert(tk.END, "No database candidates found.")
 
 		self.NewFrame = ttk.Frame(self, height=self.NEW_SECTION_HEIGHT)
 		self.NewFrame.grid(row=3, column=0, sticky="nsew", padx=10)
 		self.NewFrame.grid_propagate(False)
 		self.NewFrame.columnconfigure(0, weight=1)
 		self.NewFrame.rowconfigure(1, weight=1)
-		ttk.Label(self.NewFrame, text="Structured node chain (one node per line)").grid(row=0, column=0, sticky="w", pady=(0, 4))
+		ttk.Label(self.NewFrame, text="New structured node chain (one new node per line)").grid(row=0, column=0, sticky="w", pady=(0, 4))
 		self.PathList = tk.Listbox(self.NewFrame, height=self.PATH_LIST_ROWS, exportselection=False)
 		self.PathList.grid(row=1, column=0, sticky="nsew")
-		for Part in (InitialPathParts if InitialPathParts is not None else self._DefaultSplit(Name)):
-			self.PathList.insert(tk.END, Part)
 		self.PathList.bind("<<ListboxSelect>>", self._OnPathPartSelect)
 		Edit = ttk.Frame(self.NewFrame)
 		Edit.grid(row=2, column=0, sticky="ew", pady=4)
@@ -353,7 +337,6 @@ class AddElementDialog(tk.Toplevel):
 		Controls = ttk.Frame(self.NewFrame)
 		Controls.grid(row=3, column=0, sticky="w")
 		ttk.Button(Controls, text="Remove", command=self._RemovePart).grid(row=0, column=0, padx=(0, 6))
-		ttk.Button(Controls, text="Use existing candidate as parent", command=self._UseCandidateAsParent).grid(row=0, column=1)
 		AddModeFrame = ttk.LabelFrame(self.NewFrame, text="New element type")
 		AddModeFrame.grid(row=4, column=0, sticky="ew", pady=(8, 0))
 		AddModeFrame.columnconfigure(1, weight=1)
@@ -385,6 +368,28 @@ class AddElementDialog(tk.Toplevel):
 		self._UpdateModeState()
 		self.wait_window(self)
 
+	def _BuildCandidateRows(self, StructuredResult: dgm_database.ElementSearchResult) -> List[dgm_database.PartialElementMatch]:
+		Rows: List[dgm_database.PartialElementMatch] = []
+		SeenNodes = set()
+
+		def AddRecord(Record: dgm_database.ElementRecord, Remainder: str = "") -> None:
+			if Record.Node.tag != "node" or id(Record.Node) in SeenNodes:
+				return
+			SeenNodes.add(id(Record.Node))
+			Rows.append(dgm_database.PartialElementMatch(Record=Record, Remainder=Remainder))
+
+		if StructuredResult.Record is not None:
+			AddRecord(StructuredResult.Record)
+		for Match in StructuredResult.PartialMatches:
+			if Match.Record.Node.tag != "node" or id(Match.Record.Node) in SeenNodes:
+				continue
+			SeenNodes.add(id(Match.Record.Node))
+			Rows.append(Match)
+		return Rows
+
+	def _ExistingRows(self) -> List[dgm_database.PartialElementMatch]:
+		return [Match for Match in self.AllCandidateRows if not Match.Record.HasDgm]
+
 	def GetElementName(self) -> str:
 		if self.Result is not None and self.Result.Mode == "regex":
 			return self.Result.DisplayText or self.Result.Pattern or self.Name
@@ -402,18 +407,88 @@ class AddElementDialog(tk.Toplevel):
 	def _UpdateModeState(self) -> None:
 		Mode = self.DialogMode.get()
 		self.geometry(self._ModeGeometry(Mode))
+		self.ExistingFrame.configure(text="Parent database node" if Mode == "new" else "Database node to update")
+		self._PopulateCandidateList(Mode)
 		self.ExistingFrame.grid()
 		if Mode == "existing":
 			self.NewFrame.grid_remove()
 		else:
 			self.NewFrame.grid()
+			self._ApplySelectedParentToPathEditor()
+
+	def _PopulateCandidateList(self, Mode: str) -> None:
+		self.CandidateList.delete(0, tk.END)
+		if Mode == "new":
+			self.CandidateRows = [None] + self.AllCandidateRows
+		else:
+			self.CandidateRows = list(self._ExistingRows())
+
+		if not self.CandidateRows:
+			self.CandidateList.insert(tk.END, "No database candidates found.")
+			return
+
+		for Candidate in self.CandidateRows:
+			self.CandidateList.insert(tk.END, self._CandidateDisplayName(Candidate))
+
+		if Mode == "new":
+			SelectedIndex = max(range(len(self.CandidateRows)), key=lambda Index: len(self._CandidateConsumedText(self.CandidateRows[Index])))
+		else:
+			SelectedIndex = 0
+		self.CandidateList.selection_set(SelectedIndex)
+		self.CandidateList.activate(SelectedIndex)
+
+	def _CandidateDisplayName(self, Candidate: Optional[dgm_database.PartialElementMatch]) -> str:
+		if Candidate is None:
+			return "<catalog root>"
+		Marker = "has DGM" if Candidate.Record.HasDgm else "no DGM"
+		return f"{Candidate.DisplayName} ({Marker})"
+
+	def _CandidatePathParts(self, Candidate: Optional[dgm_database.PartialElementMatch]) -> List[str]:
+		return [] if Candidate is None else Candidate.Record.PathParts
+
+	def _CandidateConsumedText(self, Candidate: Optional[dgm_database.PartialElementMatch]) -> str:
+		if Candidate is None:
+			return ""
+		return "".join(Record.ConsumedText for Record in Candidate.Record.IterPath())
 
 	def _GetCandidate(self) -> Optional[dgm_database.PartialElementMatch]:
 		Selection = self.CandidateList.curselection()
-		if not Selection or not self.Candidates:
+		if not Selection or not self.CandidateRows:
 			return None
 		Index = int(Selection[0])
-		return self.Candidates[Index] if Index < len(self.Candidates) else None
+		return self.CandidateRows[Index] if Index < len(self.CandidateRows) else None
+
+	def _OnCandidateSelect(self, _Event: tk.Event) -> None:
+		if self.DialogMode.get() == "new":
+			self._ApplySelectedParentToPathEditor()
+
+	def _ApplySelectedParentToPathEditor(self) -> None:
+		Candidate = self._GetCandidate()
+		Parts = self._NewPathPartsForCandidate(Candidate)
+		self._SetPathParts(Parts)
+
+	def _NewPathPartsForCandidate(self, Candidate: Optional[dgm_database.PartialElementMatch]) -> List[str]:
+		if Candidate is None:
+			return self._DefaultSplit(self.Name)
+		if Candidate.Remainder:
+			return self._DefaultSplit(Candidate.Remainder)
+		ConsumedText = self._CandidateConsumedText(Candidate)
+		Remainder = self._RemoveConsumedPrefix(self.Name, ConsumedText)
+		return self._DefaultSplit(Remainder) if Remainder else self._DefaultSplit(self.Name)
+
+	def _RemoveConsumedPrefix(self, Name: str, ConsumedText: str) -> str:
+		if ConsumedText and Name.casefold().startswith(ConsumedText.casefold()):
+			return Name[len(ConsumedText):]
+		return Name
+
+	def _SetPathParts(self, Parts: List[str]) -> None:
+		self.PathList.delete(0, tk.END)
+		for Part in Parts:
+			if Part:
+				self.PathList.insert(tk.END, Part)
+
+	def _GetPathParts(self) -> List[str]:
+		return [self.PathList.get(Index) for Index in range(self.PathList.size())]
 
 	def _OnPathPartSelect(self, _Event: tk.Event) -> None:
 		Selection = self.PathList.curselection()
@@ -421,24 +496,6 @@ class AddElementDialog(tk.Toplevel):
 			return
 		self.PartEntry.delete(0, tk.END)
 		self.PartEntry.insert(0, self.PathList.get(int(Selection[0])))
-
-	def _UseCandidateAsParent(self) -> None:
-		Candidate = self._GetCandidate()
-		if Candidate is None:
-			return
-		self.PathList.delete(0, tk.END)
-		PathParts = Candidate.Record.PathParts
-		LeafRemainder = Candidate.Remainder.strip() or self._GetNameRemainderAfterCandidatePath(PathParts)
-		for Part in PathParts + [LeafRemainder]:
-			self.PathList.insert(tk.END, Part)
-
-	def _GetNameRemainderAfterCandidatePath(self, PathParts: List[str]) -> str:
-		CandidatePrefix = "".join(PathParts)
-		if CandidatePrefix and self.Name.casefold().startswith(CandidatePrefix.casefold()):
-			Remainder = self.Name[len(CandidatePrefix):]
-			if Remainder:
-				return Remainder
-		return self.Name
 
 	def _SplitEntry(self) -> None:
 		Parts = [Part for Part in self.PartEntry.get().split("/") if Part]
@@ -483,26 +540,27 @@ class AddElementDialog(tk.Toplevel):
 		except decimal.InvalidOperation as Error:
 			tkinter.messagebox.showerror(WINDOW_TITLE, f"Invalid DGM value: {Error}", parent=self)
 			return
+		Candidate = self._GetCandidate()
 		if self.DialogMode.get() == "existing":
-			Candidate = self._GetCandidate()
-			if Candidate is None or Candidate is not self.ExactCandidate:
-				tkinter.messagebox.showerror(WINDOW_TITLE, "Select the full existing match or choose Add new.", parent=self)
+			if Candidate is None or Candidate.Record.HasDgm:
+				tkinter.messagebox.showerror(WINDOW_TITLE, "Select an existing database node without DGM values or choose Add new.", parent=self)
 				return
 			self.Result = GuiAddElementResult("existing", Values, Candidate.Record.PathParts)
 		else:
-			PathParts = [self.PathList.get(Index) for Index in range(self.PathList.size())]
-			if not PathParts:
-				tkinter.messagebox.showerror(WINDOW_TITLE, "Enter at least one node.", parent=self)
+			NewPathParts = self._GetPathParts()
+			if not NewPathParts:
+				tkinter.messagebox.showerror(WINDOW_TITLE, "Enter at least one new node.", parent=self)
 				return
+			ParentPathParts = self._CandidatePathParts(Candidate)
 			if self.AddMode.get() == "regex":
-				Pattern = self.RegexPatternEntry.get().strip() or PathParts[-1]
+				Pattern = self.RegexPatternEntry.get().strip() or NewPathParts[-1]
 				DisplayText = self.RegexDisplayEntry.get().strip()
 				if not Pattern:
 					tkinter.messagebox.showerror(WINDOW_TITLE, "Regex pattern cannot be empty.", parent=self)
 					return
-				self.Result = GuiAddElementResult("regex", Values, PathParts[:-1], Pattern, DisplayText or Pattern)
+				self.Result = GuiAddElementResult("regex", Values, ParentPathParts + NewPathParts[:-1], Pattern, DisplayText or Pattern)
 			else:
-				self.Result = GuiAddElementResult("new", Values, PathParts)
+				self.Result = GuiAddElementResult("new", Values, ParentPathParts + NewPathParts)
 		self.destroy()
 
 	def _Cancel(self) -> None:

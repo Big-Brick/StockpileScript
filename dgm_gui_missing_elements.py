@@ -27,7 +27,6 @@ class MissingElementGroup:
 @dataclass
 class MissingElementSummary:
 	Name: str
-	InitialPathParts: Optional[List[str]] = None
 	Occurrences: List[GuiMissingElement] = field(default_factory=list)
 
 
@@ -144,7 +143,7 @@ class MissingElementsWindow(tk.Toplevel):
 		if Item is None:
 			return
 		StructuredResult = self.ParentViewer.Database.FindStructuredElement(dgm_database.NormalizeText(Item.Name), Item.Name)
-		Dialog = AddElementDialog(self, Item.Name, StructuredResult, Item.InitialPathParts)
+		Dialog = AddElementDialog(self, Item.Name, StructuredResult)
 		if Dialog.Result is None:
 			return
 		try:
@@ -255,21 +254,14 @@ class MissingElementsMixin:
 		if Best:
 			GroupKey = "match:" + dgm_database.NormalizeText(Best[0].DisplayName)
 			Title = Best[0].DisplayName
-			InitialPathParts = Best[0].Record.PathParts
-			Remainder = Best[0].Remainder.strip()
-			if Remainder:
-				InitialPathParts = InitialPathParts + [Remainder]
-			elif Best[0] is not Matches[0] and Item.Name.casefold() != "".join(InitialPathParts).casefold():
-				InitialPathParts = InitialPathParts + [Item.Name]
 		else:
 			Simple = Item.Name[:1].upper() if Item.Name else "#"
 			GroupKey = "text:" + Simple.casefold()
 			Title = f"Text: {Simple}"
-			InitialPathParts = None
 		Group = GroupsByKey.setdefault(GroupKey, MissingElementGroup(GroupKey, Title, Title))
 		NameKey = dgm_database.NormalizeText(Item.Name)
 		Summary = Group.ItemsByName.get(NameKey)
 		if Summary is None:
-			Summary = MissingElementSummary(Item.Name, InitialPathParts)
+			Summary = MissingElementSummary(Item.Name)
 			Group.ItemsByName[NameKey] = Summary
 		Summary.Occurrences.append(Item)
