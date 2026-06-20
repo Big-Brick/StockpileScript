@@ -336,7 +336,7 @@ class DgmDatabase:
 					)
 
 			if Remaining == "" and not ParentRecord.IsRoot:
-				EmptyRegexRecord = self._FindEmptyRegexChildRecord(Parent, ParentRecord, OriginalName)
+				EmptyRegexRecord = self._FindEmptyRegexChildRecord(ParentRecord)
 				if EmptyRegexRecord is not None:
 					BestRecord = EmptyRegexRecord
 					BestRegexState = True
@@ -353,7 +353,6 @@ class DgmDatabase:
 						ChildRecord = self.MakeRecord(
 							Child,
 							ChildText,
-							Child.find("dgm"),
 							ParentRecord,
 							ChildText,
 							ChildText,
@@ -364,7 +363,6 @@ class DgmDatabase:
 						ChildRecord = self.MakeRecord(
 							Child,
 							FormatOptionalPathText(ChildText),
-							Child.find("dgm"),
 							ParentRecord,
 							ChildText,
 							"",
@@ -388,7 +386,6 @@ class DgmDatabase:
 					ChildRecord = self.MakeRecord(
 						Child,
 						MatchedPart or PathText,
-						Child.find("dgm"),
 						ParentRecord,
 						PathText,
 						MatchedPart,
@@ -406,8 +403,8 @@ class DgmDatabase:
 			return OriginalName[MatchedLength:]
 		return NormalizedName[MatchedLength:]
 
-	def _FindEmptyRegexChildRecord(self, Parent: XmlTree.Element, ParentRecord: ElementRecord, OriginalName: str) -> Optional[ElementRecord]:
-		for Child in list(Parent):
+	def _FindEmptyRegexChildRecord(self, ParentRecord: ElementRecord) -> Optional[ElementRecord]:
+		for Child in list(ParentRecord.Node):
 			if Child.tag != "regex":
 				continue
 			Pattern = Child.get("pattern", "")
@@ -421,19 +418,19 @@ class DgmDatabase:
 			if Match is None or Match.group(0) != "":
 				continue
 			PathText = Child.get("text", Child.get("name", Pattern))
-			return self.MakeRecord(Child, PathText, DgmNode, ParentRecord, PathText, "", True)
+			return self.MakeRecord(Child, PathText, ParentRecord, PathText, "", True)
 		return None
 
 	def MakeRecord(
 		self,
 		Node: XmlTree.Element,
 		DisplayText: str,
-		DgmNode: Optional[XmlTree.Element],
 		Parent: Optional[ElementRecord] = None,
 		PathText: str = "",
 		ConsumedText: str = "",
 		MatchedByRegex: bool = False,
 	) -> ElementRecord:
+		DgmNode = Node.find("dgm")
 		if DgmNode is None:
 			return ElementRecord(
 				self,
