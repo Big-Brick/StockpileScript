@@ -1,0 +1,808 @@
+<?xml version="1.0" encoding="utf-8"?>
+<xlsx_preprocess_rules version="1">
+
+    <settings>
+        <regex_flags ignore_case="true" unicode="true"/>
+        <whitespace collapse="true" trim="true"/>
+        <cache auto_update="true"/>
+
+        <!--
+            Optional safety metadata for Codex/module implementation.
+            These prefixes should not be blindly inserted into ordinary prefix_cache
+            without checking all candidate element types, because they are too broad
+            or are known to be used in more than one component family.
+        -->
+        <cache_guards>
+            <ambiguous_prefix reason="Short and historically overloaded prefix. Often points to КМ ceramic capacitors, but should not be blindly assigned because КМ may appear in other designations or as part of longer markings; require database verification.">КМ</ambiguous_prefix>
+            <ambiguous_prefix reason="Single-letter prefix. Too broad: many Soviet/CIS series start with К, including capacitors, semiconductors, connectors and other component families; never auto-detect type from this alone.">К</ambiguous_prefix>
+            <ambiguous_prefix reason="Can denote КП field-effect transistors, but also may be a beginning of longer non-transistor designations or inventory abbreviations. Use database verification before choosing the type.">КП</ambiguous_prefix>
+            <ambiguous_prefix reason="Single-letter prefix. Can be old transistor series, switch designations, board/assembly abbreviations, or just the first letter of a larger marking; too broad for cache-only type detection.">П</ambiguous_prefix>
+            <ambiguous_prefix reason="Most often variable resistors/potentiometers СП, but the prefix is short and can overlap with other Soviet abbreviations or longer designations. Verify through the database.">СП</ambiguous_prefix>
+            <ambiguous_prefix reason="Can look like relay series РП, but also appears in connector/mechanical and other abbreviated designations. Do not infer Реле from cache alone.">РП</ambiguous_prefix>
+            <ambiguous_prefix reason="Single-letter prefix. Can mean diode series Д/2Д, but also starts several choke/inductor and other designations such as ДМ or ДПМ; too broad for automatic typing.">Д</ambiguous_prefix>
+            <ambiguous_prefix reason="Single-letter prefix. Can start resistor series С2/С5, connector series such as СНП, and many other markings; too broad for automatic typing.">С</ambiguous_prefix>
+
+            <!-- Direct conflicts found in current prefix_cache -->
+            <ambiguous_prefix reason="Direct cache conflict: currently appears in both inductor/coil-related and resonator-related prefix caches. Must be resolved by full database search, not by first cache hit.">КВ</ambiguous_prefix>
+            <ambiguous_prefix reason="Direct cache conflict: currently appears in both switch and transformer-related prefix caches. Must be resolved by full database search.">ТП</ambiguous_prefix>
+
+            <!-- Thyristor/dinistor/silicon-power-device safety guards -->
+            <ambiguous_prefix reason="Single-letter prefix. Can start transistor, thyristor, transformer, switch, and other power/mechanical designations; too broad for automatic typing.">Т</ambiguous_prefix>
+            <ambiguous_prefix reason="Can refer to transformer series such as ТС, but may also occur in thyristor/power semiconductor or other technical designations. Verify through database.">ТС</ambiguous_prefix>
+            <ambiguous_prefix reason="Short power-device-looking prefix. May occur in thyristor/semiconductor designations and can also overlap with other technical abbreviations; do not auto-cache without database confirmation.">ТО</ambiguous_prefix>
+            <ambiguous_prefix reason="Short power-device-looking prefix. May occur in thyristor/semiconductor designations and can overlap with transformer or other technical markings; require database verification.">ТЛ</ambiguous_prefix>
+        </cache_guards>
+    </settings>
+
+    <stage id="1" name="language_normalization">
+        <rule id="ru_relay_res_series" enabled="true">
+            <description>Russian РЭС relay spelling to Ukrainian РЕС for relay series designations</description>
+            <pattern>\bРЭ([СНКВ])(?=\b|[\s\-]*\d)</pattern>
+            <replacement>РЕ$1</replacement>
+        </rule>
+        <rule id="ru_relay_res_standalone_latin_lookalikes" enabled="true">
+            <description>РЭС/РEС written with Latin lookalike letters to РЕС</description>
+            <pattern>\b[РP][ЭE][СC]\b</pattern>
+            <replacement>РЕС</replacement>
+        </rule>
+        <rule id="ru_connector_word" enabled="true">
+            <description>Russian connector type word to Ukrainian canonical word</description>
+            <pattern>\bразъ[её]м\b</pattern>
+            <replacement>Роз'єм</replacement>
+        </rule>
+        <rule id="uk_connector_word_mixed_spelling" enabled="true">
+            <description>Mixed Ukrainian/Russian connector spelling without apostrophe to Ukrainian canonical word</description>
+            <pattern>\bроз[ьъ]?ем\b|\bрозєм\b</pattern>
+            <replacement>Роз'єм</replacement>
+        </rule>
+        <rule id="ru_microchip_word" enabled="true">
+            <description>Russian microchip type word to Ukrainian canonical word</description>
+            <pattern>\bмикросхем[аыу]?\b</pattern>
+            <replacement>Мікросхема</replacement>
+        </rule>
+        <rule id="ru_switch_word" enabled="true">
+            <description>Russian switch type word to Ukrainian canonical word</description>
+            <pattern>\bпереключател[ьяи]?\b</pattern>
+            <replacement>Перемикач</replacement>
+        </rule>
+        <rule id="ru_transformer_word" enabled="true">
+            <description>Russian transformer type word to Ukrainian canonical word</description>
+            <pattern>\bтрансформатор[аы]?\b</pattern>
+            <replacement>Трансформатор</replacement>
+        </rule>
+        <rule id="ru_inductor_choke_word" enabled="true">
+            <description>Russian choke/inductor type word to Ukrainian inductor type word</description>
+            <pattern>\bдроссел[ьяи]?\b</pattern>
+            <replacement>Котушка</replacement>
+        </rule>
+        <rule id="ru_quartz_resonator_word" enabled="true">
+            <description>Russian quartz resonator phrase to Ukrainian resonator phrase</description>
+            <pattern>\bкварцев[ыо]й\s+резонатор\b</pattern>
+            <replacement>Резонатор</replacement>
+        </rule>
+    </stage>
+
+    <element_types>
+        <type id="capacitor" canonical="Конденсатор">
+            <aliases>
+                <alias>конденсатор</alias>
+                <alias>конденсаторы</alias>
+                <alias>конденсатора</alias>
+                <alias>конденсатори</alias>
+                <alias>конденсатора</alias>
+                <alias>конд</alias>
+                <alias>конд.</alias>
+                <alias>кондер</alias>
+                <alias>кондёр</alias>
+                <alias>ємність</alias>
+                <alias>емкость</alias>
+                <alias>ємк.</alias>
+                <alias>емк.</alias>
+            </aliases>
+
+            <prefix_cache>
+                <!-- КМ intentionally excluded: it is an ambiguous prefix. Let exhaustive database search resolve it. -->
+                <prefix>К10</prefix>
+                <prefix>К15</prefix>
+                <prefix>К22</prefix>
+                <prefix>К31</prefix>
+                <prefix>К40</prefix>
+                <prefix>К41</prefix>
+                <prefix>К42</prefix>
+                <prefix>К50</prefix>
+                <prefix>К52</prefix>
+                <prefix>К53</prefix>
+                <prefix>К71</prefix>
+                <prefix>К72</prefix>
+                <prefix>К73</prefix>
+                <prefix>К75</prefix>
+                <prefix>К76</prefix>
+                <prefix>К77</prefix>
+                <prefix>К78</prefix>
+                <prefix>КСО</prefix>
+                <prefix>СГМ</prefix>
+                <prefix>БМ</prefix>
+                <prefix>МБМ</prefix>
+                <prefix>МБГО</prefix>
+                <prefix>МБГП</prefix>
+                <prefix>МБГТ</prefix>
+                <prefix>МБГЧ</prefix>
+                <prefix>ЭТО</prefix>
+                <prefix>ЭМ</prefix>
+                <prefix>ЭГЦ</prefix>
+            </prefix_cache>
+
+            <database_check enabled="true"/>
+        </type>
+
+        <type id="resistor" canonical="Резистор">
+            <aliases>
+                <alias>резистор</alias>
+                <alias>резисторы</alias>
+                <alias>резистори</alias>
+                <alias>сопротивление</alias>
+                <alias>сопротивления</alias>
+                <alias>опір</alias>
+                <alias>рез.</alias>
+                <alias>рез</alias>
+            </aliases>
+
+            <prefix_cache>
+                <prefix>МЛТ</prefix>
+                <prefix>ОМЛТ</prefix>
+                <prefix>УНУ</prefix>
+                <prefix>ВС</prefix>
+                <prefix>С1</prefix>
+                <prefix>С2</prefix>
+                <prefix>С5</prefix>
+                <prefix>С6</prefix>
+                <prefix>СП1</prefix>
+                <prefix>СП2</prefix>
+                <prefix>СП3</prefix>
+                <prefix>СП4</prefix>
+                <prefix>СП5</prefix>
+                <prefix>ППБ</prefix>
+                <prefix>ПЭВ</prefix>
+                <prefix>ПЭВР</prefix>
+                <prefix>ПТМН</prefix>
+                <prefix>Р1</prefix>
+                <prefix>Р2</prefix>
+            </prefix_cache>
+
+            <database_check enabled="true"/>
+        </type>
+
+        <type id="diode" canonical="Діод">
+            <aliases>
+                <alias>діод</alias>
+                <alias>діоди</alias>
+                <alias>диод</alias>
+                <alias>диоды</alias>
+                <alias>випрямляч</alias>
+                <alias>выпрямитель</alias>
+                <alias>стабілітрон</alias>
+                <alias>стабилитрон</alias>
+                <alias>світлодіод</alias>
+                <alias>светодиод</alias>
+                <alias>диодный мост</alias>
+                <alias>діодний міст</alias>
+            </aliases>
+
+            <prefix_cache>
+                <!-- Single-letter Д intentionally excluded: too broad for automatic cache detection. -->
+                <prefix>2Д</prefix>
+                <prefix>2С</prefix>
+                <prefix>КД</prefix>
+                <prefix>КС</prefix>
+                <prefix>КЦ</prefix>
+                <prefix>АЛ</prefix>
+                <prefix>Д7</prefix>
+                <prefix>Д9</prefix>
+                <prefix>Д18</prefix>
+                <prefix>Д20</prefix>
+                <prefix>Д226</prefix>
+                <prefix>Д220</prefix>
+                <prefix>Д223</prefix>
+                <prefix>Д242</prefix>
+                <prefix>Д243</prefix>
+                <prefix>Д245</prefix>
+                <prefix>Д814</prefix>
+                <prefix>Д815</prefix>
+                <prefix>Д816</prefix>
+                <prefix>Д817</prefix>
+                <prefix>Д818</prefix>
+            </prefix_cache>
+
+            <database_check enabled="true"/>
+        </type>
+
+        <type id="transistor" canonical="Транзистор">
+            <aliases>
+                <alias>транзистор</alias>
+                <alias>транзисторы</alias>
+                <alias>транзистори</alias>
+                <alias>транзистора</alias>
+                <alias>біполярний транзистор</alias>
+                <alias>биполярный транзистор</alias>
+                <alias>польовий транзистор</alias>
+                <alias>полевой транзистор</alias>
+            </aliases>
+
+            <prefix_cache>
+                <!-- КМ intentionally excluded: ambiguous in inventory text. -->
+                <prefix>2Т</prefix>
+                <prefix>2П</prefix>
+                <prefix>КТ</prefix>
+                <prefix>КП</prefix>
+                <prefix>ГТ</prefix>
+                <prefix>МП</prefix>
+                <prefix>П1</prefix>
+                <prefix>П2</prefix>
+                <prefix>П3</prefix>
+                <prefix>П4</prefix>
+            </prefix_cache>
+
+            <database_check enabled="true"/>
+        </type>
+
+        <type id="dinistor" canonical="Диністор">
+            <aliases>
+                <alias>диністор</alias>
+                <alias>диністори</alias>
+                <alias>динистор</alias>
+                <alias>динисторы</alias>
+                <alias>діністор</alias>
+                <alias>діністори</alias>
+                <alias>діодний тиристор</alias>
+                <alias>диодный тиристор</alias>
+                <alias>тиристор діодний</alias>
+                <alias>тиристор диодный</alias>
+            </aliases>
+
+            <prefix_cache>
+                <!-- КН means silicon diode thyristor / dinistor family, not a transistor. -->
+                <prefix>КН</prefix>
+            </prefix_cache>
+
+            <database_check enabled="true"/>
+        </type>
+
+        <type id="thyristor" canonical="Тиристор">
+            <aliases>
+                <alias>тиристор</alias>
+                <alias>тиристори</alias>
+                <alias>тиристоры</alias>
+                <alias>теристор</alias>
+                <alias>теристори</alias>
+                <alias>тринистор</alias>
+                <alias>тринисторы</alias>
+                <alias>триністор</alias>
+                <alias>триністори</alias>
+                <alias>симистор</alias>
+                <alias>симисторы</alias>
+                <alias>симістор</alias>
+                <alias>симістори</alias>
+                <alias>керований вентиль</alias>
+                <alias>управляемый вентиль</alias>
+            </aliases>
+
+            <prefix_cache>
+                <!-- КУ means silicon controlled / triode thyristor family, not a transistor. -->
+                <prefix>КУ</prefix>
+            </prefix_cache>
+
+            <database_check enabled="true"/>
+        </type>
+
+        <type id="relay" canonical="Реле">
+            <aliases>
+                <alias>реле</alias>
+                <alias>релє</alias>
+                <alias>relay</alias>
+            </aliases>
+
+            <prefix_cache>
+                <prefix>РЕС</prefix>
+                <prefix>РЭС</prefix>
+                <prefix>РЕН</prefix>
+                <prefix>РЭН</prefix>
+                <prefix>РЕК</prefix>
+                <prefix>РЭК</prefix>
+                <prefix>РЕВ</prefix>
+                <prefix>РЭВ</prefix>
+                <prefix>РПС</prefix>
+                <prefix>РКМ</prefix>
+                <prefix>ТКЕ</prefix>
+                <prefix>ТКД</prefix>
+            </prefix_cache>
+
+            <database_check enabled="true"/>
+        </type>
+
+        <type id="microchip" canonical="Мікросхема">
+            <aliases>
+                <alias>мікросхема</alias>
+                <alias>мікросхеми</alias>
+                <alias>микросхема</alias>
+                <alias>микросхемы</alias>
+                <alias>м/с</alias>
+                <alias>мс</alias>
+                <alias>ис</alias>
+                <alias>ic</alias>
+                <alias>інтегральна схема</alias>
+                <alias>интегральная схема</alias>
+            </aliases>
+
+            <prefix_cache>
+                <!-- Broad КР/КМ are intentionally omitted; cache only concrete series prefixes. -->
+                <prefix>100</prefix>
+                <prefix>133</prefix>
+                <prefix>140</prefix>
+                <prefix>153</prefix>
+                <prefix>155</prefix>
+                <prefix>176</prefix>
+                <prefix>531</prefix>
+                <prefix>533</prefix>
+                <prefix>555</prefix>
+                <prefix>561</prefix>
+                <prefix>564</prefix>
+                <prefix>565</prefix>
+                <prefix>572</prefix>
+                <prefix>573</prefix>
+                <prefix>580</prefix>
+                <prefix>589</prefix>
+                <prefix>1533</prefix>
+                <prefix>1801</prefix>
+                <prefix>1810</prefix>
+                <prefix>1816</prefix>
+                <prefix>К100</prefix>
+                <prefix>К133</prefix>
+                <prefix>К140</prefix>
+                <prefix>К153</prefix>
+                <prefix>К155</prefix>
+                <prefix>К176</prefix>
+                <prefix>К531</prefix>
+                <prefix>К533</prefix>
+                <prefix>К555</prefix>
+                <prefix>К561</prefix>
+                <prefix>К564</prefix>
+                <prefix>К565</prefix>
+                <prefix>К572</prefix>
+                <prefix>К573</prefix>
+                <prefix>К580</prefix>
+                <prefix>К589</prefix>
+                <prefix>К1533</prefix>
+                <prefix>К1801</prefix>
+                <prefix>К1810</prefix>
+                <prefix>К1816</prefix>
+                <prefix>КР100</prefix>
+                <prefix>КР140</prefix>
+                <prefix>КР155</prefix>
+                <prefix>КР176</prefix>
+                <prefix>КР531</prefix>
+                <prefix>КР555</prefix>
+                <prefix>КР561</prefix>
+                <prefix>КР565</prefix>
+                <prefix>КР572</prefix>
+                <prefix>КР573</prefix>
+                <prefix>КР580</prefix>
+                <prefix>КР589</prefix>
+                <prefix>КР1533</prefix>
+                <prefix>КР1801</prefix>
+                <prefix>КР1810</prefix>
+                <prefix>КР1816</prefix>
+                <prefix>КМ155</prefix>
+                <prefix>КМ531</prefix>
+                <prefix>КМ555</prefix>
+                <prefix>КМ1533</prefix>
+                <prefix>КМ1816</prefix>
+            </prefix_cache>
+
+            <database_check enabled="true"/>
+        </type>
+
+        <type id="connector" canonical="Роз'єм">
+            <aliases>
+                <alias>роз'єм</alias>
+                <alias>розєм</alias>
+                <alias>розьем</alias>
+                <alias>разъем</alias>
+                <alias>разъём</alias>
+                <alias>розетка</alias>
+                <alias>вилка</alias>
+                <alias>з'єднувач</alias>
+                <alias>соединитель</alias>
+                <alias>штекер</alias>
+                <alias>гніздо</alias>
+                <alias>гнездо</alias>
+            </aliases>
+
+            <prefix_cache>
+                <prefix>2РМ</prefix>
+                <prefix>2РМД</prefix>
+                <prefix>2РМГ</prefix>
+                <prefix>2РМТ</prefix>
+                <prefix>2РТТ</prefix>
+                <prefix>ГРПМ</prefix>
+                <prefix>ГРППМ</prefix>
+                <prefix>РП10</prefix>
+                <prefix>РП14</prefix>
+                <prefix>РП15</prefix>
+                <prefix>РПМ</prefix>
+                <prefix>МРН</prefix>
+                <prefix>МРНП</prefix>
+                <prefix>СНП</prefix>
+                <prefix>СНП34</prefix>
+                <prefix>ОНП</prefix>
+                <prefix>ОНП-КГ</prefix>
+                <prefix>ОНп-КГ</prefix>
+                <prefix>СНО</prefix>
+                <prefix>ШР</prefix>
+                <prefix>ШРГ</prefix>
+            </prefix_cache>
+
+            <database_check enabled="true"/>
+        </type>
+
+        <type id="switch" canonical="Перемикач">
+            <aliases>
+                <alias>перемикач</alias>
+                <alias>перемикачі</alias>
+                <alias>переключатель</alias>
+                <alias>переключатели</alias>
+                <alias>тумблер</alias>
+                <alias>кнопка</alias>
+                <alias>клавіша</alias>
+                <alias>клавиша</alias>
+            </aliases>
+
+            <prefix_cache>
+                <prefix>П2К</prefix>
+                <prefix>ПГ</prefix>
+                <prefix>ПР</prefix>
+                <prefix>ПМ</prefix>
+                <prefix>ПКН</prefix>
+                <prefix>ПКн</prefix>
+                <prefix>МТ</prefix>
+                <prefix>ТП</prefix>
+                <prefix>ТВ</prefix>
+                <prefix>ВК</prefix>
+                <prefix>КМ1</prefix>
+                <prefix>КМ2</prefix>
+            </prefix_cache>
+
+            <database_check enabled="true"/>
+        </type>
+
+        <type id="transformer" canonical="Трансформатор">
+            <aliases>
+                <alias>трансформатор</alias>
+                <alias>трансформатори</alias>
+                <alias>трансформаторы</alias>
+                <alias>тр-р</alias>
+                <alias>тр</alias>
+            </aliases>
+
+            <prefix_cache>
+                <prefix>ТП</prefix>
+                <prefix>ТПП</prefix>
+                <prefix>ТН</prefix>
+                <prefix>ТАН</prefix>
+                <prefix>ТА</prefix>
+                <prefix>ТВК</prefix>
+                <prefix>ТВЗ</prefix>
+                <prefix>ОСМ</prefix>
+            </prefix_cache>
+
+            <database_check enabled="true"/>
+        </type>
+
+        <type id="inductor" canonical="Котушка">
+            <aliases>
+                <alias>котушка</alias>
+                <alias>котушки</alias>
+                <alias>катушка</alias>
+                <alias>катушки</alias>
+                <alias>дросель</alias>
+                <alias>дроссель</alias>
+                <alias>індуктивність</alias>
+                <alias>индуктивность</alias>
+            </aliases>
+
+            <prefix_cache>
+                <prefix>ДПМ</prefix>
+                <prefix>ДМ</prefix>
+                <prefix>ДР</prefix>
+                <prefix>ДРП</prefix>
+                <prefix>ДФ</prefix>
+                <prefix>ДФС</prefix>
+                <prefix>КИ</prefix>
+                <prefix>КВ</prefix>
+            </prefix_cache>
+
+            <database_check enabled="true"/>
+        </type>
+
+        <type id="resonator" canonical="Резонатор">
+            <aliases>
+                <alias>резонатор</alias>
+                <alias>резонатори</alias>
+                <alias>резонаторы</alias>
+                <alias>кварц</alias>
+                <alias>кварцевий резонатор</alias>
+                <alias>кварцевый резонатор</alias>
+                <alias>кварцовый резонатор</alias>
+            </aliases>
+
+            <prefix_cache>
+                <prefix>РК</prefix>
+                <prefix>РК169</prefix>
+                <prefix>РГ</prefix>
+                <prefix>КВ</prefix>
+            </prefix_cache>
+
+            <database_check enabled="true"/>
+        </type>
+
+        <type id="lamp" canonical="Лампа">
+            <aliases>
+                <alias>лампа</alias>
+                <alias>лампи</alias>
+                <alias>лампы</alias>
+                <alias>індикатор</alias>
+                <alias>индикатор</alias>
+            </aliases>
+
+            <prefix_cache>
+                <prefix>ИВ</prefix>
+                <prefix>ІВ</prefix>
+                <prefix>ИН</prefix>
+                <prefix>ІН</prefix>
+                <prefix>ИЛ</prefix>
+                <prefix>ІЛ</prefix>
+                <prefix>ГИ</prefix>
+                <prefix>ГК</prefix>
+            </prefix_cache>
+
+            <database_check enabled="true"/>
+        </type>
+
+        <type id="fuse" canonical="Запобіжник">
+            <aliases>
+                <alias>запобіжник</alias>
+                <alias>запобіжники</alias>
+                <alias>предохранитель</alias>
+                <alias>предохранители</alias>
+                <alias>плавка вставка</alias>
+            </aliases>
+
+            <prefix_cache>
+                <prefix>ВП</prefix>
+                <prefix>ПВ</prefix>
+                <prefix>ПН</prefix>
+                <prefix>ПК</prefix>
+            </prefix_cache>
+
+            <database_check enabled="true"/>
+        </type>
+    </element_types>
+
+    <stage id="3" name="technical_normalization">
+        <rule id="series_km_letters_to_cyrillic" enabled="true">
+            <description>Normalize Latin lookalike K/M in КМ capacitor-like designations without changing unrelated text</description>
+            <pattern>\b[КK][МM](?=[\s\-]*\d)</pattern>
+            <replacement>КМ</replacement>
+        </rule>
+        <rule id="km_series_hyphenation" enabled="true">
+            <description>Normalize КМ ceramic capacitor series spelling with missing separators</description>
+            <pattern>\bКМ[\s\-]*(\d+[а-яА-Яa-zA-Z]?)[\s\-]*([НHМMПP][\s\-]*\d+[а-яА-Яa-zA-Z]*)\b</pattern>
+            <replacement>КМ-$1-$2</replacement>
+        </rule>
+        <rule id="km_subtype_latin_a_to_cyrillic" enabled="true">
+            <description>Normalize lowercase Latin a to Cyrillic а in КМ subtype like КМ-5a-Н90</description>
+            <pattern>\bКМ-(\d+)a(?=-)</pattern>
+            <replacement>КМ-$1а</replacement>
+        </rule>
+        <rule id="km_subtype_latin_b_to_cyrillic" enabled="true">
+            <description>Normalize lowercase Latin b to Cyrillic б in КМ subtype like КМ-5b-Н90</description>
+            <pattern>\bКМ-(\d+)b(?=-)</pattern>
+            <replacement>КМ-$1б</replacement>
+        </rule>
+        <rule id="km_temperature_remove_internal_space" enabled="true">
+            <description>Remove accidental space inside КМ temperature group after Н/М/П</description>
+            <pattern>\b(КМ-\d+[а-яА-Яa-zA-Z]?-[НHМMПP])\s+(\d+[а-яА-Яa-zA-Z]*)\b</pattern>
+            <replacement>$1$2</replacement>
+        </rule>
+        <rule id="km_temperature_h_to_cyrillic" enabled="true">
+            <description>Normalize Latin H to Cyrillic Н in КМ temperature group</description>
+            <pattern>\bКМ-(\d+[а-яА-Яa-zA-Z]?)-H([\s\-]*\d+[а-яА-Яa-zA-Z]*)\b</pattern>
+            <replacement>КМ-$1-Н$2</replacement>
+        </rule>
+        <rule id="km_temperature_m_to_cyrillic" enabled="true">
+            <description>Normalize Latin M to Cyrillic М in КМ temperature group</description>
+            <pattern>\bКМ-(\d+[а-яА-Яa-zA-Z]?)-M([\s\-]*\d+[а-яА-Яa-zA-Z]*)\b</pattern>
+            <replacement>КМ-$1-М$2</replacement>
+        </rule>
+        <rule id="km_temperature_p_to_cyrillic" enabled="true">
+            <description>Normalize Latin P to Cyrillic П in КМ temperature group</description>
+            <pattern>\bКМ-(\d+[а-яА-Яa-zA-Z]?)-P([\s\-]*\d+[а-яА-Яa-zA-Z]*)\b</pattern>
+            <replacement>КМ-$1-П$2</replacement>
+        </rule>
+        <rule id="capacitor_k_series_hyphenation" enabled="true">
+            <description>Normalize common К-series capacitor designations such as К10 17 to К10-17</description>
+            <pattern>\b[КK](10|15|22|31|40|41|42|50|52|53|71|72|73|75|76|77|78)[\s\-]+(\d+[а-яА-Яa-zA-Z]*)\b</pattern>
+            <replacement>К$1-$2</replacement>
+        </rule>
+        <rule id="resistor_mlt_hyphenation" enabled="true">
+            <description>Normalize МЛТ/ОМЛТ resistor designations with rating separated by whitespace</description>
+            <pattern>\b([ОO]?[МM][ЛL][ТT])[\s\-]+(\d+(?:[,.]\d+)?)(?=\b|[\s\-])</pattern>
+            <replacement>$1-$2</replacement>
+        </rule>
+        <rule id="resistor_omlt_letters_to_cyrillic" enabled="true">
+            <description>Normalize Latin lookalikes in ОМЛТ resistor prefix</description>
+            <pattern>\b[ОO][МM][ЛL][ТT](?=-)</pattern>
+            <replacement>ОМЛТ</replacement>
+        </rule>
+        <rule id="resistor_mlt_letters_to_cyrillic" enabled="true">
+            <description>Normalize Latin lookalikes in МЛТ resistor prefix</description>
+            <pattern>\b[МM][ЛL][ТT](?=-)</pattern>
+            <replacement>МЛТ</replacement>
+        </rule>
+        <rule id="resistor_sp_hyphenation" enabled="true">
+            <description>Normalize СП variable resistor series spelling such as СП5 16 to СП5-16</description>
+            <pattern>\b[СC][ПP](\d+)[\s\-]+(\d+[а-яА-Яa-zA-Z]*)\b</pattern>
+            <replacement>СП$1-$2</replacement>
+        </rule>
+        <rule id="resistor_s_series_hyphenation" enabled="true">
+            <description>Normalize С1/С2/С5 fixed resistor series spelling such as С2 14 to С2-14</description>
+            <pattern>\b[СC](1|2|5|6)[\s\-]+(\d+[а-яА-Яa-zA-Z]*)\b</pattern>
+            <replacement>С$1-$2</replacement>
+        </rule>
+        <rule id="diode_kd_join" enabled="true">
+            <description>Normalize КД diode designations split by whitespace</description>
+            <pattern>\b[КK][ДD][\s\-]+(\d+[а-яА-Яa-zA-Z]*)\b</pattern>
+            <replacement>КД$1</replacement>
+        </rule>
+        <rule id="diode_kc_join" enabled="true">
+            <description>Normalize КС stabilizer diode designations split by whitespace</description>
+            <pattern>\b[КK][СC][\s\-]+(\d+[а-яА-Яa-zA-Z]*)\b</pattern>
+            <replacement>КС$1</replacement>
+        </rule>
+        <rule id="diode_kc_bridge_join" enabled="true">
+            <description>Normalize КЦ diode bridge designations split by whitespace</description>
+            <pattern>\b[КK][Ц][\s\-]+(\d+[а-яА-Яa-zA-Z]*)\b</pattern>
+            <replacement>КЦ$1</replacement>
+        </rule>
+        <rule id="led_al_join" enabled="true">
+            <description>Normalize АЛ LED designations split by whitespace</description>
+            <pattern>\b[АA][ЛL][\s\-]+(\d+[а-яА-Яa-zA-Z]*)\b</pattern>
+            <replacement>АЛ$1</replacement>
+        </rule>
+        <rule id="diode_d_series_join" enabled="true">
+            <description>Normalize common Д-series diode designations split by whitespace</description>
+            <pattern>\b[ДD][\s\-]+((?:7|9|18|20|22[036]|24[235]|81[4-8])\d*[а-яА-Яa-zA-Z]*)\b</pattern>
+            <replacement>Д$1</replacement>
+        </rule>
+        <rule id="transistor_kt_join" enabled="true">
+            <description>Normalize КТ transistor designations split by whitespace</description>
+            <pattern>\b[КK][ТT][\s\-]+(\d+[а-яА-Яa-zA-Z]*)\b</pattern>
+            <replacement>КТ$1</replacement>
+        </rule>
+        <rule id="transistor_gt_join" enabled="true">
+            <description>Normalize ГТ transistor designations split by whitespace</description>
+            <pattern>\b[ГG][ТT][\s\-]+(\d+[а-яА-Яa-zA-Z]*)\b</pattern>
+            <replacement>ГТ$1</replacement>
+        </rule>
+        <rule id="transistor_mp_join" enabled="true">
+            <description>Normalize МП transistor designations split by whitespace</description>
+            <pattern>\b[МM][ПP][\s\-]+(\d+[а-яА-Яa-zA-Z]*)\b</pattern>
+            <replacement>МП$1</replacement>
+        </rule>
+        <rule id="transistor_kp_join" enabled="true">
+            <description>Normalize КП field transistor designations split by whitespace</description>
+            <pattern>\b[КK][ПP][\s\-]+(\d+[а-яА-Яa-zA-Z]*)\b</pattern>
+            <replacement>КП$1</replacement>
+        </rule>
+        <rule id="transistor_old_p_join" enabled="true">
+            <description>Normalize old П-series transistor designations split by whitespace</description>
+            <pattern>\b[ПP][\s\-]+([1-4]\d{1,2}[а-яА-Яa-zA-Z]*)\b</pattern>
+            <replacement>П$1</replacement>
+        </rule>
+        <rule id="dinistor_kn_join" enabled="true">
+            <description>Normalize КН dinistor / diode-thyristor designations split by whitespace</description>
+            <pattern>\b[КK][НH][\s\-]+(\d+[а-яА-Яa-zA-Z]*)\b</pattern>
+            <replacement>КН$1</replacement>
+        </rule>
+        <rule id="thyristor_ku_join" enabled="true">
+            <description>Normalize КУ thyristor designations split by whitespace</description>
+            <pattern>\b[КK][УY][\s\-]+(\d+[а-яА-Яa-zA-Z]*)\b</pattern>
+            <replacement>КУ$1</replacement>
+        </rule>
+        <rule id="microchip_join_series_function" enabled="true">
+            <description>Normalize Soviet IC designations split by spaces, e.g. КР 580 ВН 59 А</description>
+            <pattern>\b([КK][РPМM]?|[КK]М)?[\s\-]*(\d{3,4})[\s\-]+([А-ЯA-Z]{1,4})[\s\-]*(\d{1,3})[\s\-]*([А-ЯA-Z]?)\b</pattern>
+            <replacement>$1$2$3$4$5</replacement>
+        </rule>
+        <rule id="microchip_prefix_kr_to_cyrillic" enabled="true">
+            <description>Normalize Latin lookalikes in КР microchip prefix</description>
+            <pattern>\b[КK][РP](?=\d{3,4})</pattern>
+            <replacement>КР</replacement>
+        </rule>
+        <rule id="microchip_prefix_km_to_cyrillic" enabled="true">
+            <description>Normalize Latin lookalikes in КМ microchip prefix before IC series digits</description>
+            <pattern>\b[КK][МM](?=\d{3,4})</pattern>
+            <replacement>КМ</replacement>
+        </rule>
+        <rule id="microchip_prefix_k_to_cyrillic" enabled="true">
+            <description>Normalize Latin K to Cyrillic К before IC series digits</description>
+            <pattern>\bK(?=\d{3,4}[А-ЯA-Z])</pattern>
+            <replacement>К</replacement>
+        </rule>
+        <rule id="relay_res_hyphenation" enabled="true">
+            <description>Normalize РЕС relay series spelling and hyphenation after language normalization</description>
+            <pattern>\bРЕС[\s\-]*(\d+[а-яА-Яa-zA-Z]*)\b</pattern>
+            <replacement>РЕС-$1</replacement>
+        </rule>
+        <rule id="relay_ren_hyphenation" enabled="true">
+            <description>Normalize РЕН relay series spelling and hyphenation after language normalization</description>
+            <pattern>\bРЕН[\s\-]*(\d+[а-яА-Яa-zA-Z]*)\b</pattern>
+            <replacement>РЕН-$1</replacement>
+        </rule>
+        <rule id="connector_2rm_hyphenation" enabled="true">
+            <description>Normalize 2РМ connector series with missing separator</description>
+            <pattern>\b2[РP][МM][\s\-]+(\d+[а-яА-Яa-zA-Z]*)\b</pattern>
+            <replacement>2РМ-$1</replacement>
+        </rule>
+        <rule id="connector_grpm_hyphenation" enabled="true">
+            <description>Normalize ГРПМ connector series with missing separator</description>
+            <pattern>\b[ГG][РP][ПP][МM][\s\-]+(\d+[а-яА-Яa-zA-Z]*)\b</pattern>
+            <replacement>ГРПМ-$1</replacement>
+        </rule>
+        <rule id="connector_snp_hyphenation" enabled="true">
+            <description>Normalize СНП connector series with missing separator</description>
+            <pattern>\b[СC][НH][ПP](\d*)[\s\-]+(\d+[а-яА-Яa-zA-Z]*)\b</pattern>
+            <replacement>СНП$1-$2</replacement>
+        </rule>
+        <rule id="connector_onp_kg_case" enabled="true">
+            <description>Normalize ОНп-КГ connector family spelling</description>
+            <pattern>\b[ОO][НH][ПP][\s\-]*[КK][ГG]\b</pattern>
+            <replacement>ОНп-КГ</replacement>
+        </rule>
+        <rule id="connector_onp_kg_hyphenation" enabled="true">
+            <description>Normalize ОНп-КГ connector numeric groups with missing separators</description>
+            <pattern>\bОНп-КГ[\s\-]+(\d+)[\s\-]+(\d+[а-яА-Яa-zA-Z]*)\b</pattern>
+            <replacement>ОНп-КГ-$1-$2</replacement>
+        </rule>
+        <rule id="switch_p2k_hyphenation" enabled="true">
+            <description>Normalize П2К switch series with missing separator</description>
+            <pattern>\b[ПP]2[КK][\s\-]+(\d+[а-яА-Яa-zA-Z]*)\b</pattern>
+            <replacement>П2К-$1</replacement>
+        </rule>
+        <rule id="transformer_tpp_hyphenation" enabled="true">
+            <description>Normalize ТПП transformer series with missing separator</description>
+            <pattern>\b[ТT][ПP][ПP][\s\-]+(\d+[а-яА-Яa-zA-Z]*)\b</pattern>
+            <replacement>ТПП-$1</replacement>
+        </rule>
+        <rule id="resonator_rk_hyphenation" enabled="true">
+            <description>Normalize РК quartz resonator series with missing separator</description>
+            <pattern>\b[РP][КK][\s\-]*(\d{2,4}[а-яА-Яa-zA-Z]*)[\s\-]+(\d+[а-яА-Яa-zA-Z]*)\b</pattern>
+            <replacement>РК$1-$2</replacement>
+        </rule>
+        <rule id="nominal_decimal_dot_to_comma_when_between_digits" enabled="true">
+            <description>Normalize decimal dot to comma only when it is between digits</description>
+            <pattern>(\d)\.(\d)</pattern>
+            <replacement>$1,$2</replacement>
+        </rule>
+        <rule id="remove_spaces_around_hyphen" enabled="true">
+            <description>Remove accidental spaces around hyphen inside technical designations</description>
+            <pattern>\s+\-\s+|\s+\-|\-\s+</pattern>
+            <replacement>-</replacement>
+        </rule>
+        <rule id="collapse_spaces_before_common_units" enabled="true">
+            <description>Remove accidental space between value and common unit abbreviations</description>
+            <pattern>\b(\d+(?:[,.]\d+)?)\s+(кОм|КОм|Ом|МОм|мкФ|нФ|пФ|В|А)\b</pattern>
+            <replacement>$1$2</replacement>
+        </rule>
+    </stage>
+
+</xlsx_preprocess_rules>
