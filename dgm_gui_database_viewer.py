@@ -339,6 +339,13 @@ class DgmDatabaseViewer(tk.Toplevel, XlsxProcessingMixin):
 		elif "pattern" in Node.attrib:
 			del Node.attrib["pattern"]
 
+		if Values.get("has_dgm") != "true":
+			for DgmNode in list(Node.findall("dgm")):
+				Node.remove(DgmNode)
+			for MetalKey, _ in dgm_database.METALS:
+				Node.attrib.pop(f"{MetalKey}_g", None)
+			return
+
 		DgmNode = self.Database.EnsureChild(Node, "dgm")
 		for MetalKey, _ in dgm_database.METALS:
 			Value = dgm_database.ReadDecimal(Values[MetalKey])

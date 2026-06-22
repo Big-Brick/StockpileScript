@@ -24,6 +24,7 @@ class CatalogNodeEditDialog(tk.Toplevel):
 		self._Entries: Dict[str, tk.Entry] = {}
 		self._Kind = tk.StringVar(value="regex" if Node.tag == "regex" else "node")
 		self._Optional = tk.BooleanVar(value=dgm_database.IsOptionalNode(Node))
+		self._HasDgm = tk.BooleanVar(value=self._NodeHasDgmValues(Node))
 
 		Row = 0
 		ttk.Label(self, text="Node type").grid(row=Row, column=0, sticky="w", padx=(10, 6), pady=4)
@@ -36,6 +37,16 @@ class CatalogNodeEditDialog(tk.Toplevel):
 		ttk.Label(self, text="Optional").grid(row=Row, column=0, sticky="w", padx=(10, 6), pady=4)
 		self._OptionalCheck = ttk.Checkbutton(self, text="Search children even when this node text is absent", variable=self._Optional)
 		self._OptionalCheck.grid(row=Row, column=1, sticky="w", padx=(0, 10), pady=4)
+		Row += 1
+
+		ttk.Label(self, text="DGM values").grid(row=Row, column=0, sticky="w", padx=(10, 6), pady=4)
+		self._HasDgmCheck = ttk.Checkbutton(
+			self,
+			text="Store DGM values on this node",
+			variable=self._HasDgm,
+			command=self._UpdateDgmState,
+		)
+		self._HasDgmCheck.grid(row=Row, column=1, sticky="w", padx=(0, 10), pady=4)
 		Row += 1
 
 		for Key, Label, Value in self._BuildFields(Node):
@@ -58,6 +69,11 @@ class CatalogNodeEditDialog(tk.Toplevel):
 		self._Entries["text"].focus_set()
 		self.wait_window(self)
 
+	def _NodeHasDgmValues(self, Node: XmlTree.Element) -> bool:
+		if Node.find("dgm") is not None:
+			return True
+		return any(Node.get(f"{MetalKey}_g") is not None for MetalKey, _ in dgm_database.METALS)
+
 	def _BuildFields(self, Node: XmlTree.Element) -> list[tuple[str, str, str]]:
 		DgmNode = Node.find("dgm")
 		SourceNode = DgmNode if DgmNode is not None else Node
@@ -78,18 +94,28 @@ class CatalogNodeEditDialog(tk.Toplevel):
 		self._OptionalCheck.configure(state="disabled" if IsRegex else "normal")
 		if IsRegex:
 			self._Optional.set(False)
+		self._UpdateDgmState()
+
+	def _UpdateDgmState(self) -> None:
+		State = "normal" if self._HasDgm.get() else "disabled"
+		for MetalKey, _ in dgm_database.METALS:
+			Entry = self._Entries.get(MetalKey)
+			if Entry is not None:
+				Entry.configure(state=State)
 
 	def _Save(self) -> None:
-		try:
-			for MetalKey, _ in dgm_database.METALS:
-				dgm_database.ReadDecimal(self._Entries[MetalKey].get())
-		except decimal.InvalidOperation as Error:
-			tkinter.messagebox.showerror(WINDOW_TITLE, f"Invalid decimal value: {Error}", parent=self)
-			return
+		if self._HasDgm.get():
+			try:
+				for MetalKey, _ in dgm_database.METALS:
+					dgm_database.ReadDecimal(self._Entries[MetalKey].get())
+			except decimal.InvalidOperation as Error:
+				tkinter.messagebox.showerror(WINDOW_TITLE, f"Invalid decimal value: {Error}", parent=self)
+				return
 
 		self.Result = {Key: Entry.get() for Key, Entry in self._Entries.items()}
 		self.Result["kind"] = self._Kind.get()
 		self.Result["optional"] = "true" if self._Optional.get() else "false"
+		self.Result["has_dgm"] = "true" if self._HasDgm.get() else "false"
 		self.destroy()
 
 	def _Cancel(self) -> None:
