@@ -379,6 +379,12 @@ class AddElementDialog(tk.Toplevel):
 
 		if StructuredResult.Record is not None:
 			AddRecord(StructuredResult.Record)
+			if (
+				StructuredResult.Record.Node.tag == "regex"
+				and StructuredResult.Record.ConsumedText == ""
+				and StructuredResult.Record.Parent is not None
+			):
+				AddRecord(StructuredResult.Record.Parent)
 		for Match in StructuredResult.PartialMatches:
 			if Match.Record.Node.tag != "node" or id(Match.Record.Node) in SeenNodes:
 				continue
