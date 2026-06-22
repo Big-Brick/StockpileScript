@@ -392,7 +392,10 @@
                 <alias>розьем</alias>
                 <alias>разъем</alias>
                 <alias>разъём</alias>
+                <alias>Роз'єм кабельна</alias>
+                <alias>розетка кабельна</alias>
                 <alias>розетка</alias>
+                <alias>вилка кабельна</alias>
                 <alias>вилка</alias>
                 <alias>з'єднувач</alias>
                 <alias>соединитель</alias>
@@ -482,25 +485,39 @@
             <database_check enabled="true"/>
         </type>
 
-        <type id="inductor" canonical="Дросель">
+        <type id="choke" canonical="Дросель">
+            <aliases>
+                <alias>дросель</alias>
+                <alias>дроссель</alias>
+                <alias>др.</alias>
+            </aliases>
+
+            <prefix_cache>
+                <prefix>ДМ</prefix>
+                <prefix>ДПМ</prefix>
+                <prefix>ДР</prefix>
+                <prefix>ДРП</prefix>
+                <prefix>ДФ</prefix>
+                <prefix>ДФС</prefix>
+            </prefix_cache>
+
+            <database_check enabled="true"/>
+        </type>
+
+        <type id="inductor" canonical="Котушка">
             <aliases>
                 <alias>котушка</alias>
                 <alias>котушки</alias>
                 <alias>катушка</alias>
                 <alias>катушки</alias>
-                <alias>дросель</alias>
-                <alias>дроссель</alias>
+                <alias>катушка індуктивності</alias>
+                <alias>катушка индуктивности</alias>
+                <alias>котушка індуктивності</alias>
                 <alias>індуктивність</alias>
                 <alias>индуктивность</alias>
             </aliases>
 
             <prefix_cache>
-                <prefix>ДПМ</prefix>
-                <prefix>ДМ</prefix>
-                <prefix>ДР</prefix>
-                <prefix>ДРП</prefix>
-                <prefix>ДФ</prefix>
-                <prefix>ДФС</prefix>
                 <prefix>КИ</prefix>
                 <prefix>КВ</prefix>
             </prefix_cache>

@@ -38,7 +38,10 @@ class XlsxProcessingMixin:
 		if not SelectedFolder:
 			return
 
-		Files = dgm_inventory.FindXlsxFiles(Path(SelectedFolder).expanduser().resolve())
+		Files = dgm_inventory.FindXlsxFiles(
+			Path(SelectedFolder).expanduser().resolve(),
+			self.ProcessSubfolders.get(),
+		)
 		if not Files:
 			tkinter.messagebox.showinfo(WINDOW_TITLE, "No .xlsx files found in the selected folder.", parent=self)
 			return
@@ -138,4 +141,3 @@ class XlsxProcessingMixin:
 				Details.append(f"{MetalName}: sheet {dgm_database.DecimalToText(Value)} g, database {dgm_database.DecimalToText(DbValue)} g")
 		DatabaseValues = dgm_database.DgmValues(Entry.Values.GoldG, Entry.Values.SilverG, Entry.Values.PlatinumG, Entry.Values.MpgG)
 		return GuiConflictRow(FilePath, str(Sheet.title), Row, Name, Entry, SheetValues, DatabaseValues, "; ".join(Details))
-

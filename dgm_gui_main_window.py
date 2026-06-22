@@ -18,10 +18,11 @@ class DgmMainWindow(tk.Tk, XlsxProcessingMixin, XlsxPreprocessingMixin, MissingE
 		self.DatabasePath = DatabasePath
 		self.Database = dgm_database.OpenDatabase(DatabasePath)
 		self.DatabaseEditor: Optional[DgmDatabaseViewer] = None
+		self.ProcessSubfolders = tk.BooleanVar(value=False)
 
 		self.title(f"DGM Inventory Tools - {DatabasePath.name}")
-		self.geometry("360x340")
-		self.minsize(320, 300)
+		self.geometry("360x370")
+		self.minsize(320, 330)
 
 		self._ConfigureStyle()
 		self._BuildLayout()
@@ -38,10 +39,11 @@ class DgmMainWindow(tk.Tk, XlsxProcessingMixin, XlsxPreprocessingMixin, MissingE
 		ttk.Button(self, text="Open database editor", command=self._OpenDatabaseEditor).grid(row=1, column=0, sticky="ew", padx=16, pady=4)
 		ttk.Button(self, text="Preprocess .xlsx file", command=self._SelectAndPreprocessXlsxFile).grid(row=2, column=0, sticky="ew", padx=16, pady=4)
 		ttk.Button(self, text="Preprocess folder", command=self._SelectAndPreprocessXlsxFolder).grid(row=3, column=0, sticky="ew", padx=16, pady=4)
-		ttk.Button(self, text="Fill .xlsx file", command=self._SelectAndProcessXlsxFile).grid(row=4, column=0, sticky="ew", padx=16, pady=4)
-		ttk.Button(self, text="Fill folder", command=self._SelectAndProcessXlsxFolder).grid(row=5, column=0, sticky="ew", padx=16, pady=4)
-		ttk.Button(self, text="List missing elements in .xlsx file", command=self._SelectAndListMissingXlsxFile).grid(row=6, column=0, sticky="ew", padx=16, pady=4)
-		ttk.Button(self, text="List missing elements in folder", command=self._SelectAndListMissingXlsxFolder).grid(row=7, column=0, sticky="ew", padx=16, pady=(4, 16))
+		ttk.Checkbutton(self, text="Process selected folder subfolders", variable=self.ProcessSubfolders).grid(row=4, column=0, sticky="w", padx=16, pady=4)
+		ttk.Button(self, text="Fill .xlsx file", command=self._SelectAndProcessXlsxFile).grid(row=5, column=0, sticky="ew", padx=16, pady=4)
+		ttk.Button(self, text="Fill folder", command=self._SelectAndProcessXlsxFolder).grid(row=6, column=0, sticky="ew", padx=16, pady=4)
+		ttk.Button(self, text="List missing elements in .xlsx file", command=self._SelectAndListMissingXlsxFile).grid(row=7, column=0, sticky="ew", padx=16, pady=4)
+		ttk.Button(self, text="List missing elements in folder", command=self._SelectAndListMissingXlsxFolder).grid(row=8, column=0, sticky="ew", padx=16, pady=(4, 16))
 
 	def _OpenDatabaseEditor(self) -> None:
 		if self.DatabaseEditor is not None and self.DatabaseEditor.winfo_exists():
