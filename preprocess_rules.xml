@@ -57,14 +57,24 @@
             or are known to be used in more than one component family.
         -->
         <cache_guards>
-            <ambiguous_prefix>КМ</ambiguous_prefix>
-            <ambiguous_prefix>К</ambiguous_prefix>
-            <ambiguous_prefix>КП</ambiguous_prefix>
-            <ambiguous_prefix>П</ambiguous_prefix>
-            <ambiguous_prefix>СП</ambiguous_prefix>
-            <ambiguous_prefix>РП</ambiguous_prefix>
-            <ambiguous_prefix>Д</ambiguous_prefix>
-            <ambiguous_prefix>С</ambiguous_prefix>
+            <ambiguous_prefix reason="Short and historically overloaded prefix. Often points to КМ ceramic capacitors, but should not be blindly assigned because КМ may appear in other designations or as part of longer markings; require database verification.">КМ</ambiguous_prefix>
+            <ambiguous_prefix reason="Single-letter prefix. Too broad: many Soviet/CIS series start with К, including capacitors, semiconductors, connectors and other component families; never auto-detect type from this alone.">К</ambiguous_prefix>
+            <ambiguous_prefix reason="Can denote КП field-effect transistors, but also may be a beginning of longer non-transistor designations or inventory abbreviations. Use database verification before choosing the type.">КП</ambiguous_prefix>
+            <ambiguous_prefix reason="Single-letter prefix. Can be old transistor series, switch designations, board/assembly abbreviations, or just the first letter of a larger marking; too broad for cache-only type detection.">П</ambiguous_prefix>
+            <ambiguous_prefix reason="Most often variable resistors/potentiometers СП, but the prefix is short and can overlap with other Soviet abbreviations or longer designations. Verify through the database.">СП</ambiguous_prefix>
+            <ambiguous_prefix reason="Can look like relay series РП, but also appears in connector/mechanical and other abbreviated designations. Do not infer Реле from cache alone.">РП</ambiguous_prefix>
+            <ambiguous_prefix reason="Single-letter prefix. Can mean diode series Д/2Д, but also starts several choke/inductor and other designations such as ДМ or ДПМ; too broad for automatic typing.">Д</ambiguous_prefix>
+            <ambiguous_prefix reason="Single-letter prefix. Can start resistor series С2/С5, connector series such as СНП, and many other markings; too broad for automatic typing.">С</ambiguous_prefix>
+
+            <!-- Direct conflicts found in current prefix_cache -->
+            <ambiguous_prefix reason="Direct cache conflict: currently appears in both inductor/coil-related and resonator-related prefix caches. Must be resolved by full database search, not by first cache hit.">КВ</ambiguous_prefix>
+            <ambiguous_prefix reason="Direct cache conflict: currently appears in both switch and transformer-related prefix caches. Must be resolved by full database search.">ТП</ambiguous_prefix>
+
+            <!-- Thyristor/dinistor/silicon-power-device safety guards -->
+            <ambiguous_prefix reason="Single-letter prefix. Can start transistor, thyristor, transformer, switch, and other power/mechanical designations; too broad for automatic typing.">Т</ambiguous_prefix>
+            <ambiguous_prefix reason="Can refer to transformer series such as ТС, but may also occur in thyristor/power semiconductor or other technical designations. Verify through database.">ТС</ambiguous_prefix>
+            <ambiguous_prefix reason="Short power-device-looking prefix. May occur in thyristor/semiconductor designations and can also overlap with other technical abbreviations; do not auto-cache without database confirmation.">ТО</ambiguous_prefix>
+            <ambiguous_prefix reason="Short power-device-looking prefix. May occur in thyristor/semiconductor designations and can overlap with transformer or other technical markings; require database verification.">ТЛ</ambiguous_prefix>
         </cache_guards>
     </settings>
 
@@ -253,10 +263,11 @@
                 <alias>транзистор</alias>
                 <alias>транзисторы</alias>
                 <alias>транзистори</alias>
+                <alias>транзистора</alias>
+                <alias>біполярний транзистор</alias>
+                <alias>биполярный транзистор</alias>
                 <alias>полевой транзистор</alias>
                 <alias>польовий транзистор</alias>
-                <alias>тиристор</alias>
-                <alias>симистор</alias>
             </aliases>
 
             <prefix_cache>
@@ -264,15 +275,59 @@
                 <prefix>2Т</prefix>
                 <prefix>2П</prefix>
                 <prefix>КТ</prefix>
-                <prefix>КП</prefix>
                 <prefix>ГТ</prefix>
                 <prefix>МП</prefix>
                 <prefix>П1</prefix>
                 <prefix>П2</prefix>
                 <prefix>П3</prefix>
                 <prefix>П4</prefix>
-                <prefix>КУ</prefix>
+            </prefix_cache>
+
+            <database_check enabled="true"/>
+        </type>
+
+        <type id="dinistor" canonical="Диністор">
+            <aliases>
+                <alias>диністор</alias>
+                <alias>диністори</alias>
+                <alias>динистор</alias>
+                <alias>динисторы</alias>
+                <alias>діністор</alias>
+                <alias>діністори</alias>
+                <alias>діодний тиристор</alias>
+                <alias>диодный тиристор</alias>
+                <alias>тиристор діодний</alias>
+                <alias>тиристор диодный</alias>
+            </aliases>
+
+            <prefix_cache>
                 <prefix>КН</prefix>
+            </prefix_cache>
+
+            <database_check enabled="true"/>
+        </type>
+
+        <type id="thyristor" canonical="Тиристор">
+            <aliases>
+                <alias>тиристор</alias>
+                <alias>тиристори</alias>
+                <alias>тиристоры</alias>
+                <alias>теристор</alias>
+                <alias>теристори</alias>
+                <alias>тринистор</alias>
+                <alias>тринисторы</alias>
+                <alias>триністор</alias>
+                <alias>триністори</alias>
+                <alias>симистор</alias>
+                <alias>симисторы</alias>
+                <alias>симістор</alias>
+                <alias>симістори</alias>
+                <alias>керований вентиль</alias>
+                <alias>управляемый вентиль</alias>
+            </aliases>
+
+            <prefix_cache>
+                <prefix>КУ</prefix>
             </prefix_cache>
 
             <database_check enabled="true"/>
@@ -452,7 +507,6 @@
                 <prefix>ПКН</prefix>
                 <prefix>ПКн</prefix>
                 <prefix>МТ</prefix>
-                <prefix>ТП</prefix>
                 <prefix>ТВ</prefix>
                 <prefix>ВК</prefix>
                 <prefix>КМ1</prefix>
@@ -472,7 +526,6 @@
             </aliases>
 
             <prefix_cache>
-                <prefix>ТП</prefix>
                 <prefix>ТПП</prefix>
                 <prefix>ТН</prefix>
                 <prefix>ТАН</prefix>
@@ -519,7 +572,6 @@
 
             <prefix_cache>
                 <prefix>КИ</prefix>
-                <prefix>КВ</prefix>
             </prefix_cache>
 
             <database_check enabled="true"/>
@@ -540,7 +592,6 @@
                 <prefix>РК</prefix>
                 <prefix>РК169</prefix>
                 <prefix>РГ</prefix>
-                <prefix>КВ</prefix>
             </prefix_cache>
 
             <database_check enabled="true"/>
@@ -714,6 +765,16 @@
             <description>Normalize КП field transistor designations split by whitespace</description>
             <pattern>\b[КK][ПP][\s\-]+(\d+[а-яА-Яa-zA-Z]*)\b</pattern>
             <replacement>КП$1</replacement>
+        </rule>
+        <rule id="dinistor_kn_join" enabled="true">
+            <description>Normalize КН dinistor / diode-thyristor designations split by whitespace</description>
+            <pattern>\b[КK][НH][\s\-]+(\d+[а-яА-Яa-zA-Z]*)\b</pattern>
+            <replacement>КН$1</replacement>
+        </rule>
+        <rule id="thyristor_ku_join" enabled="true">
+            <description>Normalize КУ thyristor designations split by whitespace</description>
+            <pattern>\b[КK][УY][\s\-]+(\d+[а-яА-Яa-zA-Z]*)\b</pattern>
+            <replacement>КУ$1</replacement>
         </rule>
         <rule id="transistor_old_p_join" enabled="true">
             <description>Normalize old П-series transistor designations split by whitespace</description>

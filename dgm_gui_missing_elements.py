@@ -7,6 +7,7 @@ from typing import Callable, Dict, List, Optional, Tuple
 import tkinter as tk
 import tkinter.filedialog
 import tkinter.messagebox
+import tkinter.simpledialog
 import tkinter.ttk as ttk
 
 import dgm_database
@@ -38,6 +39,7 @@ class MissingElementsWindow(tk.Toplevel):
 		self.Groups = Groups
 		self.IgnoredRows = IgnoredRows
 		self.TreeItems: Dict[str, Tuple[MissingElementGroup, Optional[MissingElementSummary]]] = {}
+		self.OccurrenceItems: Dict[str, Tuple[MissingElementGroup, MissingElementSummary, GuiMissingElement]] = {}
 
 		FileLabel = Files[0].name if len(Files) == 1 else f"{len(Files)} files"
 		self.title(f"Missing elements - {FileLabel}")
@@ -73,7 +75,8 @@ class MissingElementsWindow(tk.Toplevel):
 		Buttons.grid(row=2, column=0, sticky="e", padx=10, pady=(4, 10))
 		ttk.Button(Buttons, text="Add selected to database...", command=self._AddSelectedToDatabase).grid(row=0, column=0, padx=(0, 6))
 		ttk.Button(Buttons, text="Add selected to ignore list", command=self._IgnoreSelected).grid(row=0, column=1, padx=(0, 6))
-		ttk.Button(Buttons, text="Close", command=self.destroy).grid(row=0, column=2)
+		ttk.Button(Buttons, text="Edit selected in XLSX", command=self._EditSelectedInXlsx).grid(row=0, column=2, padx=(0, 6))
+		ttk.Button(Buttons, text="Close", command=self.destroy).grid(row=0, column=3)
 
 	def _UpdateSummaryLabel(self) -> None:
 		MissingCount = sum(len(Group.ItemsByName) for Group in self.Groups)
@@ -85,6 +88,7 @@ class MissingElementsWindow(tk.Toplevel):
 		for Existing in self.Tree.get_children(""):
 			self.Tree.delete(Existing)
 		self.TreeItems.clear()
+		self.OccurrenceItems.clear()
 		self._UpdateSummaryLabel()
 		for Group in sorted(self.Groups, key=lambda Group: Group.SortText.casefold()):
 			GroupOccurrenceCount = sum(len(Item.Occurrences) for Item in Group.ItemsByName.values())
@@ -98,7 +102,9 @@ class MissingElementsWindow(tk.Toplevel):
 				self.Tree.insert(GroupId, "end", iid=ItemId, text=Item.Name, values=(len(Item.Occurrences), self._FormatFiles(Item.Occurrences), self._FormatLocation(First)), open=(ItemId in ExpandedItems))
 				self.TreeItems[ItemId] = (Group, Item)
 				for OccurrenceIndex, Occurrence in enumerate(Item.Occurrences):
-					self.Tree.insert(ItemId, "end", iid=self._OccurrenceTreeId(Group, Item, OccurrenceIndex), text=self._FormatLocation(Occurrence), values=("", Occurrence.FilePath.name, ""), open=False)
+					OccurrenceId = self._OccurrenceTreeId(Group, Item, OccurrenceIndex)
+					self.Tree.insert(ItemId, "end", iid=OccurrenceId, text=self._FormatLocation(Occurrence), values=("", Occurrence.FilePath.name, ""), open=False)
+					self.OccurrenceItems[OccurrenceId] = (Group, Item, Occurrence)
 
 	def _GetExpandedItems(self) -> set[str]:
 		Expanded: set[str] = set()
@@ -170,6 +176,104 @@ class MissingElementsWindow(tk.Toplevel):
 		self.ParentViewer.Database.Save()
 		self.ParentViewer._PopulateIgnoredList()
 		self._RemoveSummary(Item)
+
+	def _SelectedOccurrencesForEdit(self) -> Tuple[Optional[MissingElementSummary], List[GuiMissingElement]]:
+		Selection = self.Tree.selection()
+		if not Selection:
+			tkinter.messagebox.showinfo(WINDOW_TITLE, "Select a missing element row to edit.", parent=self)
+			return None, []
+		ItemId = Selection[0]
+		OccurrenceInfo = self.OccurrenceItems.get(ItemId)
+		if OccurrenceInfo is not None:
+			_, Summary, Occurrence = OccurrenceInfo
+			return Summary, [Occurrence]
+		Summary = self._SelectedItem()
+		if Summary is None:
+			tkinter.messagebox.showinfo(WINDOW_TITLE, "Select a missing element row to edit.", parent=self)
+			return None, []
+		return Summary, list(Summary.Occurrences)
+
+	def _EditSelectedInXlsx(self) -> None:
+		Summary, Occurrences = self._SelectedOccurrencesForEdit()
+		if Summary is None or not Occurrences:
+			return
+		if len(Occurrences) > 1:
+			Proceed = tkinter.messagebox.askyesno(
+				WINDOW_TITLE,
+				f"This missing element has {len(Occurrences)} row occurrences. Edit all of them?",
+				parent=self,
+			)
+			if not Proceed:
+				return
+
+		EditedText = tkinter.simpledialog.askstring(
+			"Edit XLSX text",
+			"Text to write to XLSX:",
+			initialvalue=Summary.Name,
+			parent=self,
+		)
+		if EditedText is None:
+			return
+		EditedText = " ".join(EditedText.strip().split())
+		if not EditedText:
+			tkinter.messagebox.showerror(WINDOW_TITLE, "Text cannot be empty.", parent=self)
+			return
+
+		try:
+			self._WriteOccurrencesToXlsx(Occurrences, EditedText)
+			self._RemoveOccurrences(Occurrences)
+			self._RecheckEditedOccurrences(Occurrences, EditedText)
+		except Exception as Error:
+			tkinter.messagebox.showerror(WINDOW_TITLE, f"Cannot edit XLSX text: {Error}", parent=self)
+			return
+		self._PopulateTree(PreserveExpansion=True)
+
+	def _WriteOccurrencesToXlsx(self, Occurrences: List[GuiMissingElement], Text: str) -> None:
+		if openpyxl is None:
+			raise RuntimeError("Missing dependency: openpyxl")
+		OccurrencesByFile: Dict[Path, List[GuiMissingElement]] = {}
+		for Occurrence in Occurrences:
+			OccurrencesByFile.setdefault(Occurrence.FilePath, []).append(Occurrence)
+		for FilePath, FileOccurrences in OccurrencesByFile.items():
+			Workbook = openpyxl.load_workbook(FilePath, data_only=False)  # type: ignore[union-attr]
+			SheetsByName = {Sheet.title: Sheet for Sheet in Workbook.worksheets}
+			for Occurrence in FileOccurrences:
+				Sheet = SheetsByName[Occurrence.SheetName]
+				Sheet[f"{self.ParentViewer.Database.Columns.Name}{Occurrence.Row}"].value = Text
+			Workbook.save(FilePath)
+
+	def _RemoveOccurrences(self, Occurrences: List[GuiMissingElement]) -> None:
+		OccurrenceIds = {id(Occurrence) for Occurrence in Occurrences}
+		for Group in self.Groups:
+			for Key, Item in list(Group.ItemsByName.items()):
+				Item.Occurrences = [Occurrence for Occurrence in Item.Occurrences if id(Occurrence) not in OccurrenceIds]
+				if not Item.Occurrences:
+					del Group.ItemsByName[Key]
+		self.Groups = [Group for Group in self.Groups if Group.ItemsByName]
+
+	def _RecheckEditedOccurrences(self, Occurrences: List[GuiMissingElement], Text: str) -> None:
+		Preprocessor = dgm_xlsx_preprocessor.XlsxPreprocessor(
+			self.ParentViewer.Database,
+			self.ParentViewer.DatabasePath.with_name(dgm_xlsx_preprocessor.DEFAULT_RULES_FILENAME),
+		)
+		if self.ParentViewer.Database.IsIgnoredText(Text) or Preprocessor.IsIgnoredText(Text):
+			return
+		SearchResult = self.ParentViewer.Database.FindElement(Text)
+		if SearchResult.Record is not None and SearchResult.Record.HasDgm:
+			return
+		Matches = list(SearchResult.PartialMatches)
+		if SearchResult.Record is not None and SearchResult.Record.Node.tag == "node":
+			Matches.insert(0, dgm_database.PartialElementMatch(
+				Record=SearchResult.Record,
+			))
+		GroupsByKey = {Group.Key: Group for Group in self.Groups}
+		for Occurrence in Occurrences:
+			self.ParentViewer._AddMissingElement(
+				GroupsByKey,
+				GuiMissingElement(Occurrence.FilePath, Occurrence.SheetName, Occurrence.Row, Text),
+				Matches,
+			)
+		self.Groups = list(GroupsByKey.values())
 
 	def _RemoveSummary(self, Summary: MissingElementSummary) -> None:
 		self._RemoveSummaries(lambda Item: Item is Summary)
