@@ -6,6 +6,7 @@ from typing import Dict, List, Optional, Tuple
 
 import tkinter.filedialog
 import tkinter.messagebox
+import tkinter.simpledialog
 import tkinter as tk
 import tkinter.ttk as ttk
 
@@ -18,6 +19,7 @@ from dgm_xlsx_preprocessor import (
 	PREPROCESS_STAGES,
 	PreprocessChange,
 	PreprocessResult,
+	SavePreprocessRules,
 	XlsxPreprocessor,
 )
 
@@ -230,8 +232,18 @@ class XlsxPreprocessReviewWindow(tk.Toplevel):
 		ttk.Button(ButtonFrame, text="Apply selected", command=self._ApplySelected).grid(row=0, column=0, padx=(0, 6))
 		ttk.Button(ButtonFrame, text="Apply all safe", command=self._ApplySafe).grid(row=0, column=1, padx=(0, 6))
 		ttk.Button(ButtonFrame, text="Apply all visible", command=self._ApplyAll).grid(row=0, column=2, padx=(0, 6))
-		ttk.Button(ButtonFrame, text="Next stage", command=self._NextStage).grid(row=0, column=3, padx=(0, 6))
-		ttk.Button(ButtonFrame, text="Close", command=self.destroy).grid(row=0, column=4)
+		ttk.Button(ButtonFrame, text="Edit original in XLSX", command=lambda: self._EditSelectedText("original")).grid(
+			row=0,
+			column=3,
+			padx=(0, 6),
+		)
+		ttk.Button(ButtonFrame, text="Edit proposed in XLSX", command=lambda: self._EditSelectedText("proposed")).grid(
+			row=0,
+			column=4,
+			padx=(0, 6),
+		)
+		ttk.Button(ButtonFrame, text="Next stage", command=self._NextStage).grid(row=0, column=5, padx=(0, 6))
+		ttk.Button(ButtonFrame, text="Close", command=self.destroy).grid(row=0, column=6)
 
 	def _SortedChanges(self, Changes: List[GroupedPreprocessChange]) -> List[GroupedPreprocessChange]:
 		if self.Result.StageId != "prefix":
@@ -257,6 +269,10 @@ class XlsxPreprocessReviewWindow(tk.Toplevel):
 		return f"{SafetyLabel} / {TypeLabel}"
 
 	def _PopulateTree(self) -> None:
+		OpenStates = {
+			self.Tree.item(Item, "text"): bool(self.Tree.item(Item, "open"))
+			for Item in self.Tree.get_children("")
+		}
 		for Item in self.Tree.get_children(""):
 			self.Tree.delete(Item)
 		self.ItemToChange.clear()
@@ -267,7 +283,14 @@ class XlsxPreprocessReviewWindow(tk.Toplevel):
 			if GroupId is None:
 				GroupId = f"group:{len(Groups)}"
 				Groups[GroupKey] = GroupId
-				self.Tree.insert("", "end", iid=GroupId, text=GroupKey, open=True, values=("", "", "", "", "", "", ""))
+				self.Tree.insert(
+					"",
+					"end",
+					iid=GroupId,
+					text=GroupKey,
+					open=OpenStates.get(GroupKey, True),
+					values=("", "", "", "", "", "", ""),
+				)
 			ItemId = f"change:{Index}"
 			self.ItemToChange[ItemId] = Change
 			self.Tree.insert(
@@ -328,6 +351,94 @@ class XlsxPreprocessReviewWindow(tk.Toplevel):
 			Change.StageNotes = [f"Stage 2: manually assigned {TypeName}"]
 		self.Changes = self._SortedChanges(self.Changes)
 		self._PopulateTree()
+
+	def _SelectedSingleChangeForEdit(self) -> Optional[GroupedPreprocessChange]:
+		Selected = self._SelectedChanges()
+		Unique: Dict[int, GroupedPreprocessChange] = {id(Change): Change for Change in Selected}
+		if not Unique:
+			tkinter.messagebox.showinfo(WINDOW_TITLE, "Select one correction row to edit.", parent=self)
+			return None
+		if len(Unique) != 1:
+			tkinter.messagebox.showinfo(WINDOW_TITLE, "Select only one correction row to edit.", parent=self)
+			return None
+		return next(iter(Unique.values()))
+
+	def _EditSelectedText(self, Source: str) -> None:
+		Change = self._SelectedSingleChangeForEdit()
+		if Change is None:
+			return
+		if Change.OccurrenceCount > 1:
+			Proceed = tkinter.messagebox.askyesno(
+				WINDOW_TITLE,
+				f"This correction represents {Change.OccurrenceCount} row occurrences. Edit all of them?",
+				parent=self,
+			)
+			if not Proceed:
+				return
+
+		InitialValue = Change.OriginalText if Source == "original" else Change.NewText
+		EditedText = tkinter.simpledialog.askstring(
+			"Edit XLSX text",
+			"Text to write to XLSX:",
+			initialvalue=InitialValue,
+			parent=self,
+		)
+		if EditedText is None:
+			return
+		EditedText = " ".join(EditedText.strip().split())
+		if not EditedText:
+			tkinter.messagebox.showerror(WINDOW_TITLE, "Text cannot be empty.", parent=self)
+			return
+
+		try:
+			self._WriteTextToOccurrences(Change, EditedText)
+			self._RemoveChangeOccurrences(Change)
+			self._ReprocessEditedOccurrences(Change, EditedText)
+			if self.Preprocessor.CacheChanged:
+				SavePreprocessRules(self.Preprocessor.Rules)
+		except Exception as Error:
+			tkinter.messagebox.showerror(WINDOW_TITLE, f"Cannot edit XLSX text: {Error}", parent=self)
+			return
+
+		self.Changes = self._SortedChanges(self.ParentViewer._GroupPreprocessChanges(self.Results))
+		self._PopulateTree()
+		if not self.Changes:
+			tkinter.messagebox.showinfo(WINDOW_TITLE, "No corrections remain for this stage.", parent=self)
+
+	def _WriteTextToOccurrences(self, Change: GroupedPreprocessChange, Text: str) -> None:
+		OccurrencesByResult: Dict[int, Tuple[PreprocessResult, List[PreprocessChangeOccurrence]]] = {}
+		for Occurrence in Change.Occurrences:
+			_, ResultOccurrences = OccurrencesByResult.setdefault(id(Occurrence.Result), (Occurrence.Result, []))
+			ResultOccurrences.append(Occurrence)
+
+		for Result, Occurrences in OccurrencesByResult.values():
+			if openpyxl is None:
+				raise RuntimeError("Missing dependency: openpyxl")
+			Workbook = openpyxl.load_workbook(Result.FilePath, data_only=False)
+			Sheet = Workbook[Result.SheetName]
+			for Occurrence in Occurrences:
+				Sheet[f"{self.Preprocessor.Database.Columns.Name}{Occurrence.Change.Row}"].value = Text
+			Workbook.save(Result.FilePath)
+
+	def _RemoveChangeOccurrences(self, Change: GroupedPreprocessChange) -> None:
+		ChangedIds = {id(Occurrence.Change) for Occurrence in Change.Occurrences}
+		for Result in self.Results:
+			Result.ChangedRows = [RowChange for RowChange in Result.ChangedRows if id(RowChange) not in ChangedIds]
+			Result.AmbiguousRows = [RowChange for RowChange in Result.AmbiguousRows if id(RowChange) not in ChangedIds]
+			Result.MissingDatabaseMatches = [RowChange for RowChange in Result.MissingDatabaseMatches if id(RowChange) not in ChangedIds]
+
+	def _ReprocessEditedOccurrences(self, Change: GroupedPreprocessChange, Text: str) -> None:
+		for Occurrence in Change.Occurrences:
+			if self.Preprocessor.IsIgnoredText(Text):
+				continue
+			NewChange = self.Preprocessor.PreprocessText(Occurrence.Change.Row, Text, Occurrence.Result.StageId)
+			if not self.Preprocessor._ShouldOfferChange(NewChange, Occurrence.Result.StageId):
+				continue
+			Occurrence.Result.ChangedRows.append(NewChange)
+			if NewChange.Ambiguous:
+				Occurrence.Result.AmbiguousRows.append(NewChange)
+			elif not NewChange.DatabaseVerified:
+				Occurrence.Result.MissingDatabaseMatches.append(NewChange)
 
 	def _ApplySelected(self) -> None:
 		Changes = self._SelectedChanges()
