@@ -61,6 +61,9 @@ class PreprocessChange:
 	StageNotes: List[str]
 	DatabaseVerified: bool = False
 	Ambiguous: bool = False
+	StageId: str = ""
+	ElementType: str = ""
+	SafetyLevel: str = ""
 
 
 @dataclass
@@ -73,6 +76,29 @@ class PreprocessResult:
 	AmbiguousRows: List[PreprocessChange]
 	MissingDatabaseMatches: List[PreprocessChange]
 	CacheChanged: bool = False
+	StageId: str = "all"
+	StageName: str = "All stages"
+
+
+@dataclass
+class PreprocessStage:
+	Id: str
+	Name: str
+
+
+PREPROCESS_STAGES: Tuple[PreprocessStage, ...] = (
+	PreprocessStage("language", "Language normalization"),
+	PreprocessStage("prefix", "Add element prefixes"),
+	PreprocessStage("technical", "Technical normalization"),
+)
+
+PREFIX_SAFETY_ORDER = {"safe": 0, "partial": 1, "ambiguous": 2, "unidentified": 3}
+PREFIX_SAFETY_LABELS = {
+	"safe": "Safe exact database match",
+	"partial": "Partially safe partial database match",
+	"ambiguous": "Ambiguous element type",
+	"unidentified": "Unidentified by rules",
+}
 
 
 class XlsxPreprocessor:
@@ -82,7 +108,7 @@ class XlsxPreprocessor:
 		self.RegexFlags = re.IGNORECASE if self.Rules.IgnoreCase else 0
 		self.CacheChanged = False
 
-	def PreprocessWorkbook(self, FilePath: Path) -> PreprocessResult:
+	def PreprocessWorkbook(self, FilePath: Path, StageId: str = "all") -> PreprocessResult:
 		if openpyxl is None:
 			raise RuntimeError("Missing dependency: openpyxl")
 
@@ -106,8 +132,8 @@ class XlsxPreprocessor:
 					UnchangedRows += 1
 					ConsecutiveIgnoredRows += 1
 				else:
-					Change = self.PreprocessText(Row, Original)
-					if Change.NewText != Change.OriginalText:
+					Change = self.PreprocessText(Row, Original, StageId)
+					if self._ShouldOfferChange(Change, StageId):
 						ChangedRows.append(Change)
 						if Change.Ambiguous:
 							AmbiguousRows.append(Change)
@@ -130,7 +156,10 @@ class XlsxPreprocessor:
 			AmbiguousRows=AmbiguousRows,
 			MissingDatabaseMatches=MissingDatabaseMatches,
 			CacheChanged=self.CacheChanged,
+			StageId=StageId,
+			StageName=self.GetStageName(StageId),
 		)
+
 
 	def IsIgnoredText(self, Text: str) -> bool:
 		Current = self._CleanWhitespace(Text)
@@ -158,7 +187,14 @@ class XlsxPreprocessor:
 		if self.CacheChanged:
 			SavePreprocessRules(self.Rules)
 
-	def PreprocessText(self, Row: int, Text: str) -> PreprocessChange:
+	def PreprocessText(self, Row: int, Text: str, StageId: str = "all") -> PreprocessChange:
+		if StageId == "language":
+			return self._PreprocessLanguage(Row, Text)
+		if StageId == "prefix":
+			return self._PreprocessPrefix(Row, Text)
+		if StageId == "technical":
+			return self._PreprocessTechnical(Row, Text)
+
 		Notes: List[str] = []
 		Original = Text
 		Current = self._CleanWhitespace(Text)
@@ -183,7 +219,95 @@ class XlsxPreprocessor:
 			Notes.append("Verified final text against database")
 		if not Notes and Original == Current:
 			Notes.append("No change")
-		return PreprocessChange(Row, Original, Current, Notes, DatabaseVerified, TypeAmbiguous)
+		return PreprocessChange(Row, Original, Current, Notes, DatabaseVerified, TypeAmbiguous, "all")
+
+	def _PreprocessLanguage(self, Row: int, Text: str) -> PreprocessChange:
+		Notes: List[str] = []
+		Original = Text
+		Current = self._CleanWhitespace(Text)
+		if Current != Text:
+			Notes.append("Cleaned whitespace")
+		Current = self._ApplyRules(Current, self.Rules.StageOneRules, "Stage 1", Notes)
+		return PreprocessChange(Row, Original, Current, Notes, True, False, "language")
+
+	def _PreprocessTechnical(self, Row: int, Text: str) -> PreprocessChange:
+		Notes: List[str] = []
+		Original = Text
+		Current = self._CleanWhitespace(Text)
+		if Current != Text:
+			Notes.append("Cleaned whitespace")
+		Current = self._ApplyRules(Current, self.Rules.StageThreeRules, "Stage 3", Notes)
+		CaseNormalized = NormalizeDesignationCase(Current)
+		if CaseNormalized != Current:
+			Notes.append("Stage 3: normalized designation letter casing")
+			Current = CaseNormalized
+		Current = self._CleanWhitespace(Current)
+		DatabaseRecord = self.Database.FindElement(Current).Record
+		Verified = DatabaseRecord is not None and DatabaseRecord.HasDgm
+		return PreprocessChange(Row, Original, Current, Notes, Verified, False, "technical")
+
+	def _PreprocessPrefix(self, Row: int, Text: str) -> PreprocessChange:
+		Original = Text
+		Current = self._CleanWhitespace(Text)
+		ExistingType = self._FindExplicitType(Current)
+		ExistingRecord = self.Database.FindElement(Current).Record
+		if ExistingRecord is not None and ExistingRecord.HasDgm:
+			ElementTypeName = ExistingType[0].Canonical if ExistingType is not None else ""
+			return PreprocessChange(Row, Original, Current, ["Stage 2: existing text verified by exact database match"], True, False, "prefix", ElementTypeName, "safe")
+		if ExistingType is not None:
+			ElementType, Remainder = ExistingType
+			Candidate = self._CleanWhitespace(f"{ElementType.Canonical} {Remainder}")
+			Safety = self._ClassifyPrefixCandidate(Candidate)
+			if Safety in ("safe", "partial") and Candidate == Current:
+				return PreprocessChange(Row, Original, Current, [f"Stage 2: existing prefix accepted ({PREFIX_SAFETY_LABELS[Safety]})"], Safety == "safe", False, "prefix", ElementType.Canonical, Safety)
+			return PreprocessChange(Row, Original, Candidate, [f"Stage 2: normalized explicit type as {ElementType.Canonical}"], Safety == "safe", Safety == "ambiguous", "prefix", ElementType.Canonical, Safety)
+
+		ExactMatches: List[Tuple[PreprocessElementType, str]] = []
+		PartialMatches: List[Tuple[PreprocessElementType, str]] = []
+		for ElementType in self.Rules.ElementTypes:
+			Candidate = self._MakeTypedCandidate(ElementType, Current)
+			Safety = self._ClassifyPrefixCandidate(Candidate)
+			if Safety == "safe":
+				ExactMatches.append((ElementType, Candidate))
+			elif Safety == "partial":
+				PartialMatches.append((ElementType, Candidate))
+
+		if len(ExactMatches) == 1:
+			ElementType, Candidate = ExactMatches[0]
+			self._RememberPrefix(ElementType, Current, [])
+			return PreprocessChange(Row, Original, Candidate, [f"Stage 2: inferred {ElementType.Canonical} by exact database match"], True, False, "prefix", ElementType.Canonical, "safe")
+		if len(ExactMatches) > 1:
+			Types = ", ".join(Match[0].Canonical for Match in ExactMatches)
+			return PreprocessChange(Row, Original, Current, [f"Stage 2: ambiguous exact database matches: {Types}"], False, True, "prefix", "", "ambiguous")
+		if len(PartialMatches) == 1:
+			ElementType, Candidate = PartialMatches[0]
+			return PreprocessChange(Row, Original, Candidate, [f"Stage 2: inferred {ElementType.Canonical} by partial database match"], False, False, "prefix", ElementType.Canonical, "partial")
+		if len(PartialMatches) > 1:
+			Types = ", ".join(Match[0].Canonical for Match in PartialMatches)
+			return PreprocessChange(Row, Original, Current, [f"Stage 2: ambiguous partial database matches: {Types}"], False, True, "prefix", "", "ambiguous")
+		return PreprocessChange(Row, Original, Current, ["Stage 2: element type was not identified by rules"], False, True, "prefix", "", "unidentified")
+
+	def _ShouldOfferChange(self, Change: PreprocessChange, StageId: str) -> bool:
+		if StageId == "prefix":
+			return Change.SafetyLevel not in ("safe", "partial") or Change.NewText != Change.OriginalText
+		return Change.NewText != Change.OriginalText
+
+	def _ClassifyPrefixCandidate(self, Candidate: str) -> str:
+		Result = self.Database.FindElement(Candidate)
+		if Result.Record is not None and Result.Record.HasDgm:
+			return "safe"
+		for Match in Result.PartialMatches:
+			NonOptionalNodes = sum(1 for Record in Match.Record.IterPath() if not dgm_database.IsOptionalNode(Record.Node))
+			if NonOptionalNodes >= 2:
+				return "partial"
+		return "unidentified"
+
+	def GetStageName(self, StageId: str) -> str:
+		for Stage in PREPROCESS_STAGES:
+			if Stage.Id == StageId:
+				return Stage.Name
+		return "All stages"
+
 
 	def _CleanWhitespace(self, Text: str) -> str:
 		Result = Text
