@@ -342,10 +342,11 @@ def ProcessWorkbook(FilePath: Path, Db: dgm_database.DgmDatabase) -> Tuple[int, 
 	return len(ProcessedRows), len(IgnoredRows)
 
 
-def FindXlsxFiles(Folder: Path) -> List[Path]:
+def FindXlsxFiles(Folder: Path, IncludeSubfolders: bool = False) -> List[Path]:
+	Items = Folder.rglob("*") if IncludeSubfolders else Folder.iterdir()
 	return sorted(
 		PathItem
-		for PathItem in Folder.iterdir()
+		for PathItem in Items
 		if PathItem.is_file()
 		and PathItem.suffix.casefold() == ".xlsx"
 		and not PathItem.name.startswith("~$")

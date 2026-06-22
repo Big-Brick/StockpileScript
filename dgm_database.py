@@ -124,6 +124,10 @@ class ElementSearchResult:
 	MatchedByRegex: bool = False
 	PartialMatches: List[PartialElementMatch] = field(default_factory=list)
 
+	@property
+	def IsEmpty(self) -> bool:
+		return self.Record is None and not self.PartialMatches
+
 
 @dataclass
 class SiblingInfo:
@@ -393,6 +397,40 @@ class DgmDatabase:
 					)
 					States.append((Child, Remaining[len(MatchedPart):], ChildRecord))
 		return ElementSearchResult(BestRecord, BestRegexState, list(PartialMatchesByNode.values()))
+
+	def FindOptionalOnlyPaths(self) -> ElementSearchResult:
+		RootRecord = ElementRecord(
+			self,
+			self.CatalogNode,
+			"catalog",
+			DgmValues(decimal.Decimal("0"), decimal.Decimal("0"), decimal.Decimal("0"), decimal.Decimal("0")),
+			False,
+			None,
+			"",
+			"",
+			False,
+			True,
+		)
+		Matches: List[PartialElementMatch] = []
+
+		def Walk(Parent: XmlTree.Element, ParentRecord: ElementRecord) -> None:
+			for Child in list(Parent):
+				if not IsOptionalNode(Child):
+					continue
+				ChildText = Child.get("text", "")
+				ChildRecord = self.MakeRecord(
+					Child,
+					FormatOptionalPathText(ChildText),
+					ParentRecord,
+					ChildText,
+					"",
+					ParentRecord.MatchedByRegex,
+				)
+				Matches.append(PartialElementMatch(Record=ChildRecord))
+				Walk(Child, ChildRecord)
+
+		Walk(self.CatalogNode, RootRecord)
+		return ElementSearchResult(None, False, Matches)
 
 	def _GetOriginalRemainder(self, NormalizedName: str, OriginalName: str, MatchedLength: int) -> str:
 		if MatchedLength <= 0:
