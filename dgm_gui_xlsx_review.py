@@ -133,6 +133,8 @@ class XlsxReviewWindow(tk.Toplevel):
 		if Item is None:
 			return
 		StructuredResult = self.ParentViewer.Database.FindStructuredElement(dgm_database.NormalizeText(Item.Name), Item.Name)
+		if StructuredResult.IsEmpty:
+			StructuredResult = self.ParentViewer.Database.FindOptionalOnlyPaths()
 		Dialog = AddElementDialog(self, Item.Name, StructuredResult)
 		if Dialog.Result is None:
 			return
@@ -204,5 +206,4 @@ class XlsxReviewWindow(tk.Toplevel):
 	def _ProcessNext(self) -> None:
 		self.destroy()
 		self.ParentViewer._ProcessXlsxQueue(self.Files, self.Index + 1)
-
 
