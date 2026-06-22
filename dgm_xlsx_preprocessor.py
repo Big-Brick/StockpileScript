@@ -251,16 +251,31 @@ class XlsxPreprocessor:
 		Current = self._CleanWhitespace(Text)
 		ExistingType = self._FindExplicitType(Current)
 		ExistingRecord = self.Database.FindElement(Current).Record
-		if ExistingRecord is not None and ExistingRecord.HasDgm:
-			ElementTypeName = ExistingType[0].Canonical if ExistingType is not None else ""
-			return PreprocessChange(Row, Original, Current, ["Stage 2: existing text verified by exact database match"], True, False, "prefix", ElementTypeName, "safe")
-		if ExistingType is not None:
+		if ExistingType is not None and ExistingRecord is not None and ExistingRecord.HasDgm:
+			return PreprocessChange(Row, Original, Current, ["Stage 2: existing prefixed text verified by exact database match"], True, False, "prefix", ExistingType[0].Canonical, "safe")
+		elif ExistingType is not None:
 			ElementType, Remainder = ExistingType
 			Candidate = self._CleanWhitespace(f"{ElementType.Canonical} {Remainder}")
 			Safety = self._ClassifyPrefixCandidate(Candidate)
 			if Safety in ("safe", "partial") and Candidate == Current:
 				return PreprocessChange(Row, Original, Current, [f"Stage 2: existing prefix accepted ({PREFIX_SAFETY_LABELS[Safety]})"], Safety == "safe", False, "prefix", ElementType.Canonical, Safety)
 			return PreprocessChange(Row, Original, Candidate, [f"Stage 2: normalized explicit type as {ElementType.Canonical}"], Safety == "safe", Safety == "ambiguous", "prefix", ElementType.Canonical, Safety)
+
+		PrefixMatchesByCache: List[Tuple[PreprocessElementType, str, str]] = []
+		Token = ExtractLeadingPrefix(Current)
+		if Token:
+			for ElementType in self.Rules.ElementTypes:
+				if any(PrefixMatches(Token, Prefix) for Prefix in ElementType.Prefixes):
+					Candidate = self._MakeTypedCandidate(ElementType, Current)
+					Safety = self._ClassifyPrefixCandidate(Candidate)
+					if Safety in ("safe", "partial"):
+						PrefixMatchesByCache.append((ElementType, Candidate, Safety))
+			if len(PrefixMatchesByCache) == 1:
+				ElementType, Candidate, Safety = PrefixMatchesByCache[0]
+				return PreprocessChange(Row, Original, Candidate, [f"Stage 2: inferred {ElementType.Canonical} from cached prefix {Token}"], Safety == "safe", False, "prefix", ElementType.Canonical, Safety)
+			if len(PrefixMatchesByCache) > 1:
+				Types = ", ".join(Match[0].Canonical for Match in PrefixMatchesByCache)
+				return PreprocessChange(Row, Original, Current, [f"Stage 2: ambiguous cached prefix {Token}: {Types}"], False, True, "prefix", "", "ambiguous")
 
 		ExactMatches: List[Tuple[PreprocessElementType, str]] = []
 		PartialMatches: List[Tuple[PreprocessElementType, str]] = []
