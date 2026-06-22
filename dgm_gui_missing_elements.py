@@ -202,7 +202,10 @@ class MissingElementsMixin:
 		SelectedFolder = tkinter.filedialog.askdirectory(title="Select folder with XLSX files", parent=self)
 		if not SelectedFolder:
 			return
-		Files = dgm_inventory.FindXlsxFiles(Path(SelectedFolder).expanduser().resolve())
+		Files = dgm_inventory.FindXlsxFiles(
+			Path(SelectedFolder).expanduser().resolve(),
+			self.ProcessSubfolders.get(),
+		)
 		if not Files:
 			tkinter.messagebox.showinfo(WINDOW_TITLE, "No .xlsx files found in the selected folder.", parent=self)
 			return
