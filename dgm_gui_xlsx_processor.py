@@ -8,7 +8,7 @@ import tkinter.filedialog
 import tkinter.messagebox
 
 import dgm_database
-import dgm_inventory
+import dgm_xlsx_common
 import dgm_xlsx_preprocessor
 from dgm_gui_common import GuiConflictRow, GuiMissingElement, GuiProcessResult, WINDOW_TITLE, openpyxl
 from dgm_gui_xlsx_review import XlsxReviewWindow
@@ -38,7 +38,7 @@ class XlsxProcessingMixin:
 		if not SelectedFolder:
 			return
 
-		Files = dgm_inventory.FindXlsxFiles(
+		Files = dgm_xlsx_common.FindXlsxFiles(
 			Path(SelectedFolder).expanduser().resolve(),
 			self.ProcessSubfolders.get(),
 		)
@@ -82,7 +82,7 @@ class XlsxProcessingMixin:
 
 		while Row <= MaxRow:
 			RawName = Sheet[f"{self.Database.Columns.Name}{Row}"].value
-			if not dgm_inventory.CellHasUsableText(RawName):
+			if not dgm_xlsx_common.CellHasUsableText(RawName):
 				IgnoredRows += 1
 				ConsecutiveIgnoredRows += 1
 			else:
@@ -100,17 +100,17 @@ class XlsxProcessingMixin:
 						Conflicts.append(self._BuildConflict(FilePath, Sheet, Row, Name, Entry))
 						ConsecutiveIgnoredRows = 0
 					else:
-						dgm_inventory.WriteEntryToRow(Sheet, Row, self.Database.Columns, Entry)
+						dgm_xlsx_common.WriteEntryToRow(Sheet, Row, self.Database.Columns, Entry)
 						ProcessedRows.append(Row)
 						LastProcessedRow = Row
 						ConsecutiveIgnoredRows = 0
 
-			if ConsecutiveIgnoredRows >= dgm_inventory.STOP_AFTER_CONSECUTIVE_IGNORED_ROWS:
+			if ConsecutiveIgnoredRows >= dgm_xlsx_common.STOP_AFTER_CONSECUTIVE_IGNORED_ROWS:
 				break
 			Row += 1
 
 		TotalRow = LastProcessedRow + 1 if LastProcessedRow > 0 else 1
-		dgm_inventory.WriteWorkbookTotals(Sheet, TotalRow, self.Database.Columns, ProcessedRows)
+		dgm_xlsx_common.WriteWorkbookTotals(Sheet, TotalRow, self.Database.Columns, ProcessedRows)
 		Workbook.save(FilePath)
 		return GuiProcessResult(FilePath, len(ProcessedRows), IgnoredRows, list(MissingByKey.values()), Conflicts)
 

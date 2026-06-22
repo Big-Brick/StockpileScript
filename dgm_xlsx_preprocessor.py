@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import List, Optional, Sequence, Tuple
 
 import dgm_database
-import dgm_inventory
+import dgm_xlsx_common
 
 try:
 	import openpyxl
@@ -124,7 +124,7 @@ class XlsxPreprocessor:
 
 		while Row <= MaxRow:
 			RawName = Sheet[f"{self.Database.Columns.Name}{Row}"].value
-			if not dgm_inventory.CellHasUsableText(RawName):
+			if not dgm_xlsx_common.CellHasUsableText(RawName):
 				ConsecutiveIgnoredRows += 1
 			else:
 				Original = str(RawName)
@@ -143,7 +143,7 @@ class XlsxPreprocessor:
 						UnchangedRows += 1
 					ConsecutiveIgnoredRows = 0
 
-			if ConsecutiveIgnoredRows >= dgm_inventory.STOP_AFTER_CONSECUTIVE_IGNORED_ROWS:
+			if ConsecutiveIgnoredRows >= dgm_xlsx_common.STOP_AFTER_CONSECUTIVE_IGNORED_ROWS:
 				break
 			Row += 1
 

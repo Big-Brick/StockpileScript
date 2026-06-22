@@ -22,7 +22,7 @@ class CatalogNodeEditDialog(tk.Toplevel):
 		self.columnconfigure(1, weight=1)
 
 		self._Entries: Dict[str, tk.Entry] = {}
-		self._Kind = tk.StringVar(value="regex" if Node.tag == "regex" else "node")
+		self._Kind = tk.StringVar(value=dgm_database.REGEX_LEAF_TAG if Node.tag == dgm_database.REGEX_LEAF_TAG else "node")
 		self._Optional = tk.BooleanVar(value=dgm_database.IsOptionalNode(Node))
 		self._HasDgm = tk.BooleanVar(value=self._NodeHasDgmValues(Node))
 
@@ -31,7 +31,7 @@ class CatalogNodeEditDialog(tk.Toplevel):
 		TypeFrame = ttk.Frame(self)
 		TypeFrame.grid(row=Row, column=1, sticky="w", padx=(0, 10), pady=4)
 		ttk.Radiobutton(TypeFrame, text="Regular node", variable=self._Kind, value="node", command=self._UpdateNodeState).grid(row=0, column=0, sticky="w", padx=(0, 10))
-		ttk.Radiobutton(TypeFrame, text="Regex node", variable=self._Kind, value="regex", command=self._UpdateNodeState).grid(row=0, column=1, sticky="w")
+		ttk.Radiobutton(TypeFrame, text="Regex leaf node", variable=self._Kind, value=dgm_database.REGEX_LEAF_TAG, command=self._UpdateNodeState).grid(row=0, column=1, sticky="w")
 		Row += 1
 
 		ttk.Label(self, text="Optional").grid(row=Row, column=0, sticky="w", padx=(10, 6), pady=4)
@@ -77,22 +77,19 @@ class CatalogNodeEditDialog(tk.Toplevel):
 	def _BuildFields(self, Node: XmlTree.Element) -> list[tuple[str, str, str]]:
 		DgmNode = Node.find("dgm")
 		SourceNode = DgmNode if DgmNode is not None else Node
+		TextLabel = "Regex pattern" if Node.tag == dgm_database.REGEX_LEAF_TAG else "Display text"
 		Fields = [
-			("text", "Display text", Node.get("text", Node.get("name", ""))),
+			("text", TextLabel, Node.get("text", Node.get("name", ""))),
 			("name", "Name", Node.get("name", "")),
-			("pattern", "Regex pattern", Node.get("pattern", "")),
 		]
 		for MetalKey, MetalName in dgm_database.METALS:
 			Fields.append((MetalKey, f"{MetalName} g", SourceNode.get(f"{MetalKey}_g", "0")))
 		return Fields
 
 	def _UpdateNodeState(self) -> None:
-		IsRegex = self._Kind.get() == "regex"
-		PatternEntry = self._Entries.get("pattern")
-		if PatternEntry is not None:
-			PatternEntry.configure(state="normal" if IsRegex else "disabled")
-		self._OptionalCheck.configure(state="disabled" if IsRegex else "normal")
-		if IsRegex:
+		IsRegexLeaf = self._Kind.get() == dgm_database.REGEX_LEAF_TAG
+		self._OptionalCheck.configure(state="disabled" if IsRegexLeaf else "normal")
+		if IsRegexLeaf:
 			self._Optional.set(False)
 		self._UpdateDgmState()
 
@@ -369,12 +366,6 @@ class AddElementDialog(tk.Toplevel):
 		self.AddMode = tk.StringVar(value="node")
 		ttk.Radiobutton(AddModeFrame, text="Exact structured node", variable=self.AddMode, value="node").grid(row=0, column=0, sticky="w", padx=(6, 12), pady=4)
 		ttk.Radiobutton(AddModeFrame, text="Regex leaf node", variable=self.AddMode, value="regex").grid(row=0, column=1, sticky="w", pady=4)
-		ttk.Label(AddModeFrame, text="Regex pattern").grid(row=1, column=0, sticky="w", padx=6, pady=(0, 4))
-		self.RegexPatternEntry = ttk.Entry(AddModeFrame)
-		self.RegexPatternEntry.grid(row=1, column=1, sticky="ew", padx=(0, 6), pady=(0, 4))
-		ttk.Label(AddModeFrame, text="Display text").grid(row=2, column=0, sticky="w", padx=6, pady=(0, 6))
-		self.RegexDisplayEntry = ttk.Entry(AddModeFrame)
-		self.RegexDisplayEntry.grid(row=2, column=1, sticky="ew", padx=(0, 6), pady=(0, 6))
 
 		Values = ttk.LabelFrame(self, text="DGM values, g", height=self.VALUES_SECTION_HEIGHT)
 		Values.grid(row=4, column=0, sticky="ew", padx=10, pady=8)
@@ -406,7 +397,7 @@ class AddElementDialog(tk.Toplevel):
 		if StructuredResult.Record is not None:
 			AddRecord(StructuredResult.Record)
 			if (
-				StructuredResult.Record.Node.tag == "regex"
+				StructuredResult.Record.Node.tag == dgm_database.REGEX_LEAF_TAG
 				and StructuredResult.Record.ConsumedText == ""
 				and StructuredResult.Record.Parent is not None
 			):
@@ -423,7 +414,7 @@ class AddElementDialog(tk.Toplevel):
 
 	def GetElementName(self) -> str:
 		if self.Result is not None and self.Result.Mode == "regex":
-			return self.Result.DisplayText or self.Result.Pattern or self.Name
+			return self.Result.RegexText or self.Name
 		if self.Result is not None and self.Result.PathParts:
 			return "".join(self.Result.PathParts)
 		return self.Name
@@ -584,12 +575,11 @@ class AddElementDialog(tk.Toplevel):
 				return
 			ParentPathParts = self._CandidatePathParts(Candidate)
 			if self.AddMode.get() == "regex":
-				Pattern = self.RegexPatternEntry.get().strip() or NewPathParts[-1]
-				DisplayText = self.RegexDisplayEntry.get().strip()
-				if not Pattern:
-					tkinter.messagebox.showerror(WINDOW_TITLE, "Regex pattern cannot be empty.", parent=self)
+				RegexText = NewPathParts[-1].strip()
+				if not RegexText:
+					tkinter.messagebox.showerror(WINDOW_TITLE, "Regex leaf text cannot be empty.", parent=self)
 					return
-				self.Result = GuiAddElementResult("regex", Values, ParentPathParts + NewPathParts[:-1], Pattern, DisplayText or Pattern)
+				self.Result = GuiAddElementResult("regex", Values, ParentPathParts + NewPathParts[:-1], RegexText)
 			else:
 				self.Result = GuiAddElementResult("new", Values, ParentPathParts + NewPathParts)
 		self.destroy()

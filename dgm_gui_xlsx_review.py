@@ -143,7 +143,7 @@ class XlsxReviewWindow(tk.Toplevel):
 			if Result.Mode == "existing":
 				self.ParentViewer.Database.AddDgmToExistingPath(Item.Name, Result.Values, Result.PathParts)
 			elif Result.Mode == "regex":
-				self.ParentViewer.Database.AddRegexElement(Item.Name, Result.Values, Result.PathParts, Result.Pattern, Result.DisplayText)
+				self.ParentViewer.Database.AddRegexElement(Item.Name, Result.Values, Result.PathParts, Result.RegexText)
 			else:
 				self.ParentViewer.Database.AddElement(Item.Name, Result.Values, Result.PathParts)
 			self.ParentViewer.Database.Save()

@@ -6,7 +6,7 @@ The database stores:
 - spreadsheet column settings;
 - ignored non-element texts;
 - structured radio-element records;
-- optional regex records for equivalent sibling variants.
+- regex-leaf records whose text is a full-match regex pattern.
 """
 
 from __future__ import annotations
@@ -48,6 +48,8 @@ DEFAULT_COLUMNS = {
 
 DATABASE_VERSION = "2"
 DATABASE_CODE_VERSION = "2026-06-19.1"
+REGEX_LEAF_TAG = "regex-leaf"
+CATALOG_ELEMENT_TAGS = ("node", REGEX_LEAF_TAG)
 COLUMN_LETTERS = set(string.ascii_uppercase)
 
 
@@ -134,7 +136,6 @@ class SiblingInfo:
 	Index: int
 	Kind: str
 	Text: str
-	Pattern: str
 	HasDgm: bool
 
 
@@ -373,29 +374,26 @@ class DgmDatabase:
 							ParentRecord.MatchedByRegex,
 						)
 						States.append((Child, Remaining, ChildRecord))
-				elif Child.tag == "regex":
-					Pattern = Child.get("pattern", "")
+				elif Child.tag == REGEX_LEAF_TAG:
+					Pattern = Child.get("text", "")
 					if not Pattern:
 						continue
 					try:
-						Match = re.match(Pattern, Remaining, flags=re.IGNORECASE)
+						Match = re.fullmatch(Pattern, Remaining, flags=re.IGNORECASE)
 					except re.error:
 						continue
 					if Match is None:
 						continue
 					MatchedPart = Match.group(0)
-					if MatchedPart == "" and Remaining != "":
-						continue
-					PathText = Child.get("text", Child.get("name", Pattern))
 					ChildRecord = self.MakeRecord(
 						Child,
-						MatchedPart or PathText,
+						MatchedPart or Pattern,
 						ParentRecord,
-						PathText,
+						Pattern,
 						MatchedPart,
 						True,
 					)
-					States.append((Child, Remaining[len(MatchedPart):], ChildRecord))
+					States.append((Child, "", ChildRecord))
 		return ElementSearchResult(BestRecord, BestRegexState, list(PartialMatchesByNode.values()))
 
 	def FindOptionalOnlyPaths(self) -> ElementSearchResult:
@@ -443,14 +441,14 @@ class DgmDatabase:
 
 	def _FindEmptyRegexChildRecord(self, ParentRecord: ElementRecord) -> Optional[ElementRecord]:
 		for Child in list(ParentRecord.Node):
-			if Child.tag != "regex":
+			if Child.tag != REGEX_LEAF_TAG:
 				continue
-			Pattern = Child.get("pattern", "")
+			Pattern = Child.get("text", "")
 			DgmNode = Child.find("dgm")
 			if not Pattern or DgmNode is None:
 				continue
 			try:
-				Match = re.match(Pattern, "", flags=re.IGNORECASE)
+				Match = re.fullmatch(Pattern, "", flags=re.IGNORECASE)
 			except re.error:
 				continue
 			if Match is None or Match.group(0) != "":
@@ -505,32 +503,31 @@ class DgmDatabase:
 		Record.WriteValuesToXml()
 		return Record
 
-	def AddRegexElement(self, Name: str, Values: DgmValues, ParentPathParts: Sequence[str], Pattern: str, DisplayText: str = "") -> ElementRecord:
+	def AddRegexElement(self, Name: str, Values: DgmValues, ParentPathParts: Sequence[str], Text: str) -> ElementRecord:
+		Pattern = Text.strip()
+		if not Pattern:
+			raise RuntimeError("Regex leaf text is required")
 		Parent = self.FindOrCreateParent(ParentPathParts)
-		RegexNode = XmlTree.SubElement(
-			Parent,
-			"regex",
-			{
-				"pattern": Pattern,
-				"text": DisplayText or Pattern,
-				"name": Name,
-			},
-		)
+		RegexNode = XmlTree.SubElement(Parent, REGEX_LEAF_TAG, {"text": Pattern, "name": Name})
 		Record = ElementRecord(self, RegexNode, Name, Values)
 		Record.WriteValuesToXml()
 		return Record
 
-	def ConvertSiblingToRegex(self, ParentPathParts: Sequence[str], SiblingIndex: int, Pattern: str, DisplayText: str = "") -> ElementRecord:
+	def ConvertSiblingToRegex(self, ParentPathParts: Sequence[str], SiblingIndex: int, Text: str) -> ElementRecord:
 		Parent = self.FindParent(ParentPathParts)
 		if Parent is None:
 			raise RuntimeError("Parent path does not exist")
+
+		Pattern = Text.strip()
+		if not Pattern:
+			raise RuntimeError("Regex leaf text is required")
 
 		Children = list(Parent)
 		if SiblingIndex < 1 or SiblingIndex > len(Children):
 			raise RuntimeError("Sibling index is out of range")
 
 		OldNode = Children[SiblingIndex - 1]
-		if OldNode.tag not in ("node", "regex"):
+		if OldNode.tag not in CATALOG_ELEMENT_TAGS:
 			raise RuntimeError("Selected sibling is not an element node")
 
 		OldDgmNode = OldNode.find("dgm")
@@ -546,14 +543,7 @@ class DgmDatabase:
 		)
 
 		Parent.remove(OldNode)
-		NewNode = XmlTree.Element(
-			"regex",
-			{
-				"pattern": Pattern,
-				"text": DisplayText or Pattern,
-				"name": OldNode.get("name", OldNode.get("text", Pattern)),
-			},
-		)
+		NewNode = XmlTree.Element(REGEX_LEAF_TAG, {"text": Pattern, "name": OldNode.get("name", OldNode.get("text", Pattern))})
 		NewDgmNode = XmlTree.SubElement(NewNode, "dgm")
 		NewDgmNode.set("gold_g", DecimalToText(Values.GoldG))
 		NewDgmNode.set("silver_g", DecimalToText(Values.SilverG))
@@ -614,9 +604,9 @@ class DgmDatabase:
 		Infos: List[SiblingInfo] = []
 		for Index, Child in enumerate(list(Parent), start=1):
 			if Child.tag == "node":
-				Infos.append(SiblingInfo(Index, "node", Child.get("text", ""), "", Child.find("dgm") is not None))
-			elif Child.tag == "regex":
-				Infos.append(SiblingInfo(Index, "regex", Child.get("text", ""), Child.get("pattern", ""), Child.find("dgm") is not None))
+				Infos.append(SiblingInfo(Index, "node", Child.get("text", ""), Child.find("dgm") is not None))
+			elif Child.tag == REGEX_LEAF_TAG:
+				Infos.append(SiblingInfo(Index, REGEX_LEAF_TAG, Child.get("text", ""), Child.find("dgm") is not None))
 		return Infos
 
 	def FindCatalogParentOfNode(self, Node: XmlTree.Element) -> Optional[XmlTree.Element]:
@@ -627,7 +617,7 @@ class DgmDatabase:
 			for Child in list(Parent):
 				if Child is Node:
 					return Parent
-				if Child.tag in ("node", "regex"):
+				if Child.tag in CATALOG_ELEMENT_TAGS:
 					FoundParent = Walk(Child)
 					if FoundParent is not None:
 						return FoundParent
@@ -639,13 +629,13 @@ class DgmDatabase:
 		for Child in list(Node):
 			if Child is CandidateParent:
 				return True
-			if Child.tag in ("node", "regex") and self.IsCatalogDescendant(CandidateParent, Child):
+			if Child.tag in CATALOG_ELEMENT_TAGS and self.IsCatalogDescendant(CandidateParent, Child):
 				return True
 		return False
 
 	def MoveCatalogNode(self, Node: XmlTree.Element, NewParentPathParts: Sequence[str]) -> None:
-		if Node is self.CatalogNode or Node.tag not in ("node", "regex"):
-			raise RuntimeError("Only catalog node and regex entries can be moved")
+		if Node is self.CatalogNode or Node.tag not in CATALOG_ELEMENT_TAGS:
+			raise RuntimeError("Only catalog node and regex leaf entries can be moved")
 
 		OldParent = self.FindCatalogParentOfNode(Node)
 		if OldParent is None:
@@ -670,12 +660,12 @@ class DgmDatabase:
 						return True
 				except decimal.InvalidOperation:
 					return True
-			NodesToCheck.extend(Child for Child in list(Current) if Child.tag in ("node", "regex"))
+			NodesToCheck.extend(Child for Child in list(Current) if Child.tag in CATALOG_ELEMENT_TAGS)
 		return False
 
 	def RemoveCatalogNode(self, Node: XmlTree.Element) -> None:
-		if Node is self.CatalogNode or Node.tag not in ("node", "regex"):
-			raise RuntimeError("Only catalog node and regex entries can be removed")
+		if Node is self.CatalogNode or Node.tag not in CATALOG_ELEMENT_TAGS:
+			raise RuntimeError("Only catalog node and regex leaf entries can be removed")
 
 		Parent = self.FindCatalogParentOfNode(Node)
 		if Parent is None:
