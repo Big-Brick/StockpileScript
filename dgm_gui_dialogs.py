@@ -362,7 +362,6 @@ class AddElementDialog(tk.Toplevel):
 			self.ValueEntries[MetalKey] = Entry
 		Buttons = ttk.Frame(self, height=self.BUTTON_SECTION_HEIGHT)
 		Buttons.grid(row=5, column=0, sticky="e", padx=10, pady=(0, 10))
-		Buttons.grid_propagate(False)
 		ttk.Button(Buttons, text="Cancel", command=self._Cancel).grid(row=0, column=0, padx=(0, 6))
 		ttk.Button(Buttons, text="Add", command=self._Save).grid(row=0, column=1)
 		self._UpdateModeState()
