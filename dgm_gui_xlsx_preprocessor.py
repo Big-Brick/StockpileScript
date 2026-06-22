@@ -370,7 +370,11 @@ class XlsxPreprocessReviewWindow(tk.Toplevel):
 			self.LogWindow = PreprocessLogWindow(self.ParentViewer)
 		OccurrenceCount = sum(Change.OccurrenceCount for Change in Changes)
 		self.LogWindow.Append(f"Applied {len(Changes)} unique corrections ({OccurrenceCount} row occurrence(s)) for {self.Result.StageName}.")
-		self._NextStage()
+		AppliedIds = {id(Change) for Change in Changes}
+		self.Changes = [Change for Change in self.Changes if id(Change) not in AppliedIds]
+		self._PopulateTree()
+		if not self.Changes:
+			tkinter.messagebox.showinfo(WINDOW_TITLE, "All visible corrections for this stage were applied. Click Next stage when you are ready to continue.", parent=self)
 
 	def _NextStage(self) -> None:
 		self.destroy()
