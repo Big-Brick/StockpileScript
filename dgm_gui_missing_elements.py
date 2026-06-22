@@ -27,7 +27,6 @@ class MissingElementGroup:
 @dataclass
 class MissingElementSummary:
 	Name: str
-	InitialPathParts: Optional[List[str]] = None
 	Occurrences: List[GuiMissingElement] = field(default_factory=list)
 
 
@@ -143,7 +142,8 @@ class MissingElementsWindow(tk.Toplevel):
 		Item = self._SelectedItem()
 		if Item is None:
 			return
-		Dialog = AddElementDialog(self, self.ParentViewer.Database, Item.Name, Item.InitialPathParts)
+		StructuredResult = self.ParentViewer.Database.FindStructuredElement(dgm_database.NormalizeText(Item.Name), Item.Name)
+		Dialog = AddElementDialog(self, Item.Name, StructuredResult)
 		if Dialog.Result is None:
 			return
 		try:
@@ -173,7 +173,7 @@ class MissingElementsWindow(tk.Toplevel):
 		self._RemoveSummaries(lambda Item: Item is Summary)
 
 	def _RemoveResolvedSummaries(self) -> None:
-		self._RemoveSummaries(lambda Item: self.ParentViewer.Database.FindElement(Item.Name).Record is not None)
+		self._RemoveSummaries(lambda Item: (lambda Record: Record is not None and Record.HasDgm)(self.ParentViewer.Database.FindElement(Item.Name).Record))
 
 	def _RemoveSummaries(self, ShouldRemove: Callable[[MissingElementSummary], bool]) -> None:
 		for Group in self.Groups:
@@ -236,8 +236,13 @@ class MissingElementsMixin:
 						ConsecutiveIgnoredRows += 1
 					else:
 						SearchResult = self.Database.FindElement(Name)
-						if SearchResult.Record is None:
-							self._AddMissingElement(GroupsByKey, GuiMissingElement(FilePath, Sheet.title, Row, Name), SearchResult.PartialMatches or [])
+						if SearchResult.Record is None or not SearchResult.Record.HasDgm:
+							Matches = list(SearchResult.PartialMatches)
+							if SearchResult.Record is not None and SearchResult.Record.Node.tag == "node":
+								Matches.insert(0, dgm_database.PartialElementMatch(
+									Record=SearchResult.Record,
+								))
+							self._AddMissingElement(GroupsByKey, GuiMissingElement(FilePath, Sheet.title, Row, Name), Matches)
 						ConsecutiveIgnoredRows = 0
 				if ConsecutiveIgnoredRows >= dgm_inventory.STOP_AFTER_CONSECUTIVE_IGNORED_ROWS:
 					break
@@ -247,18 +252,16 @@ class MissingElementsMixin:
 	def _AddMissingElement(self, GroupsByKey: Dict[str, MissingElementGroup], Item: GuiMissingElement, Matches: List[dgm_database.PartialElementMatch]) -> None:
 		Best = sorted(Matches, key=lambda Match: len(dgm_database.NormalizeText(Match.DisplayName)), reverse=True)
 		if Best:
-			GroupKey = "partial:" + dgm_database.NormalizeText(Best[0].DisplayName)
+			GroupKey = "match:" + dgm_database.NormalizeText(Best[0].DisplayName)
 			Title = Best[0].DisplayName
-			InitialPathParts = self.Database.GetNodePathParts(Best[0].Node) + [Item.Name]
 		else:
 			Simple = Item.Name[:1].upper() if Item.Name else "#"
 			GroupKey = "text:" + Simple.casefold()
 			Title = f"Text: {Simple}"
-			InitialPathParts = None
 		Group = GroupsByKey.setdefault(GroupKey, MissingElementGroup(GroupKey, Title, Title))
 		NameKey = dgm_database.NormalizeText(Item.Name)
 		Summary = Group.ItemsByName.get(NameKey)
 		if Summary is None:
-			Summary = MissingElementSummary(Item.Name, InitialPathParts)
+			Summary = MissingElementSummary(Item.Name)
 			Group.ItemsByName[NameKey] = Summary
 		Summary.Occurrences.append(Item)

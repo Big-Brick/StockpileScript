@@ -60,12 +60,17 @@ def AskElementOrIgnore(FilePath: Path, SheetName: str, Row: int, Text: str, Db: 
 
 def AddElementInteractively(Db: dgm_database.DgmDatabase, Name: str) -> dgm_database.ElementRecord:
 	StructuredResult = Db.FindStructuredElement(dgm_database.NormalizeText(Name), Name)
-	MatchingPaths = [Candidate for Candidate in (StructuredResult.PartialMatches or []) if not Candidate.HasDgm and Candidate.Node.tag == "node"]
+	MatchingPaths = []
+	if StructuredResult.Record is not None and not StructuredResult.Record.HasDgm and StructuredResult.Record.Node.tag == "node":
+		MatchingPaths.append(dgm_database.PartialElementMatch(
+			Record=StructuredResult.Record,
+		))
+	MatchingPaths.extend(Candidate for Candidate in (StructuredResult.PartialMatches) if not Candidate.HasDgm and Candidate.Node.tag == "node")
 	if MatchingPaths:
 		SelectedPath = AskExistingPathCandidate(MatchingPaths)
 		if SelectedPath is not None:
 			Values = AskDgmValues(Name)
-			Record = Db.AddDgmToExistingPath(Name, Values, Db.GetNodePathParts(SelectedPath.Node))
+			Record = Db.AddDgmToExistingPath(Name, Values, SelectedPath.Record.PathParts)
 			Db.Save()
 			return Record
 
@@ -73,8 +78,9 @@ def AddElementInteractively(Db: dgm_database.DgmDatabase, Name: str) -> dgm_data
 	ParentParts = PathParts[:-1]
 	LeafPart = PathParts[-1] if PathParts else Name
 
-	ExactPath = Db.GetRegularPathInfo(PathParts)
-	CanAddToExistingPath = ExactPath is not None and not ExactPath.HasDgm
+	ExactNode = Db.FindParent(PathParts)
+	ExactNodeHasDgm = ExactNode is not None and ExactNode.find("dgm") is not None
+	CanAddToExistingPath = ExactNode is not None and ExactNode is not Db.CatalogNode and ExactNode.tag == "node" and not ExactNodeHasDgm
 
 	Siblings = Db.GetSiblingInfos(ParentParts)
 	if Siblings:
@@ -88,7 +94,7 @@ def AddElementInteractively(Db: dgm_database.DgmDatabase, Name: str) -> dgm_data
 
 	print("\nAdd mode:")
 	if CanAddToExistingPath:
-		print(f"  u - add DGM values to existing node: {ExactPath.DisplayPath}")
+		print(f"  u - add DGM values to existing node: {'/'.join(PathParts)}")
 	print("  n - add exact structured node")
 	print("  r - add regex node with newly entered DGM values")
 	print("  c - convert an existing sibling node to regex and reuse its DGM values")
@@ -305,7 +311,7 @@ def ProcessWorkbook(FilePath: Path, Db: dgm_database.DgmDatabase) -> Tuple[int, 
 			else:
 				SearchResult = Db.FindElement(Name)
 				Entry = SearchResult.Record
-				if Entry is None:
+				if Entry is None or not Entry.HasDgm:
 					Entry = AskElementOrIgnore(FilePath, Sheet.title, Row, Name, Db)
 					if Entry is None:
 						Db.AddIgnoredText(Name)

@@ -9,6 +9,7 @@ import tkinter as tk
 import tkinter.ttk as ttk
 
 from dgm_gui_common import WINDOW_TITLE, openpyxl
+import dgm_inventory
 from dgm_xlsx_preprocessor import DEFAULT_RULES_FILENAME, PreprocessChange, PreprocessResult, XlsxPreprocessor
 
 
@@ -36,13 +37,45 @@ class XlsxPreprocessingMixin:
 
 		XlsxPreprocessReviewWindow(self, Preprocessor, Result)
 
+	def _SelectAndPreprocessXlsxFolder(self) -> None:
+		if openpyxl is None:
+			tkinter.messagebox.showerror(WINDOW_TITLE, "Missing dependency: openpyxl", parent=self)
+			return
+
+		SelectedFolder = tkinter.filedialog.askdirectory(title="Select folder with XLSX files to preprocess", parent=self)
+		if not SelectedFolder:
+			return
+
+		Files = dgm_inventory.FindXlsxFiles(Path(SelectedFolder).expanduser().resolve())
+		if not Files:
+			tkinter.messagebox.showinfo(WINDOW_TITLE, "No .xlsx files found in the selected folder.", parent=self)
+			return
+		self._PreprocessXlsxQueue(Files)
+
+	def _PreprocessXlsxQueue(self, Files: List[Path], Index: int = 0) -> None:
+		if Index >= len(Files):
+			tkinter.messagebox.showinfo(WINDOW_TITLE, "All selected XLSX files were preprocessed.", parent=self)
+			return
+
+		try:
+			RulesPath = self.DatabasePath.with_name(DEFAULT_RULES_FILENAME)
+			Preprocessor = XlsxPreprocessor(self.Database, RulesPath)
+			Result = Preprocessor.PreprocessWorkbook(Files[Index])
+		except Exception as Error:
+			tkinter.messagebox.showerror(WINDOW_TITLE, f"Cannot preprocess '{Files[Index]}': {Error}", parent=self)
+			return
+
+		XlsxPreprocessReviewWindow(self, Preprocessor, Result, Files, Index)
+
 
 class XlsxPreprocessReviewWindow(tk.Toplevel):
-	def __init__(self, Parent: tk.Toplevel, Preprocessor: XlsxPreprocessor, Result: PreprocessResult) -> None:
+	def __init__(self, Parent: tk.Toplevel, Preprocessor: XlsxPreprocessor, Result: PreprocessResult, Files: Optional[List[Path]] = None, Index: int = 0) -> None:
 		super().__init__(Parent)
 		self.ParentViewer = Parent
 		self.Preprocessor = Preprocessor
 		self.Result = Result
+		self.Files = Files or [Result.FilePath]
+		self.Index = Index
 		self.Changes = list(Result.ChangedRows)
 
 		self.title(f"XLSX preprocess review - {Result.FilePath.name}")
@@ -91,7 +124,12 @@ class XlsxPreprocessReviewWindow(tk.Toplevel):
 		ttk.Button(ButtonFrame, text="Apply selected", command=self._ApplySelected).grid(row=0, column=0, padx=(0, 6))
 		ttk.Button(ButtonFrame, text="Apply all safe", command=self._ApplySafe).grid(row=0, column=1, padx=(0, 6))
 		ttk.Button(ButtonFrame, text="Apply all", command=self._ApplyAll).grid(row=0, column=2, padx=(0, 6))
-		ttk.Button(ButtonFrame, text="Close", command=self.destroy).grid(row=0, column=3)
+		if self.Index + 1 < len(self.Files):
+			ttk.Button(ButtonFrame, text="Preprocess next file", command=self._PreprocessNext).grid(row=0, column=3, padx=(0, 6))
+			CloseColumn = 4
+		else:
+			CloseColumn = 3
+		ttk.Button(ButtonFrame, text="Close", command=self.destroy).grid(row=0, column=CloseColumn)
 
 		if not self.Changes:
 			tkinter.messagebox.showinfo(WINDOW_TITLE, "No preprocessing changes were found.", parent=self)
@@ -129,5 +167,15 @@ class XlsxPreprocessReviewWindow(tk.Toplevel):
 		except Exception as Error:
 			tkinter.messagebox.showerror(WINDOW_TITLE, f"Cannot apply preprocessing changes: {Error}", parent=self)
 			return
-		tkinter.messagebox.showinfo(WINDOW_TITLE, f"Applied {len(Changes)} preprocessing changes.", parent=self)
+		Message = f"Applied {len(Changes)} preprocessing changes."
+		if self.Index + 1 < len(self.Files):
+			if tkinter.messagebox.askyesno(WINDOW_TITLE, f"{Message}\n\nPreprocess next file?", parent=self):
+				self._PreprocessNext()
+				return
+		else:
+			tkinter.messagebox.showinfo(WINDOW_TITLE, Message, parent=self)
 		self.destroy()
+
+	def _PreprocessNext(self) -> None:
+		self.destroy()
+		self.ParentViewer._PreprocessXlsxQueue(self.Files, self.Index + 1)

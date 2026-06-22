@@ -1,13 +1,14 @@
 from __future__ import annotations
 
-from typing import Dict, Optional
+import decimal
+from typing import Dict, List, Optional
 import tkinter as tk
 import tkinter.messagebox
 import tkinter.ttk as ttk
 import xml.etree.ElementTree as XmlTree
 
 import dgm_database
-from dgm_gui_common import WINDOW_TITLE
+from dgm_gui_common import GuiAddElementResult, WINDOW_TITLE
 from dgm_gui_dialogs import AddElementDialog, CatalogNodeEditDialog, MoveCatalogNodeDialog
 from dgm_gui_xlsx_processor import XlsxProcessingMixin
 
@@ -19,6 +20,7 @@ class DgmDatabaseViewer(tk.Toplevel, XlsxProcessingMixin):
 		self.DatabasePath = Parent.DatabasePath  # type: ignore[attr-defined]
 		self.Database = Parent.Database  # type: ignore[attr-defined]
 		self.CatalogItems: Dict[str, XmlTree.Element] = {}
+		self.CatalogItemPaths: Dict[str, List[str]] = {}
 
 		self.title(f"{WINDOW_TITLE} - {self.DatabasePath.name}")
 		self.geometry("1100x700")
@@ -139,18 +141,14 @@ class DgmDatabaseViewer(tk.Toplevel, XlsxProcessingMixin):
 
 	def _PopulateCatalogTree(self) -> None:
 		self.CatalogItems.clear()
+		self.CatalogItemPaths.clear()
 		for Item in self.CatalogTree.get_children():
 			self.CatalogTree.delete(Item)
 
 		CatalogRoot = self.CatalogTree.insert("", "end", text="catalog", values=("root", "", "", "", "", "", "", ""), open=True)
+		self.CatalogItemPaths[CatalogRoot] = []
 		for Child in list(self.Database.CatalogNode):
-			self._InsertCatalogNode(CatalogRoot, Child)
-
-		LegacyElements = self.Database.LegacyElementsNode.findall("element")
-		if LegacyElements:
-			LegacyRoot = self.CatalogTree.insert("", "end", text="legacy elements", values=("legacy", "", "", "", "", "", "", ""), open=True)
-			for ElementNode in LegacyElements:
-				self._InsertLegacyElement(LegacyRoot, ElementNode)
+			self._InsertCatalogNode(CatalogRoot, Child, [])
 
 		self._SortCatalogTreeChildren()
 
@@ -167,11 +165,13 @@ class DgmDatabaseViewer(tk.Toplevel, XlsxProcessingMixin):
 		Text = self.CatalogTree.item(ItemId, "text")
 		return (Text.casefold(),)
 
-	def _InsertCatalogNode(self, ParentItem: str, Node: XmlTree.Element) -> None:
+	def _InsertCatalogNode(self, ParentItem: str, Node: XmlTree.Element, ParentPathParts: List[str]) -> None:
 		if Node.tag not in ("node", "regex"):
 			return
 
-		Text = '|' + Node.get("text", Node.get("name", Node.tag)) + '|'
+		PathText = Node.get("text", Node.get("name", Node.tag))
+		PathParts = ParentPathParts + [PathText]
+		Text = '|' + PathText + '|'
 		Item = self.CatalogTree.insert(
 			ParentItem,
 			"end",
@@ -186,17 +186,9 @@ class DgmDatabaseViewer(tk.Toplevel, XlsxProcessingMixin):
 			open=False,
 		)
 		self.CatalogItems[Item] = Node
+		self.CatalogItemPaths[Item] = PathParts
 		for Child in list(Node):
-			self._InsertCatalogNode(Item, Child)
-
-	def _InsertLegacyElement(self, ParentItem: str, Node: XmlTree.Element) -> None:
-		Name = Node.get("name", "")
-		self.CatalogTree.insert(
-			ParentItem,
-			"end",
-			text=Name,
-			values=("legacy", "", Name, *self._ReadDgmColumns(Node), ""),
-		)
+			self._InsertCatalogNode(Item, Child, PathParts)
 
 	def _ReadDgmColumns(self, Node: XmlTree.Element) -> tuple[str, str, str, str]:
 		DgmNode = Node.find("dgm")
@@ -219,12 +211,56 @@ class DgmDatabaseViewer(tk.Toplevel, XlsxProcessingMixin):
 		self.CatalogContextMenu.tk_popup(Event.x_root, Event.y_root)
 		return "break"
 
-	def _GetSelectedCatalogNode(self) -> Optional[XmlTree.Element]:
+	def _GetSelectedCatalogItemId(self) -> str:
 		ItemId = self.CatalogTree.focus()
 		if not ItemId:
 			Selection = self.CatalogTree.selection()
 			ItemId = Selection[0] if Selection else ""
-		return self.CatalogItems.get(ItemId)
+		return ItemId
+
+	def _GetSelectedCatalogNode(self) -> Optional[XmlTree.Element]:
+		return self.CatalogItems.get(self._GetSelectedCatalogItemId())
+
+	def _GetSelectedCatalogPathParts(self) -> List[str]:
+		return self.CatalogItemPaths.get(self._GetSelectedCatalogItemId(), [])
+
+	def _GetSelectedCatalogSearchResult(self) -> dgm_database.ElementSearchResult:
+		ItemId = self._GetSelectedCatalogItemId()
+		if not ItemId or ItemId not in self.CatalogItems:
+			return dgm_database.ElementSearchResult(None)
+
+		NodeChain: List[XmlTree.Element] = []
+		CurrentItem = ItemId
+		while CurrentItem in self.CatalogItems:
+			NodeChain.append(self.CatalogItems[CurrentItem])
+			CurrentItem = self.CatalogTree.parent(CurrentItem)
+		NodeChain.reverse()
+
+		RootRecord = dgm_database.ElementRecord(
+			self.Database,
+			self.Database.CatalogNode,
+			"catalog",
+			dgm_database.DgmValues(decimal.Decimal("0"), decimal.Decimal("0"), decimal.Decimal("0"), decimal.Decimal("0")),
+			False,
+			None,
+			"",
+			"",
+			False,
+			True,
+		)
+		ParentRecord = RootRecord
+		for Node in NodeChain:
+			PathText = Node.get("text", Node.get("name", Node.tag))
+			DisplayText = dgm_database.FormatOptionalPathText(PathText) if dgm_database.IsOptionalNode(Node) else PathText
+			ParentRecord = self.Database.MakeRecord(
+				Node,
+				DisplayText,
+				ParentRecord,
+				PathText,
+				PathText,
+				ParentRecord.MatchedByRegex or Node.tag == "regex",
+			)
+		return dgm_database.ElementSearchResult(ParentRecord)
 
 	def _ApplyAddElementResult(self, Name: str, Result: GuiAddElementResult) -> None:
 		if Result.Mode == "existing":
@@ -242,10 +278,9 @@ class DgmDatabaseViewer(tk.Toplevel, XlsxProcessingMixin):
 		DefaultName = "New node"
 		Dialog = AddElementDialog(
 			self,
-			self.Database,
 			DefaultName,
-			InitialPathParts=self.Database.GetNodePathParts(ParentNode) + [DefaultName],
-			Title="Add database node",
+			self._GetSelectedCatalogSearchResult(),
+			InitialMode="new",
 		)
 		if Dialog.Result is None:
 			return
@@ -314,7 +349,7 @@ class DgmDatabaseViewer(tk.Toplevel, XlsxProcessingMixin):
 		if Node is None:
 			return
 
-		Dialog = MoveCatalogNodeDialog(self, self.Database.GetNodePathParts(Node)[:-1])
+		Dialog = MoveCatalogNodeDialog(self, self._GetSelectedCatalogPathParts()[:-1])
 		if Dialog.Result is None:
 			return
 
@@ -364,11 +399,15 @@ class DgmDatabaseViewer(tk.Toplevel, XlsxProcessingMixin):
 		Messages: List[str] = []
 		if Result.Record is not None:
 			MatchType = "regex" if Result.MatchedByRegex else "exact"
-			Messages.append(f"Found {MatchType} match: {Result.Record.DisplayName}")
+			if Result.Record.HasDgm:
+				Marker = "non-zero DGM" if Result.Record.HasNonZeroDgm else "zero DGM"
+				Messages.append(f"Found {MatchType} match with {Marker}: {Result.Record.DisplayName}")
+			else:
+				Messages.append(f"Found {MatchType} match without DGM: {Result.Record.DisplayName}")
 		else:
 			Messages.append("No exact match found.")
 
-		PartialMatches = Result.PartialMatches or []
+		PartialMatches = Result.PartialMatches
 		if PartialMatches:
 			PartialText = "; ".join(
 				f"{Match.DisplayName}{' (has DGM)' if Match.HasDgm else ''}"
@@ -389,5 +428,3 @@ class DgmDatabaseViewer(tk.Toplevel, XlsxProcessingMixin):
 		for Value in IgnoredValues:
 			self.IgnoredList.insert(tk.END, Value)
 		self.IgnoredCountLabel.configure(text=f"{len(IgnoredValues)} ignored items")
-
-

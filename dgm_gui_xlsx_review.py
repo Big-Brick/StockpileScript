@@ -132,7 +132,8 @@ class XlsxReviewWindow(tk.Toplevel):
 		Item = self._SelectedMissing()
 		if Item is None:
 			return
-		Dialog = AddElementDialog(self, self.ParentViewer.Database, Item.Name)
+		StructuredResult = self.ParentViewer.Database.FindStructuredElement(dgm_database.NormalizeText(Item.Name), Item.Name)
+		Dialog = AddElementDialog(self, Item.Name, StructuredResult)
 		if Dialog.Result is None:
 			return
 		try:

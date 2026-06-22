@@ -2161,7 +2161,6 @@
 			<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
 		</node>
 	</catalog>
-	<elements />
 	<ignored>
 		<text key="голова комісії:" value="Голова комісії:" />
 		<text key="члени комісії:" value="Члени комісії:" />
