@@ -286,6 +286,8 @@ class XlsxPreprocessor:
 
 	def _ShouldOfferChange(self, Change: PreprocessChange, StageId: str) -> bool:
 		if StageId == "prefix":
+			if Change.NewText == Change.OriginalText and Change.ElementType:
+				return False
 			return Change.SafetyLevel not in ("safe", "partial") or Change.NewText != Change.OriginalText
 		return Change.NewText != Change.OriginalText
 
