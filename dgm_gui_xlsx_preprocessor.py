@@ -11,7 +11,7 @@ import tkinter as tk
 import tkinter.ttk as ttk
 
 from dgm_gui_common import WINDOW_TITLE, openpyxl
-import dgm_inventory
+import dgm_xlsx_common
 from dgm_xlsx_preprocessor import (
 	DEFAULT_RULES_FILENAME,
 	PREFIX_SAFETY_LABELS,
@@ -80,7 +80,7 @@ class XlsxPreprocessingMixin:
 		if not SelectedFolder:
 			return
 
-		Files = dgm_inventory.FindXlsxFiles(
+		Files = dgm_xlsx_common.FindXlsxFiles(
 			Path(SelectedFolder).expanduser().resolve(),
 			self.ProcessSubfolders.get(),
 		)

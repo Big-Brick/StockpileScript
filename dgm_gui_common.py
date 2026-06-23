@@ -46,8 +46,7 @@ class GuiAddElementResult:
 	Mode: str
 	Values: dgm_database.DgmValues
 	PathParts: List[str]
-	Pattern: str = ""
-	DisplayText: str = ""
+	RegexText: str = ""
 
 
 WINDOW_TITLE = "DGM Database Editor"

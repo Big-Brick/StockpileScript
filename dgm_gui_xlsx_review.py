@@ -8,6 +8,7 @@ import tkinter.messagebox
 import tkinter.ttk as ttk
 
 import dgm_database
+import dgm_xlsx_common
 from dgm_gui_common import GuiConflictRow, GuiMissingElement, GuiProcessResult, WINDOW_TITLE, openpyxl
 from dgm_gui_dialogs import AddElementDialog, RenameElementDialog
 
@@ -143,7 +144,7 @@ class XlsxReviewWindow(tk.Toplevel):
 			if Result.Mode == "existing":
 				self.ParentViewer.Database.AddDgmToExistingPath(Item.Name, Result.Values, Result.PathParts)
 			elif Result.Mode == "regex":
-				self.ParentViewer.Database.AddRegexElement(Item.Name, Result.Values, Result.PathParts, Result.Pattern, Result.DisplayText)
+				self.ParentViewer.Database.AddRegexElement(Item.Name, Result.Values, Result.PathParts, Result.RegexText)
 			else:
 				self.ParentViewer.Database.AddElement(Item.Name, Result.Values, Result.PathParts)
 			self.ParentViewer.Database.Save()
@@ -182,9 +183,7 @@ class XlsxReviewWindow(tk.Toplevel):
 			return
 		Workbook = openpyxl.load_workbook(Item.FilePath, data_only=False)  # type: ignore[union-attr]
 		Sheet = Workbook[Item.SheetName]
-		for MetalKey, _ in dgm_database.METALS:
-			Sheet[f"{self.ParentViewer.Database.Columns.PerElement[MetalKey]}{Item.Row}"].value = None
-			Sheet[f"{self.ParentViewer.Database.Columns.Total[MetalKey]}{Item.Row}"].value = None
+		dgm_xlsx_common.ClearDgmCells(Sheet, Item.Row, self.ParentViewer.Database.Columns)
 		Workbook.save(Item.FilePath)
 		self.destroy()
 		self.ParentViewer._ProcessXlsxQueue(self.Files, self.Index)
