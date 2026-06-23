@@ -4,7 +4,7 @@ import re
 import xml.etree.ElementTree as XmlTree
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Optional, Sequence, Tuple
+from typing import Dict, List, Optional, Sequence, Tuple
 
 import dgm_database
 import dgm_xlsx_common
@@ -64,19 +64,9 @@ class PreprocessChange:
 	StageId: str = ""
 	ElementType: str = ""
 	SafetyLevel: str = ""
-
-
-@dataclass
-class PreprocessResult:
-	FilePath: Path
-	SheetName: str
-	RulesPath: Path
-	ChangedRows: List[PreprocessChange]
-	UnchangedRows: int
-	AmbiguousRows: List[PreprocessChange]
-	MissingDatabaseMatches: List[PreprocessChange]
-	CacheChanged: bool = False
-	StageId: str = "all"
+	FilePath: Path = Path()
+	SheetName: str = ""
+	RulesPath: Path = Path()
 	StageName: str = "All stages"
 
 
@@ -108,16 +98,13 @@ class XlsxPreprocessor:
 		self.RegexFlags = re.IGNORECASE if self.Rules.IgnoreCase else 0
 		self.CacheChanged = False
 
-	def PreprocessWorkbook(self, FilePath: Path, StageId: str = "all") -> PreprocessResult:
+	def PreprocessWorkbook(self, FilePath: Path, StageId: str = "all") -> List[PreprocessChange]:
 		if openpyxl is None:
 			raise RuntimeError("Missing dependency: openpyxl")
 
 		Workbook = openpyxl.load_workbook(FilePath, data_only=False)
 		Sheet = Workbook.active
-		ChangedRows: List[PreprocessChange] = []
-		AmbiguousRows: List[PreprocessChange] = []
-		MissingDatabaseMatches: List[PreprocessChange] = []
-		UnchangedRows = 0
+		Changes: List[PreprocessChange] = []
 		ConsecutiveIgnoredRows = 0
 		Row = 1
 		MaxRow = Sheet.max_row or 1
@@ -129,37 +116,27 @@ class XlsxPreprocessor:
 			else:
 				Original = str(RawName)
 				if self.IsIgnoredText(Original):
-					UnchangedRows += 1
 					ConsecutiveIgnoredRows += 1
 				else:
 					Change = self.PreprocessText(Row, Original, StageId)
+					self._AttachChangeMetadata(Change, FilePath, Sheet.title, StageId)
 					if self._ShouldOfferChange(Change, StageId):
-						ChangedRows.append(Change)
-						if Change.Ambiguous:
-							AmbiguousRows.append(Change)
-						elif not Change.DatabaseVerified:
-							MissingDatabaseMatches.append(Change)
-					else:
-						UnchangedRows += 1
+						Changes.append(Change)
 					ConsecutiveIgnoredRows = 0
 
 			if ConsecutiveIgnoredRows >= dgm_xlsx_common.STOP_AFTER_CONSECUTIVE_IGNORED_ROWS:
 				break
 			Row += 1
 
-		return PreprocessResult(
-			FilePath=FilePath,
-			SheetName=Sheet.title,
-			RulesPath=self.Rules.Path,
-			ChangedRows=ChangedRows,
-			UnchangedRows=UnchangedRows,
-			AmbiguousRows=AmbiguousRows,
-			MissingDatabaseMatches=MissingDatabaseMatches,
-			CacheChanged=self.CacheChanged,
-			StageId=StageId,
-			StageName=self.GetStageName(StageId),
-		)
+		return Changes
 
+	def _AttachChangeMetadata(self, Change: PreprocessChange, FilePath: Path, SheetName: str, StageId: str) -> PreprocessChange:
+		Change.FilePath = FilePath
+		Change.SheetName = SheetName
+		Change.RulesPath = self.Rules.Path
+		Change.StageId = StageId
+		Change.StageName = self.GetStageName(StageId)
+		return Change
 
 	def IsIgnoredText(self, Text: str) -> bool:
 		Current = self._CleanWhitespace(Text)
@@ -173,17 +150,22 @@ class XlsxPreprocessor:
 				continue
 		return False
 
-	def ApplyChanges(self, Result: PreprocessResult, Changes: Sequence[PreprocessChange]) -> None:
+	def ApplyChanges(self, Changes: Sequence[PreprocessChange]) -> None:
 		if openpyxl is None:
 			raise RuntimeError("Missing dependency: openpyxl")
 		if not Changes:
 			return
 
-		Workbook = openpyxl.load_workbook(Result.FilePath, data_only=False)
-		Sheet = Workbook[Result.SheetName]
+		ChangesBySheet: Dict[Tuple[Path, str], List[PreprocessChange]] = {}
 		for Change in Changes:
-			Sheet[f"{self.Database.Columns.Name}{Change.Row}"].value = Change.NewText
-		Workbook.save(Result.FilePath)
+			ChangesBySheet.setdefault((Change.FilePath, Change.SheetName), []).append(Change)
+
+		for (FilePath, SheetName), SheetChanges in ChangesBySheet.items():
+			Workbook = openpyxl.load_workbook(FilePath, data_only=False)
+			Sheet = Workbook[SheetName]
+			for Change in SheetChanges:
+				Sheet[f"{self.Database.Columns.Name}{Change.Row}"].value = Change.NewText
+			Workbook.save(FilePath)
 		if self.CacheChanged:
 			SavePreprocessRules(self.Rules)
 
