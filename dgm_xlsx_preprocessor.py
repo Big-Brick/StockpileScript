@@ -531,6 +531,13 @@ def CreateDefaultPreprocessRules(PathToRules: Path) -> None:
 	AddIgnorePattern(IgnoredTexts, "board_except_elements", "Board/block header listing present except missing components", r"\b(плата|блок|модуль|вузол)\b.*\b(в\s+наявності|наявн[іи]|присутн[іи])\b.*\b(за\s+виключенням|за\s+винятком|крім|окрім)\b")
 	AddIgnorePattern(IgnoredTexts, "generic_placed_marker", "Generic phrase marker for placed/listed contents rows", r"\b(на\s+н(і|и)й|на\s+якій|де)\b\s*:?\s*$|\b(на\s+н(і|и)й|на\s+якій|де)\b.*\b(розміщен[іи]|розташован[іи]|встановлен[іи]|змонтован[іи])\b")
 	AddIgnorePattern(IgnoredTexts, "generic_missing_marker", "Generic phrase marker for missing/excluded contents rows", r"\b(відсутн[іи]|немає)\b\s*:?$|\b(в\s+наявності|наявн[іи])\b.*\b(за\s+виключенням|за\s+винятком|крім|окрім)\b")
+	AddIgnorePattern(IgnoredTexts, "generic_military_rank", "Rows containing Ukrainian military rank words", r"\b(рекрут\w*|солдат\w*|сержант\w*|старшин\w*|прапорщик\w*|лейтенант\w*|капітан\w*|майор\w*|підполковник\w*|полковник\w*|генерал\w*)\b")
+	AddIgnorePattern(IgnoredTexts, "generic_commission", "Rows containing commission wording", r"\bкомісі\w*\b")
+	AddIgnorePattern(IgnoredTexts, "generic_completeness", "Rows containing completeness/complectation wording", r"\b(комплектн\w*|комплектаці\w*)\b")
+	AddIgnorePattern(IgnoredTexts, "generic_placed_word", "Rows containing placed/located wording", r"\bрозміщен\w*\b")
+	AddIgnorePattern(IgnoredTexts, "generic_available_word", "Rows containing available/present wording", r"\bнаявн\w*\b")
+	AddIgnorePattern(IgnoredTexts, "generic_property_word", "Rows containing property wording", r"\bмайн\w*\b")
+	AddIgnorePattern(IgnoredTexts, "generic_counting_word", "Rows containing count/calculation wording", r"\bпідрахун\w*\b")
 
 	StageOne = XmlTree.SubElement(Root, "stage", {"id": "1", "name": "language_normalization"})
 	AddRule(StageOne, "ru_relay_res", "Russian РЭС relay spelling to Ukrainian РЕС", r"\bРЭС\b", "РЕС")

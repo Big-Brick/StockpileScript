@@ -43,6 +43,56 @@
 	    	description="Generic phrase marker for missing/excluded contents rows">
 		    \b(відсутн[іи]|немає)\b\s*:?$|\b(в\s+наявності|наявн[іи])\b.*\b(за\s+виключенням|за\s+винятком|крім|окрім)\b
     	</pattern>
+
+
+	    <pattern
+		    id="generic_military_rank"
+	    	enabled="true"
+	    	description="Rows containing Ukrainian military rank words">
+		    \b(рекрут\w*|солдат\w*|сержант\w*|старшин\w*|прапорщик\w*|лейтенант\w*|капітан\w*|майор\w*|підполковник\w*|полковник\w*|генерал\w*)\b
+	    </pattern>
+
+	    <pattern
+		    id="generic_commission"
+	    	enabled="true"
+	    	description="Rows containing commission wording">
+		    \bкомісі\w*\b
+	    </pattern>
+
+	    <pattern
+		    id="generic_completeness"
+	    	enabled="true"
+	    	description="Rows containing completeness/complectation wording">
+		    \b(комплектн\w*|комплектаці\w*)\b
+	    </pattern>
+
+	    <pattern
+		    id="generic_placed_word"
+	    	enabled="true"
+	    	description="Rows containing placed/located wording">
+		    \bрозміщен\w*\b
+	    </pattern>
+
+	    <pattern
+		    id="generic_available_word"
+	    	enabled="true"
+	    	description="Rows containing available/present wording">
+		    \bнаявн\w*\b
+	    </pattern>
+
+	    <pattern
+		    id="generic_property_word"
+	    	enabled="true"
+	    	description="Rows containing property wording">
+		    \bмайн\w*\b
+	    </pattern>
+
+	    <pattern
+		    id="generic_counting_word"
+	    	enabled="true"
+	    	description="Rows containing count/calculation wording">
+		    \bпідрахун\w*\b
+	    </pattern>
     </ignored_texts>
 
     <settings>
