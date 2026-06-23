@@ -8,7 +8,7 @@ import tkinter.filedialog
 import tkinter.messagebox
 
 import dgm_database
-import dgm_inventory
+import dgm_xlsx_common
 import dgm_xlsx_preprocessor
 from dgm_gui_common import GuiConflictRow, GuiMissingElement, GuiProcessResult, WINDOW_TITLE, openpyxl
 from dgm_gui_xlsx_review import XlsxReviewWindow
@@ -29,6 +29,35 @@ class XlsxProcessingMixin:
 			return
 		self._ProcessXlsxQueue([Path(SelectedFile).expanduser().resolve()])
 
+	def _SelectAndCleanXlsxFile(self) -> None:
+		if openpyxl is None:
+			tkinter.messagebox.showerror(WINDOW_TITLE, "Missing dependency: openpyxl", parent=self)
+			return
+
+		SelectedFile = tkinter.filedialog.askopenfilename(
+			title="Select XLSX inventory file to clean",
+			filetypes=(("Excel workbook", "*.xlsx"), ("All files", "*.*")),
+			parent=self,
+		)
+		if not SelectedFile:
+			return
+
+		FilePath = Path(SelectedFile).expanduser().resolve()
+		try:
+			FirstRow, LastRow, ClearedRows = self._CleanXlsxDgmColumns(FilePath)
+		except Exception as Error:
+			tkinter.messagebox.showerror(WINDOW_TITLE, f"Cannot clean '{FilePath}': {Error}", parent=self)
+			return
+
+		if ClearedRows == 0:
+			tkinter.messagebox.showinfo(WINDOW_TITLE, "No known element rows were found in the selected workbook.", parent=self)
+		else:
+			tkinter.messagebox.showinfo(
+				WINDOW_TITLE,
+				f"Cleaned DGM value and total cells for rows {FirstRow}-{LastRow} in '{FilePath.name}'.",
+				parent=self,
+			)
+
 	def _SelectAndProcessXlsxFolder(self) -> None:
 		if openpyxl is None:
 			tkinter.messagebox.showerror(WINDOW_TITLE, "Missing dependency: openpyxl", parent=self)
@@ -38,7 +67,7 @@ class XlsxProcessingMixin:
 		if not SelectedFolder:
 			return
 
-		Files = dgm_inventory.FindXlsxFiles(
+		Files = dgm_xlsx_common.FindXlsxFiles(
 			Path(SelectedFolder).expanduser().resolve(),
 			self.ProcessSubfolders.get(),
 		)
@@ -82,7 +111,7 @@ class XlsxProcessingMixin:
 
 		while Row <= MaxRow:
 			RawName = Sheet[f"{self.Database.Columns.Name}{Row}"].value
-			if not dgm_inventory.CellHasUsableText(RawName):
+			if not dgm_xlsx_common.CellHasUsableText(RawName):
 				IgnoredRows += 1
 				ConsecutiveIgnoredRows += 1
 			else:
@@ -100,19 +129,68 @@ class XlsxProcessingMixin:
 						Conflicts.append(self._BuildConflict(FilePath, Sheet, Row, Name, Entry))
 						ConsecutiveIgnoredRows = 0
 					else:
-						dgm_inventory.WriteEntryToRow(Sheet, Row, self.Database.Columns, Entry)
+						dgm_xlsx_common.WriteEntryToRow(Sheet, Row, self.Database.Columns, Entry)
 						ProcessedRows.append(Row)
 						LastProcessedRow = Row
 						ConsecutiveIgnoredRows = 0
 
-			if ConsecutiveIgnoredRows >= dgm_inventory.STOP_AFTER_CONSECUTIVE_IGNORED_ROWS:
+			if ConsecutiveIgnoredRows >= dgm_xlsx_common.STOP_AFTER_CONSECUTIVE_IGNORED_ROWS:
 				break
 			Row += 1
 
 		TotalRow = LastProcessedRow + 1 if LastProcessedRow > 0 else 1
-		dgm_inventory.WriteWorkbookTotals(Sheet, TotalRow, self.Database.Columns, ProcessedRows)
+		dgm_xlsx_common.WriteWorkbookTotals(Sheet, TotalRow, self.Database.Columns, ProcessedRows)
 		Workbook.save(FilePath)
 		return GuiProcessResult(FilePath, len(ProcessedRows), IgnoredRows, list(MissingByKey.values()), Conflicts)
+
+	def _CleanXlsxDgmColumns(self, FilePath: Path) -> Tuple[int, int, int]:
+		if openpyxl is None:
+			raise RuntimeError("Missing dependency: openpyxl")
+
+		Workbook = openpyxl.load_workbook(FilePath, data_only=False)
+		Sheet = Workbook.active
+		Preprocessor = dgm_xlsx_preprocessor.XlsxPreprocessor(
+			self.Database,
+			self.DatabasePath.with_name(dgm_xlsx_preprocessor.DEFAULT_RULES_FILENAME),
+		)
+
+		KnownRows = self._FindKnownElementRows(Sheet, Preprocessor)
+		if not KnownRows:
+			return (0, 0, 0)
+
+		FirstRow = min(KnownRows)
+		LastRow = max(KnownRows) + 1
+		for Row in range(FirstRow, LastRow + 1):
+			dgm_xlsx_common.ClearDgmCells(Sheet, Row, self.Database.Columns)
+
+		Workbook.save(FilePath)
+		return (FirstRow, LastRow, LastRow - FirstRow + 1)
+
+	def _FindKnownElementRows(self, Sheet: object, Preprocessor: dgm_xlsx_preprocessor.XlsxPreprocessor) -> List[int]:
+		KnownRows: List[int] = []
+		Row = 1
+		MaxRow = Sheet.max_row or 1  # type: ignore[attr-defined]
+		ConsecutiveIgnoredRows = 0
+
+		while Row <= MaxRow:
+			RawName = Sheet[f"{self.Database.Columns.Name}{Row}"].value  # type: ignore[index]
+			if not dgm_xlsx_common.CellHasUsableText(RawName):
+				ConsecutiveIgnoredRows += 1
+			else:
+				Name = " ".join(str(RawName).strip().split())
+				if self.Database.IsIgnoredText(Name) or Preprocessor.IsIgnoredText(Name):
+					ConsecutiveIgnoredRows += 1
+				else:
+					SearchResult = self.Database.FindElement(Name)
+					if SearchResult.Record is not None and SearchResult.Record.HasDgm:
+						KnownRows.append(Row)
+					ConsecutiveIgnoredRows = 0
+
+			if ConsecutiveIgnoredRows >= dgm_xlsx_common.STOP_AFTER_CONSECUTIVE_IGNORED_ROWS:
+				break
+			Row += 1
+
+		return KnownRows
 
 	def _RowHasConflictingDgmValues(self, Sheet: object, Row: int, Entry: dgm_database.ElementRecord) -> bool:
 		for MetalKey, _ in dgm_database.METALS:

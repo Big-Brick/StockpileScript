@@ -11,7 +11,7 @@ import tkinter.simpledialog
 import tkinter.ttk as ttk
 
 import dgm_database
-import dgm_inventory
+import dgm_xlsx_common
 import dgm_xlsx_preprocessor
 from dgm_gui_common import GuiMissingElement, WINDOW_TITLE, openpyxl
 from dgm_gui_dialogs import AddElementDialog
@@ -159,7 +159,7 @@ class MissingElementsWindow(tk.Toplevel):
 			if Result.Mode == "existing":
 				self.ParentViewer.Database.AddDgmToExistingPath(Item.Name, Result.Values, Result.PathParts)
 			elif Result.Mode == "regex":
-				self.ParentViewer.Database.AddRegexElement(Item.Name, Result.Values, Result.PathParts, Result.Pattern, Result.DisplayText)
+				self.ParentViewer.Database.AddRegexElement(Item.Name, Result.Values, Result.PathParts, Result.RegexText)
 			else:
 				self.ParentViewer.Database.AddElement(Item.Name, Result.Values, Result.PathParts)
 			self.ParentViewer.Database.Save()
@@ -306,7 +306,7 @@ class MissingElementsMixin:
 		SelectedFolder = tkinter.filedialog.askdirectory(title="Select folder with XLSX files", parent=self)
 		if not SelectedFolder:
 			return
-		Files = dgm_inventory.FindXlsxFiles(
+		Files = dgm_xlsx_common.FindXlsxFiles(
 			Path(SelectedFolder).expanduser().resolve(),
 			self.ProcessSubfolders.get(),
 		)
@@ -335,7 +335,7 @@ class MissingElementsMixin:
 			MaxRow = Sheet.max_row or 1
 			while Row <= MaxRow:
 				RawName = Sheet[f"{self.Database.Columns.Name}{Row}"].value
-				if not dgm_inventory.CellHasUsableText(RawName):
+				if not dgm_xlsx_common.CellHasUsableText(RawName):
 					IgnoredRows += 1
 					ConsecutiveIgnoredRows += 1
 				else:
@@ -353,7 +353,7 @@ class MissingElementsMixin:
 								))
 							self._AddMissingElement(GroupsByKey, GuiMissingElement(FilePath, Sheet.title, Row, Name), Matches)
 						ConsecutiveIgnoredRows = 0
-				if ConsecutiveIgnoredRows >= dgm_inventory.STOP_AFTER_CONSECUTIVE_IGNORED_ROWS:
+				if ConsecutiveIgnoredRows >= dgm_xlsx_common.STOP_AFTER_CONSECUTIVE_IGNORED_ROWS:
 					break
 				Row += 1
 		return list(GroupsByKey.values()), IgnoredRows

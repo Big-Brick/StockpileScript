@@ -75,7 +75,7 @@ class DgmDatabaseViewer(tk.Toplevel, XlsxProcessingMixin):
 		self.SearchStatusLabel.grid(row=3, column=0, sticky="ew", pady=(4, 0))
 		self.SearchEntry.bind("<Return>", lambda _Event: self._SearchCatalog())
 
-		Columns = ("kind", "optional", "name", "gold", "silver", "platinum", "mpg", "pattern")
+		Columns = ("kind", "optional", "name", "gold", "silver", "platinum", "mpg")
 		self.CatalogTree = ttk.Treeview(Parent, columns=Columns, show="tree headings", selectmode="browse")
 		self.CatalogTree.heading("#0", text="Component / structure")
 		self.CatalogTree.heading("kind", text="Type")
@@ -85,7 +85,6 @@ class DgmDatabaseViewer(tk.Toplevel, XlsxProcessingMixin):
 		self.CatalogTree.heading("silver", text="Silver g")
 		self.CatalogTree.heading("platinum", text="Platinum g")
 		self.CatalogTree.heading("mpg", text="MPG g")
-		self.CatalogTree.heading("pattern", text="Regex pattern")
 
 		self.CatalogTree.column("#0", width=260, minwidth=180, stretch=True)
 		self.CatalogTree.column("kind", width=85, minwidth=65, anchor="center", stretch=False)
@@ -93,7 +92,6 @@ class DgmDatabaseViewer(tk.Toplevel, XlsxProcessingMixin):
 		self.CatalogTree.column("name", width=180, minwidth=120, stretch=True)
 		for Column in ("gold", "silver", "platinum", "mpg"):
 			self.CatalogTree.column(Column, width=90, minwidth=70, anchor="e", stretch=False)
-		self.CatalogTree.column("pattern", width=180, minwidth=120, stretch=True)
 
 		VerticalScrollbar = ttk.Scrollbar(Parent, orient=tk.VERTICAL, command=self.CatalogTree.yview)
 		HorizontalScrollbar = ttk.Scrollbar(Parent, orient=tk.HORIZONTAL, command=self.CatalogTree.xview)
@@ -145,7 +143,7 @@ class DgmDatabaseViewer(tk.Toplevel, XlsxProcessingMixin):
 		for Item in self.CatalogTree.get_children():
 			self.CatalogTree.delete(Item)
 
-		CatalogRoot = self.CatalogTree.insert("", "end", text="catalog", values=("root", "", "", "", "", "", "", ""), open=True)
+		CatalogRoot = self.CatalogTree.insert("", "end", text="catalog", values=("root", "", "", "", "", "", ""), open=True)
 		self.CatalogItemPaths[CatalogRoot] = []
 		for Child in list(self.Database.CatalogNode):
 			self._InsertCatalogNode(CatalogRoot, Child, [])
@@ -166,7 +164,7 @@ class DgmDatabaseViewer(tk.Toplevel, XlsxProcessingMixin):
 		return (Text.casefold(),)
 
 	def _InsertCatalogNode(self, ParentItem: str, Node: XmlTree.Element, ParentPathParts: List[str]) -> None:
-		if Node.tag not in ("node", "regex"):
+		if Node.tag not in dgm_database.CATALOG_ELEMENT_TAGS:
 			return
 
 		PathText = Node.get("text", Node.get("name", Node.tag))
@@ -177,11 +175,10 @@ class DgmDatabaseViewer(tk.Toplevel, XlsxProcessingMixin):
 			"end",
 			text=Text,
 			values=(
-				"regex" if Node.tag == "regex" else "node",
+				dgm_database.REGEX_LEAF_TAG if Node.tag == dgm_database.REGEX_LEAF_TAG else "node",
 				"yes" if dgm_database.IsOptionalNode(Node) else "",
 				Node.get("name", ""),
 				*self._ReadDgmColumns(Node),
-				Node.get("pattern", ""),
 			),
 			open=False,
 		)
@@ -258,7 +255,7 @@ class DgmDatabaseViewer(tk.Toplevel, XlsxProcessingMixin):
 				ParentRecord,
 				PathText,
 				PathText,
-				ParentRecord.MatchedByRegex or Node.tag == "regex",
+				ParentRecord.MatchedByRegex or Node.tag == dgm_database.REGEX_LEAF_TAG,
 			)
 		return dgm_database.ElementSearchResult(ParentRecord)
 
@@ -266,7 +263,7 @@ class DgmDatabaseViewer(tk.Toplevel, XlsxProcessingMixin):
 		if Result.Mode == "existing":
 			self.Database.AddDgmToExistingPath(Name, Result.Values, Result.PathParts)
 		elif Result.Mode == "regex":
-			self.Database.AddRegexElement(Name, Result.Values, Result.PathParts, Result.Pattern, Result.DisplayText)
+			self.Database.AddRegexElement(Name, Result.Values, Result.PathParts, Result.RegexText)
 		else:
 			self.Database.AddElement(Name, Result.Values, Result.PathParts)
 
@@ -319,7 +316,7 @@ class DgmDatabaseViewer(tk.Toplevel, XlsxProcessingMixin):
 		NodeKind = Values["kind"]
 		if not Text:
 			raise RuntimeError("Display text is required")
-		if NodeKind not in ("node", "regex"):
+		if NodeKind not in dgm_database.CATALOG_ELEMENT_TAGS:
 			raise RuntimeError("Unsupported catalog node type")
 
 		Node.tag = NodeKind
@@ -331,13 +328,9 @@ class DgmDatabaseViewer(tk.Toplevel, XlsxProcessingMixin):
 
 		dgm_database.SetOptionalNode(Node, NodeKind == "node" and Values.get("optional") == "true")
 
-		if NodeKind == "regex":
-			Pattern = Values["pattern"]
-			if not Pattern:
-				raise RuntimeError("Regex pattern is required for regex nodes")
-			Node.set("pattern", Pattern)
-		elif "pattern" in Node.attrib:
-			del Node.attrib["pattern"]
+		if NodeKind == dgm_database.REGEX_LEAF_TAG and not Text:
+			raise RuntimeError("Regex leaf text is required")
+		Node.attrib.pop("pattern", None)
 
 		if Values.get("has_dgm") != "true":
 			for DgmNode in list(Node.findall("dgm")):
@@ -375,7 +368,7 @@ class DgmDatabaseViewer(tk.Toplevel, XlsxProcessingMixin):
 			return
 
 		Warnings: List[str] = []
-		if any(Child.tag in ("node", "regex") for Child in list(Node)):
+		if any(Child.tag in dgm_database.CATALOG_ELEMENT_TAGS for Child in list(Node)):
 			Warnings.append("it has child nodes")
 		if self.Database.CatalogNodeHasNonZeroDgmValues(Node):
 			Warnings.append("it has non-zero DGM values")
@@ -405,7 +398,7 @@ class DgmDatabaseViewer(tk.Toplevel, XlsxProcessingMixin):
 		Result = self.Database.FindElement(SearchText)
 		Messages: List[str] = []
 		if Result.Record is not None:
-			MatchType = "regex" if Result.MatchedByRegex else "exact"
+			MatchType = "regex leaf" if Result.MatchedByRegex else "exact"
 			if Result.Record.HasDgm:
 				Marker = "non-zero DGM" if Result.Record.HasNonZeroDgm else "zero DGM"
 				Messages.append(f"Found {MatchType} match with {Marker}: {Result.Record.DisplayName}")
