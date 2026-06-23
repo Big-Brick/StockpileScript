@@ -21,8 +21,8 @@ class DgmMainWindow(tk.Tk, XlsxProcessingMixin, XlsxPreprocessingMixin, MissingE
 		self.ProcessSubfolders = tk.BooleanVar(value=False)
 
 		self.title(f"DGM Inventory Tools - {DatabasePath.name}")
-		self.geometry("360x370")
-		self.minsize(320, 330)
+		self.geometry("360x410")
+		self.minsize(320, 370)
 
 		self._ConfigureStyle()
 		self._BuildLayout()
@@ -41,9 +41,10 @@ class DgmMainWindow(tk.Tk, XlsxProcessingMixin, XlsxPreprocessingMixin, MissingE
 		ttk.Button(self, text="Preprocess folder", command=self._SelectAndPreprocessXlsxFolder).grid(row=3, column=0, sticky="ew", padx=16, pady=4)
 		ttk.Checkbutton(self, text="Process selected folder subfolders", variable=self.ProcessSubfolders).grid(row=4, column=0, sticky="w", padx=16, pady=4)
 		ttk.Button(self, text="Fill .xlsx file", command=self._SelectAndProcessXlsxFile).grid(row=5, column=0, sticky="ew", padx=16, pady=4)
-		ttk.Button(self, text="Fill folder", command=self._SelectAndProcessXlsxFolder).grid(row=6, column=0, sticky="ew", padx=16, pady=4)
-		ttk.Button(self, text="List missing elements in .xlsx file", command=self._SelectAndListMissingXlsxFile).grid(row=7, column=0, sticky="ew", padx=16, pady=4)
-		ttk.Button(self, text="List missing elements in folder", command=self._SelectAndListMissingXlsxFolder).grid(row=8, column=0, sticky="ew", padx=16, pady=(4, 16))
+		ttk.Button(self, text="Clean .xlsx DGM cells", command=self._SelectAndCleanXlsxFile).grid(row=6, column=0, sticky="ew", padx=16, pady=4)
+		ttk.Button(self, text="Fill folder", command=self._SelectAndProcessXlsxFolder).grid(row=7, column=0, sticky="ew", padx=16, pady=4)
+		ttk.Button(self, text="List missing elements in .xlsx file", command=self._SelectAndListMissingXlsxFile).grid(row=8, column=0, sticky="ew", padx=16, pady=4)
+		ttk.Button(self, text="List missing elements in folder", command=self._SelectAndListMissingXlsxFolder).grid(row=9, column=0, sticky="ew", padx=16, pady=(4, 16))
 
 	def _OpenDatabaseEditor(self) -> None:
 		if self.DatabaseEditor is not None and self.DatabaseEditor.winfo_exists():

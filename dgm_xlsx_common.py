@@ -23,6 +23,12 @@ def DecimalToExcelNumber(Value: decimal.Decimal) -> float:
 	return float(Value)
 
 
+def ClearDgmCells(Sheet: openpyxl.worksheet.worksheet.Worksheet, Row: int, ColumnsInfo: dgm_database.Columns) -> None:
+	for MetalKey, _ in dgm_database.METALS:
+		Sheet[f"{ColumnsInfo.PerElement[MetalKey]}{Row}"].value = None
+		Sheet[f"{ColumnsInfo.Total[MetalKey]}{Row}"].value = None
+
+
 def WriteEntryToRow(Sheet: openpyxl.worksheet.worksheet.Worksheet, Row: int, ColumnsInfo: dgm_database.Columns, Entry: dgm_database.ElementRecord) -> None:
 	for MetalKey, _ in dgm_database.METALS:
 		PerElementCell = Sheet[f"{ColumnsInfo.PerElement[MetalKey]}{Row}"]
