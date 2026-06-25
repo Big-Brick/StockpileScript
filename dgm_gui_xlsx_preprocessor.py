@@ -18,41 +18,49 @@ from dgm_xlsx_preprocessor import (
 	PREFIX_SAFETY_ORDER,
 	PREPROCESS_STAGES,
 	PreprocessChange,
-	PreprocessResult,
 	SavePreprocessRules,
 	XlsxPreprocessor,
 )
 
 @dataclass
-class PreprocessChangeOccurrence:
-	Result: PreprocessResult
-	Change: PreprocessChange
-
-
-@dataclass
 class GroupedPreprocessChange:
-	OriginalText: str
-	NewText: str
-	StageNotes: List[str]
-	DatabaseVerified: bool
-	Ambiguous: bool
-	StageId: str
-	ElementType: str
-	SafetyLevel: str
-	Occurrences: List[PreprocessChangeOccurrence]
+	Occurrences: List[PreprocessChange]
 
 	@property
 	def OccurrenceCount(self) -> int:
 		return len(self.Occurrences)
 
-	def ApplyToOccurrences(self) -> None:
-		for Occurrence in self.Occurrences:
-			Occurrence.Change.NewText = self.NewText
-			Occurrence.Change.StageNotes = list(self.StageNotes)
-			Occurrence.Change.DatabaseVerified = self.DatabaseVerified
-			Occurrence.Change.Ambiguous = self.Ambiguous
-			Occurrence.Change.ElementType = self.ElementType
-			Occurrence.Change.SafetyLevel = self.SafetyLevel
+	@property
+	def OriginalText(self) -> str:
+		return self.Occurrences[0].OriginalText if self.Occurrences else ""
+
+	@property
+	def NewText(self) -> str:
+		return self.Occurrences[0].NewText if self.Occurrences else ""
+
+	@property
+	def StageNotes(self) -> List[str]:
+		return self.Occurrences[0].StageNotes if self.Occurrences else []
+
+	@property
+	def DatabaseVerified(self) -> bool:
+		return bool(self.Occurrences) and all(Occurrence.DatabaseVerified for Occurrence in self.Occurrences)
+
+	@property
+	def Ambiguous(self) -> bool:
+		return any(Occurrence.Ambiguous for Occurrence in self.Occurrences)
+
+	@property
+	def StageId(self) -> str:
+		return self.Occurrences[0].StageId if self.Occurrences else ""
+
+	@property
+	def ElementType(self) -> str:
+		return self.Occurrences[0].ElementType if self.Occurrences else ""
+
+	@property
+	def SafetyLevel(self) -> str:
+		return self.Occurrences[0].SafetyLevel if self.Occurrences else ""
 
 
 class XlsxPreprocessingMixin:
@@ -101,12 +109,12 @@ class XlsxPreprocessingMixin:
 		try:
 			RulesPath = self.DatabasePath.with_name(DEFAULT_RULES_FILENAME)
 			Preprocessor = XlsxPreprocessor(self.Database, RulesPath)
-			Results = [Preprocessor.PreprocessWorkbook(FilePath, Stage.Id) for FilePath in Files]
+			Changes = [Change for FilePath in Files for Change in Preprocessor.PreprocessWorkbook(FilePath, Stage.Id)]
 		except Exception as Error:
 			tkinter.messagebox.showerror(WINDOW_TITLE, f"Cannot preprocess selected files: {Error}", parent=self)
 			return
 
-		GroupedChanges = self._GroupPreprocessChanges(Results)
+		GroupedChanges = self._GroupPreprocessChanges(Changes)
 		if not GroupedChanges:
 			if LogWindow is None:
 				LogWindow = PreprocessLogWindow(self)
@@ -114,28 +122,17 @@ class XlsxPreprocessingMixin:
 			self._PreprocessXlsxQueue(Files, 0, StageIndex + 1, LogWindow)
 			return
 
-		XlsxPreprocessReviewWindow(self, Preprocessor, Results, GroupedChanges, Files, StageIndex, LogWindow)
+		XlsxPreprocessReviewWindow(self, Preprocessor, GroupedChanges, Files, StageIndex, LogWindow)
 
-	def _GroupPreprocessChanges(self, Results: List[PreprocessResult]) -> List[GroupedPreprocessChange]:
+	def _GroupPreprocessChanges(self, Changes: List[PreprocessChange]) -> List[GroupedPreprocessChange]:
 		Groups: Dict[Tuple[str, str], GroupedPreprocessChange] = {}
-		for Result in Results:
-			for Change in Result.ChangedRows:
-				Key = (Change.StageId, Change.OriginalText.casefold())
-				Group = Groups.get(Key)
-				if Group is None:
-					Group = GroupedPreprocessChange(
-						OriginalText=Change.OriginalText,
-						NewText=Change.NewText,
-						StageNotes=list(Change.StageNotes),
-						DatabaseVerified=Change.DatabaseVerified,
-						Ambiguous=Change.Ambiguous,
-						StageId=Change.StageId,
-						ElementType=Change.ElementType,
-						SafetyLevel=Change.SafetyLevel,
-						Occurrences=[],
-					)
-					Groups[Key] = Group
-				Group.Occurrences.append(PreprocessChangeOccurrence(Result, Change))
+		for Change in Changes:
+			Key = (Change.StageId, Change.OriginalText.casefold())
+			Group = Groups.get(Key)
+			if Group is None:
+				Group = GroupedPreprocessChange(Occurrences=[])
+				Groups[Key] = Group
+			Group.Occurrences.append(Change)
 		return list(Groups.values())
 
 
@@ -161,19 +158,21 @@ class PreprocessLogWindow(tk.Toplevel):
 
 
 class XlsxPreprocessReviewWindow(tk.Toplevel):
-	def __init__(self, Parent: tk.Toplevel, Preprocessor: XlsxPreprocessor, Results: List[PreprocessResult], Changes: List[GroupedPreprocessChange], Files: List[Path], StageIndex: int = 0, LogWindow: Optional[PreprocessLogWindow] = None) -> None:
+	def __init__(self, Parent: tk.Toplevel, Preprocessor: XlsxPreprocessor, Changes: List[GroupedPreprocessChange], Files: List[Path], StageIndex: int = 0, LogWindow: Optional[PreprocessLogWindow] = None) -> None:
 		super().__init__(Parent)
 		self.ParentViewer = Parent
 		self.Preprocessor = Preprocessor
-		self.Results = Results
-		self.Result = Results[0]
 		self.Files = Files
 		self.StageIndex = StageIndex
+		self.Stage = PREPROCESS_STAGES[StageIndex]
+		self.StageId = self.Stage.Id
+		self.StageName = self.Stage.Name
+		self.RulesPath = self.Preprocessor.Rules.Path
 		self.LogWindow = LogWindow
 		self.Changes = self._SortedChanges(Changes)
 		self.ItemToChange: Dict[str, GroupedPreprocessChange] = {}
 
-		FileLabel = self.Result.FilePath.name if len(Files) == 1 else f"{len(Files)} files"
+		FileLabel = Files[0].name if len(Files) == 1 else f"{len(Files)} files"
 		self.title(f"XLSX preprocess review - {FileLabel}")
 		self.geometry("1180x680")
 		self.minsize(900, 460)
@@ -182,9 +181,9 @@ class XlsxPreprocessReviewWindow(tk.Toplevel):
 
 		TotalOccurrences = sum(Change.OccurrenceCount for Change in self.Changes)
 		Summary = (
-			f"Stage {self.StageIndex + 1}/{len(PREPROCESS_STAGES)}: {self.Result.StageName}. "
+			f"Stage {self.StageIndex + 1}/{len(PREPROCESS_STAGES)}: {self.StageName}. "
 			f"Found {len(self.Changes)} unique corrections across {TotalOccurrences} row occurrence(s) in {len(self.Files)} file(s). "
-			f"Rules: {self.Result.RulesPath}"
+			f"Rules: {self.RulesPath}"
 		)
 		ttk.Label(self, text=Summary, style="Heading.TLabel").grid(row=0, column=0, columnspan=2, sticky="ew", padx=10, pady=(10, 4))
 
@@ -195,7 +194,7 @@ class XlsxPreprocessReviewWindow(tk.Toplevel):
 
 	def _BuildPrefixControls(self) -> None:
 		self.PrefixFrame = ttk.LabelFrame(self, text="Manual prefix assignment")
-		if self.Result.StageId != "prefix":
+		if self.StageId != "prefix":
 			return
 		self.PrefixFrame.grid(row=1, column=0, columnspan=2, sticky="ew", padx=10, pady=4)
 		self.PrefixFrame.columnconfigure(1, weight=1)
@@ -246,7 +245,7 @@ class XlsxPreprocessReviewWindow(tk.Toplevel):
 		ttk.Button(ButtonFrame, text="Close", command=self.destroy).grid(row=0, column=6)
 
 	def _SortedChanges(self, Changes: List[GroupedPreprocessChange]) -> List[GroupedPreprocessChange]:
-		if self.Result.StageId != "prefix":
+		if self.StageId != "prefix":
 			return sorted(Changes, key=lambda Change: (self._FirstOccurrenceRow(Change), Change.OriginalText.casefold()))
 		return sorted(
 			Changes,
@@ -259,10 +258,10 @@ class XlsxPreprocessReviewWindow(tk.Toplevel):
 		)
 
 	def _FirstOccurrenceRow(self, Change: GroupedPreprocessChange) -> int:
-		return min((Occurrence.Change.Row for Occurrence in Change.Occurrences), default=0)
+		return min((Occurrence.Row for Occurrence in Change.Occurrences), default=0)
 
 	def _GroupKey(self, Change: GroupedPreprocessChange) -> str:
-		if self.Result.StageId != "prefix":
+		if self.StageId != "prefix":
 			return "Corrections"
 		SafetyLabel = PREFIX_SAFETY_LABELS.get(Change.SafetyLevel, Change.SafetyLevel or "Other")
 		TypeLabel = Change.ElementType or "No type selected"
@@ -312,7 +311,7 @@ class XlsxPreprocessReviewWindow(tk.Toplevel):
 	def _FormatLocations(self, Change: GroupedPreprocessChange) -> str:
 		LocationsByFile: Dict[Path, List[int]] = {}
 		for Occurrence in Change.Occurrences:
-			LocationsByFile.setdefault(Occurrence.Result.FilePath, []).append(Occurrence.Change.Row)
+			LocationsByFile.setdefault(Occurrence.FilePath, []).append(Occurrence.Row)
 		Parts = []
 		for FilePath, Rows in sorted(LocationsByFile.items(), key=lambda Item: str(Item[0])):
 			RowText = ",".join(str(Row) for Row in sorted(Rows))
@@ -339,16 +338,17 @@ class XlsxPreprocessReviewWindow(tk.Toplevel):
 		if not Selected:
 			return
 		for Change in Selected:
-			BaseText = Change.OriginalText
-			Explicit = self.Preprocessor._FindExplicitType(BaseText)
-			if Explicit is not None:
-				BaseText = Explicit[1]
-			Change.NewText = self.Preprocessor._CleanWhitespace(f"{TypeName} {BaseText}")
-			Change.ElementType = TypeName
-			Change.SafetyLevel = self.Preprocessor._ClassifyPrefixCandidate(Change.NewText)
-			Change.DatabaseVerified = Change.SafetyLevel == "safe"
-			Change.Ambiguous = Change.SafetyLevel in ("ambiguous", "unidentified")
-			Change.StageNotes = [f"Stage 2: manually assigned {TypeName}"]
+			for Occurrence in Change.Occurrences:
+				BaseText = Occurrence.OriginalText
+				Explicit = self.Preprocessor._FindExplicitType(BaseText)
+				if Explicit is not None:
+					BaseText = Explicit[1]
+				Occurrence.NewText = self.Preprocessor._CleanWhitespace(f"{TypeName} {BaseText}")
+				Occurrence.ElementType = TypeName
+				Occurrence.SafetyLevel = self.Preprocessor._ClassifyPrefixCandidate(Occurrence.NewText)
+				Occurrence.DatabaseVerified = Occurrence.SafetyLevel == "safe"
+				Occurrence.Ambiguous = Occurrence.SafetyLevel in ("ambiguous", "unidentified")
+				Occurrence.StageNotes = [f"Stage 2: manually assigned {TypeName}"]
 		self.Changes = self._SortedChanges(self.Changes)
 		self._PopulateTree()
 
@@ -392,53 +392,59 @@ class XlsxPreprocessReviewWindow(tk.Toplevel):
 
 		try:
 			self._WriteTextToOccurrences(Change, EditedText)
-			self._RemoveChangeOccurrences(Change)
-			self._ReprocessEditedOccurrences(Change, EditedText)
+			NewChanges = self._ReprocessEditedOccurrences(Change, EditedText)
 			if self.Preprocessor.CacheChanged:
 				SavePreprocessRules(self.Preprocessor.Rules)
 		except Exception as Error:
 			tkinter.messagebox.showerror(WINDOW_TITLE, f"Cannot edit XLSX text: {Error}", parent=self)
 			return
 
-		self.Changes = self._SortedChanges(self.ParentViewer._GroupPreprocessChanges(self.Results))
+		self._RemoveGroupedChange(Change)
+		self._MergePreprocessChanges(NewChanges)
+		self.Changes = self._SortedChanges(self.Changes)
 		self._PopulateTree()
 		if not self.Changes:
 			tkinter.messagebox.showinfo(WINDOW_TITLE, "No corrections remain for this stage.", parent=self)
 
 	def _WriteTextToOccurrences(self, Change: GroupedPreprocessChange, Text: str) -> None:
-		OccurrencesByResult: Dict[int, Tuple[PreprocessResult, List[PreprocessChangeOccurrence]]] = {}
+		OccurrencesBySheet: Dict[Tuple[Path, str], List[PreprocessChange]] = {}
 		for Occurrence in Change.Occurrences:
-			_, ResultOccurrences = OccurrencesByResult.setdefault(id(Occurrence.Result), (Occurrence.Result, []))
-			ResultOccurrences.append(Occurrence)
+			OccurrencesBySheet.setdefault((Occurrence.FilePath, Occurrence.SheetName), []).append(Occurrence)
 
-		for Result, Occurrences in OccurrencesByResult.values():
+		for (FilePath, SheetName), Occurrences in OccurrencesBySheet.items():
 			if openpyxl is None:
 				raise RuntimeError("Missing dependency: openpyxl")
-			Workbook = openpyxl.load_workbook(Result.FilePath, data_only=False)
-			Sheet = Workbook[Result.SheetName]
+			Workbook = openpyxl.load_workbook(FilePath, data_only=False)
+			Sheet = Workbook[SheetName]
 			for Occurrence in Occurrences:
-				Sheet[f"{self.Preprocessor.Database.Columns.Name}{Occurrence.Change.Row}"].value = Text
-			Workbook.save(Result.FilePath)
+				Sheet[f"{self.Preprocessor.Database.Columns.Name}{Occurrence.Row}"].value = Text
+			Workbook.save(FilePath)
 
-	def _RemoveChangeOccurrences(self, Change: GroupedPreprocessChange) -> None:
-		ChangedIds = {id(Occurrence.Change) for Occurrence in Change.Occurrences}
-		for Result in self.Results:
-			Result.ChangedRows = [RowChange for RowChange in Result.ChangedRows if id(RowChange) not in ChangedIds]
-			Result.AmbiguousRows = [RowChange for RowChange in Result.AmbiguousRows if id(RowChange) not in ChangedIds]
-			Result.MissingDatabaseMatches = [RowChange for RowChange in Result.MissingDatabaseMatches if id(RowChange) not in ChangedIds]
+	def _RemoveGroupedChange(self, Change: GroupedPreprocessChange) -> None:
+		self.Changes = [Existing for Existing in self.Changes if id(Existing) != id(Change)]
 
-	def _ReprocessEditedOccurrences(self, Change: GroupedPreprocessChange, Text: str) -> None:
+	def _ReprocessEditedOccurrences(self, Change: GroupedPreprocessChange, Text: str) -> List[PreprocessChange]:
+		NewChanges: List[PreprocessChange] = []
 		for Occurrence in Change.Occurrences:
 			if self.Preprocessor.IsIgnoredText(Text):
 				continue
-			NewChange = self.Preprocessor.PreprocessText(Occurrence.Change.Row, Text, Occurrence.Result.StageId)
-			if not self.Preprocessor._ShouldOfferChange(NewChange, Occurrence.Result.StageId):
+			NewChange = self.Preprocessor.PreprocessText(Occurrence.Row, Text, Occurrence.StageId)
+			self.Preprocessor._AttachChangeMetadata(NewChange, Occurrence.FilePath, Occurrence.SheetName, Occurrence.StageId)
+			if not self.Preprocessor._ShouldOfferChange(NewChange, Occurrence.StageId):
 				continue
-			Occurrence.Result.ChangedRows.append(NewChange)
-			if NewChange.Ambiguous:
-				Occurrence.Result.AmbiguousRows.append(NewChange)
-			elif not NewChange.DatabaseVerified:
-				Occurrence.Result.MissingDatabaseMatches.append(NewChange)
+			NewChanges.append(NewChange)
+		return NewChanges
+
+	def _MergePreprocessChanges(self, Changes: List[PreprocessChange]) -> None:
+		GroupsByKey = {(Change.StageId, Change.OriginalText.casefold()): Change for Change in self.Changes}
+		for Change in Changes:
+			Key = (Change.StageId, Change.OriginalText.casefold())
+			Group = GroupsByKey.get(Key)
+			if Group is None:
+				Group = GroupedPreprocessChange(Occurrences=[])
+				GroupsByKey[Key] = Group
+				self.Changes.append(Group)
+			Group.Occurrences.append(Change)
 
 	def _ApplySelected(self) -> None:
 		Changes = self._SelectedChanges()
@@ -451,7 +457,7 @@ class XlsxPreprocessReviewWindow(tk.Toplevel):
 		self._ApplyChanges(Changes)
 
 	def _ApplyAll(self) -> None:
-		if self.Result.StageId == "prefix" and any(Change.SafetyLevel in ("ambiguous", "unidentified") for Change in self.Changes):
+		if self.StageId == "prefix" and any(Change.SafetyLevel in ("ambiguous", "unidentified") for Change in self.Changes):
 			Proceed = tkinter.messagebox.askyesno(
 				WINDOW_TITLE,
 				"Some rows are ambiguous or unidentified. Apply all visible changes anyway?",
@@ -466,21 +472,15 @@ class XlsxPreprocessReviewWindow(tk.Toplevel):
 			tkinter.messagebox.showinfo(WINDOW_TITLE, "No changes to apply.", parent=self)
 			return
 		try:
-			ChangesByResult: Dict[int, Tuple[PreprocessResult, List[PreprocessChange]]] = {}
-			for Change in Changes:
-				Change.ApplyToOccurrences()
-				for Occurrence in Change.Occurrences:
-					_, ResultChanges = ChangesByResult.setdefault(id(Occurrence.Result), (Occurrence.Result, []))
-					ResultChanges.append(Occurrence.Change)
-			for Result, ResultChanges in ChangesByResult.values():
-				self.Preprocessor.ApplyChanges(Result, ResultChanges)
+			RowsToApply = [Occurrence for Change in Changes for Occurrence in Change.Occurrences]
+			self.Preprocessor.ApplyChanges(RowsToApply)
 		except Exception as Error:
 			tkinter.messagebox.showerror(WINDOW_TITLE, f"Cannot apply preprocessing changes: {Error}", parent=self)
 			return
 		if self.LogWindow is None:
 			self.LogWindow = PreprocessLogWindow(self.ParentViewer)
 		OccurrenceCount = sum(Change.OccurrenceCount for Change in Changes)
-		self.LogWindow.Append(f"Applied {len(Changes)} unique corrections ({OccurrenceCount} row occurrence(s)) for {self.Result.StageName}.")
+		self.LogWindow.Append(f"Applied {len(Changes)} unique corrections ({OccurrenceCount} row occurrence(s)) for {self.StageName}.")
 		AppliedIds = {id(Change) for Change in Changes}
 		self.Changes = [Change for Change in self.Changes if id(Change) not in AppliedIds]
 		self._PopulateTree()
