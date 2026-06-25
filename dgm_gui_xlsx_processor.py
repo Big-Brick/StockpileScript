@@ -138,8 +138,9 @@ class XlsxProcessingMixin:
 				break
 			Row += 1
 
-		TotalRow = LastProcessedRow + 1 if LastProcessedRow > 0 else 1
-		dgm_xlsx_common.WriteWorkbookTotals(Sheet, TotalRow, self.Database.Columns, ProcessedRows)
+		if LastProcessedRow > 0:
+			TotalRow = LastProcessedRow + 1
+			dgm_xlsx_common.WriteWorkbookTotals(Sheet, TotalRow, self.Database.Columns, ProcessedRows)
 		Workbook.save(FilePath)
 		return GuiProcessResult(FilePath, len(ProcessedRows), IgnoredRows, list(MissingByKey.values()), Conflicts)
 
