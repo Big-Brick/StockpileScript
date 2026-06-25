@@ -452,27 +452,24 @@ The code should eventually return structured information per changed row.
 ```python
 @dataclass
 class PreprocessChange:
+    FilePath: Path
+    SheetName: str
+    RulesPath: Path
     Row: int
     OriginalText: str
     NewText: str
     StageNotes: list[str]
     DatabaseVerified: bool
     Ambiguous: bool = False
+    StageId: str = "all"
+    StageName: str = "All stages"
+    ElementType: str = ""
+    SafetyLevel: str = ""
 ```
 
-For full-file preprocessing:
+For full-file preprocessing, return a flat `list[PreprocessChange]`. Each change carries its own file, sheet, row, rules, and stage metadata, so the GUI can group changes across multiple workbooks without keeping a parallel per-file result container.
 
-```python
-@dataclass
-class PreprocessResult:
-    FilePath: Path
-    ChangedRows: list[PreprocessChange]
-    UnchangedRows: int
-    AmbiguousRows: list[PreprocessChange]
-    MissingDatabaseMatches: list[PreprocessChange]
-```
-
-This will support a GUI review window before saving.
+This supports a GUI review window before saving.
 
 ## Save Behavior Recommendation
 

@@ -71,11 +71,30 @@
 							<dgm gold_g="0" silver_g="0.107191" platinum_g="0" mpg_g="0" />
 						</node>
 					</node>
+					<node text="Д">
+						<node text="1">
+							<node text="-1" name="Перемикач КМД1-1">
+								<dgm gold_g="0" silver_g="0.107191" platinum_g="0" mpg_g="0" />
+							</node>
+						</node>
+					</node>
 				</node>
 				<node text="ПК">
 					<node text="4">
 						<node text="-1" name="Перемикач ПК4-1">
 							<dgm gold_g="0" silver_g="0.51312" platinum_g="0" mpg_g="0" />
+						</node>
+					</node>
+					<node text="Н">
+						<node text="8">
+							<node text="-1" name="Перемикач ПКН8-1">
+								<dgm gold_g="0" silver_g="0.163392" platinum_g="0" mpg_g="0" />
+							</node>
+							<node text="-5">
+								<node text="В" name="Перемикач ПКН8-5В">
+									<dgm gold_g="0" silver_g="1.905704" platinum_g="0" mpg_g="0" />
+								</node>
+							</node>
 						</node>
 					</node>
 				</node>
@@ -84,6 +103,36 @@
 						<node text="-40">
 							<node text="В" name="Перемикач ПТ2-40В">
 								<dgm gold_g="0" silver_g="0.70594" platinum_g="0" mpg_g="0" />
+							</node>
+						</node>
+					</node>
+				</node>
+				<node text="КП">
+					<node text="-2" name="Перемикач КП-2">
+						<dgm gold_g="0" silver_g="0.079805" platinum_g="0" mpg_g="0" />
+					</node>
+				</node>
+				<node text="МТ">
+					<node text="1" name="Перемикач МТ1">
+						<dgm gold_g="0" silver_g="0.107191" platinum_g="0" mpg_g="0" />
+					</node>
+				</node>
+				<node text="П1">
+					<node text="Т">
+						<node text="-1">
+							<node text="-1">
+								<node text="В" name="Перемикач П1Т-1-1В">
+									<dgm gold_g="0" silver_g="0.61" platinum_g="0" mpg_g="0" />
+								</node>
+							</node>
+						</node>
+					</node>
+				</node>
+				<node text="П2">
+					<node text="Г">
+						<node text="-36">
+							<node text="П4Н" name="Перемикач П2Г-36П4Н">
+								<dgm gold_g="0" silver_g="2.76219" platinum_g="0" mpg_g="0" />
 							</node>
 						</node>
 					</node>
@@ -109,37 +158,6 @@
 						</node>
 						<node text="-73" name="Розетка приборна СР-50-73">
 							<dgm gold_g="0" silver_g="0.03247" platinum_g="0" mpg_g="0" />
-						</node>
-					</node>
-				</node>
-				<node text="ОНП-">
-					<node text="КГ">
-						<node text="-26">
-							<regex-leaf text="-[56].*" name="Розетка ОНП-КГ-26-5/12,2х7,5-Р51">
-								<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
-							</regex-leaf>
-						</node>
-						<node text="-44">
-							<node text="-10">
-								<regex-leaf text=".*Р51.*" name="Розетка ОНП-КГ-44-10/21х7,5-Р51">
-									<dgm gold_g="0" silver_g="0.0674199" platinum_g="0" mpg_g="0" />
-								</regex-leaf>
-							</node>
-							<node text="-20">
-								<regex-leaf text=".*Р51.*" name="Розетка ОНП-КГ-44-20/33,5х7,5-Р51">
-									<dgm gold_g="0" silver_g="0.1348399" platinum_g="0" mpg_g="0" />
-								</regex-leaf>
-							</node>
-							<node text="-30">
-								<regex-leaf text=".*Р51.*" name="Розетка ОНП-КГ-44-30/46х7,5-Р51">
-									<dgm gold_g="0" silver_g="0.2022599" platinum_g="0" mpg_g="0" />
-								</regex-leaf>
-							</node>
-						</node>
-						<node text="-22">
-							<regex-leaf text=".*" name="Розетка ОНП-КГ-22-4/13х7,7-Р50">
-								<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
-							</regex-leaf>
 						</node>
 					</node>
 				</node>
@@ -267,15 +285,24 @@
 							<dgm gold_g="0" silver_g="0.0000121858" platinum_g="0" mpg_g="0" />
 						</node>
 					</node>
-					<node text="10">
+					<node text="10" name="Резистор С2-10">
 						<node text="-0,5" name="С2-10-0,5">
-							<dgm gold_g="0" silver_g="0.0000095994" platinum_g="0" mpg_g="0" />
+							<dgm gold_g="0" silver_g="0.004609" platinum_g="0" mpg_g="0" />
 						</node>
 						<node text="-0,25" name="С2-10-0,25">
-							<dgm gold_g="0" silver_g="0.00000372" platinum_g="0" mpg_g="0" />
+							<dgm gold_g="0" silver_g="0.002475" platinum_g="0" mpg_g="0" />
+							<regex-leaf text=".*" name="Резистор С2-10-0,25-3,01 кОм">
+								<dgm gold_g="0" silver_g="0.002475" platinum_g="0" mpg_g="0" />
+							</regex-leaf>
 						</node>
 						<node text="-0,125" name="С2-10-0,125">
-							<dgm gold_g="0" silver_g="0.00000372" platinum_g="0" mpg_g="0" />
+							<dgm gold_g="0" silver_g="0.00372" platinum_g="0" mpg_g="0" />
+						</node>
+						<dgm gold_g="0" silver_g="0.002475" platinum_g="0" mpg_g="0" />
+						<node text="-2">
+							<regex-leaf text=".*" name="Резистор С2-10-2">
+								<dgm gold_g="0" silver_g="0.00588" platinum_g="0" mpg_g="0" />
+							</regex-leaf>
 						</node>
 					</node>
 					<node text="1">
@@ -283,13 +310,32 @@
 							<dgm gold_g="0" silver_g="0.0304222" platinum_g="0" mpg_g="0" />
 						</node>
 					</node>
-					<node text="29В">
-						<node text="-0,125" name="С2-29В-0,125">
-							<dgm gold_g="0" silver_g="0.0000066803" platinum_g="0" mpg_g="0" />
-						</node>
-					</node>
 					<node text="23" name="С2-23">
 						<dgm gold_g="0" silver_g="0.0053136" platinum_g="0" mpg_g="0" />
+						<node text="-0,25" name="Резистор С2-23-0,25">
+							<dgm gold_g="0" silver_g="0.0053136" platinum_g="0" mpg_g="0" />
+						</node>
+					</node>
+					<node text="29" name="Резистор С2-29">
+						<node text="В" name="Резистор С2-29В">
+							<node text="-0,125" name="С2-29В-0,125">
+								<dgm gold_g="0" silver_g="0.0000066803" platinum_g="0" mpg_g="0" />
+							</node>
+							<dgm gold_g="0" silver_g="0.0066803" platinum_g="0" mpg_g="0" />
+							<node text="-0,25" name="Резистор С2-29В-0,25">
+								<dgm gold_g="0" silver_g="0.007165" platinum_g="0" mpg_g="0" />
+							</node>
+						</node>
+						<dgm gold_g="0" silver_g="0.0024754" platinum_g="0" mpg_g="0" />
+					</node>
+					<node text="14" name="Резистор С2-14">
+						<dgm gold_g="0" silver_g="0.003972" platinum_g="0" mpg_g="0" />
+						<node text="-0,25" name="Резистор С2-14-0,25">
+							<dgm gold_g="0" silver_g="0.003972" platinum_g="0" mpg_g="0" />
+						</node>
+					</node>
+					<node text="13" name="Резистор С2-13">
+						<dgm gold_g="0" silver_g="0.004493" platinum_g="0" mpg_g="0" />
 					</node>
 				</node>
 				<node text="С5-">
@@ -309,6 +355,11 @@
 						<node text="-1" name="С5-5-1">
 							<dgm gold_g="0" silver_g="0.0000146857" platinum_g="0" mpg_g="0" />
 						</node>
+						<node text="В">
+							<node text="-1" name="Резистор С5-5В-1">
+								<dgm gold_g="0" silver_g="0.0146" platinum_g="0" mpg_g="0" />
+							</node>
+						</node>
 					</node>
 					<node text="37">
 						<regex-leaf text=".*" name="С5-37-5">
@@ -327,20 +378,25 @@
 					</node>
 					<node text="14" name="Резистор С5-14">
 						<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
-						<node text="В">
+						<node text="В" name="Резистор С5-14В">
 							<node text="-0,5" name="Резистор С5-14В-0,5">
 								<dgm gold_g="0" silver_g="0.0011317" platinum_g="0" mpg_g="0" />
 							</node>
+							<dgm gold_g="0" silver_g="0.0012558" platinum_g="0" mpg_g="0" />
+						</node>
+						<node text="Т" name="Резистор С5-14Т">
+							<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
 						</node>
 					</node>
 					<node text="16">
 						<node text="Т" name="Резистор С5-16Т">
 							<dgm gold_g="0" silver_g="0.0183" platinum_g="0" mpg_g="0" />
 						</node>
-						<node text="МВ">
+						<node text="МВ" name="Резистор С5-16МВ">
 							<node text="-1" name="Резистор С5-16МВ-1">
 								<dgm gold_g="0" silver_g="0.014" platinum_g="0" mpg_g="0" />
 							</node>
+							<dgm gold_g="0" silver_g="0.0167295" platinum_g="0" mpg_g="0" />
 						</node>
 					</node>
 				</node>
@@ -352,6 +408,24 @@
 					</node>
 					<node text="29" name="СП3-29">
 						<dgm gold_g="0" silver_g="0.0051417" platinum_g="0" mpg_g="0" />
+					</node>
+					<node text="10">
+						<node text="ВМ" name="Резистор СП3-10ВМ">
+							<dgm gold_g="0" silver_g="0.1262779" platinum_g="0" mpg_g="0" />
+						</node>
+					</node>
+					<node text="16">
+						<node text="А" name="Резистор СП3-16А">
+							<dgm gold_g="0" silver_g="0.0201663" platinum_g="0" mpg_g="0" />
+						</node>
+					</node>
+					<node text="9">
+						<node text="А" name="Резистор СП3-9А">
+							<dgm gold_g="0" silver_g="0.0084624" platinum_g="0" mpg_g="0" />
+						</node>
+					</node>
+					<node text="6" name="Резистор СП3-6">
+						<dgm gold_g="0" silver_g="0.0131117" platinum_g="0" mpg_g="0" />
 					</node>
 				</node>
 				<node text="СП4-">
@@ -373,16 +447,24 @@
 								<dgm gold_g="0" silver_g="0.009" platinum_g="0" mpg_g="0.0117" />
 							</regex-leaf>
 						</node>
-						<node text="ВА">
+						<node text="ВА" name="Резистор СП5-16ВА">
 							<node text="-0,25" name="СП5-16ВА-0,25">
 								<dgm gold_g="0" silver_g="0.0266331" platinum_g="0" mpg_g="0" />
 							</node>
+							<dgm gold_g="0" silver_g="0.0266331" platinum_g="0" mpg_g="0" />
+						</node>
+						<node text="ВБ" name="Резистор СП5-16ВБ">
+							<dgm gold_g="0" silver_g="0.0520648" platinum_g="0" mpg_g="0" />
+						</node>
+						<node text="ВВ" name="Резистор СП5-16ВВ">
+							<dgm gold_g="0" silver_g="0.0164012" platinum_g="0" mpg_g="0" />
 						</node>
 					</node>
-					<node text="2">
+					<node text="2" name="Резистор СП5-2">
 						<node text="В" name="СП5-2В">
 							<dgm gold_g="0" silver_g="0.030778" platinum_g="0" mpg_g="0" />
 						</node>
+						<dgm gold_g="0" silver_g="0.01039" platinum_g="0" mpg_g="0.0108" />
 					</node>
 					<node text="50">
 						<node text="МА" name="СП5-50МА">
@@ -391,6 +473,19 @@
 					</node>
 					<node text="3" name="Резистор СП5-3">
 						<dgm gold_g="0" silver_g="0.0088729" platinum_g="0" mpg_g="0.0107999" />
+					</node>
+					<node text="1">
+						<node text="В" name="Резистор СП5-1В">
+							<dgm gold_g="0" silver_g="0.0255365" platinum_g="0" mpg_g="0.0235685" />
+						</node>
+						<node text="А" name="Резистор СП5-1А">
+							<dgm gold_g="0" silver_g="0.026" platinum_g="0" mpg_g="0.0245" />
+						</node>
+					</node>
+					<node text="39">
+						<node text="Б" name="Резистор СП5-39Б">
+							<dgm gold_g="0" silver_g="0.0996409" platinum_g="0" mpg_g="0.1251836" />
+						</node>
 					</node>
 				</node>
 				<node text="ОМЛТ-">
@@ -430,11 +525,92 @@
 				<node text="ПТМН-">
 					<node text="0,5" name="ПТМН-0,5">
 						<dgm gold_g="0" silver_g="0.0000008714" platinum_g="0.000001078" mpg_g="0" />
+						<regex-leaf text=".*" name="Резистор ПТМН-0,5 10 кОм">
+							<dgm gold_g="0" silver_g="0.0008714" platinum_g="0.001078" mpg_g="0" />
+						</regex-leaf>
 					</node>
 					<node text="1">
 						<regex-leaf text=".*" name="ПТМН-1-18 кОм">
 							<dgm gold_g="0" silver_g="0.00001078" platinum_g="0" mpg_g="0" />
 						</regex-leaf>
+					</node>
+				</node>
+				<node text="ПП">
+					<node text="3">
+						<node text="-40" name="Резистор ПП3-40">
+							<dgm gold_g="0" silver_g="0.4146662" platinum_g="0" mpg_g="0" />
+						</node>
+						<node text="-41" name="Резистор ПП3-41">
+							<dgm gold_g="0" silver_g="0.4146662" platinum_g="0" mpg_g="0" />
+						</node>
+						<node text="-43" name="Резистор ПП3-43">
+							<dgm gold_g="0" silver_g="0.4146662" platinum_g="0" mpg_g="0" />
+							<node text="-220 Ом" name="Резистор ПП3-43-220 Ом">
+								<dgm gold_g="0" silver_g="0.03" platinum_g="0" mpg_g="0" />
+							</node>
+						</node>
+					</node>
+				</node>
+				<node text="МТ">
+					<node text="-0,25" name="Резистор МТ-0,25">
+						<dgm gold_g="0" silver_g="0.00372" platinum_g="0" mpg_g="0" />
+					</node>
+				</node>
+				<node text="ММТ">
+					<node text="-1" name="Резистор ММТ-1">
+						<dgm gold_g="0" silver_g="0.0177553" platinum_g="0" mpg_g="0" />
+					</node>
+				</node>
+				<node text="КМТ">
+					<node text="-1" name="Резистор КМТ-1">
+						<dgm gold_g="0" silver_g="0.0177555" platinum_g="0" mpg_g="0" />
+					</node>
+				</node>
+				<node text="ВС">
+					<node text="-0,125" name="Резистор ВС-0,125">
+						<dgm gold_g="0" silver_g="0.003562" platinum_g="0" mpg_g="0" />
+					</node>
+					<node text="-0,25" name="Резистор ВС-0,25">
+						<dgm gold_g="0" silver_g="0.0071254" platinum_g="0" mpg_g="0" />
+					</node>
+				</node>
+				<node text="дротовий">
+					<regex-leaf text=".*" name="Резистор дротовий 10 ом">
+						<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
+					</regex-leaf>
+				</node>
+				<node text="СП">
+					<node text="-1" name="Резистор СП-1">
+						<dgm gold_g="0" silver_g="0.004572" platinum_g="0" mpg_g="0" />
+					</node>
+				</node>
+				<node text="УЛИ">
+					<node text="-0,125" name="Резистор УЛИ-0,125">
+						<dgm gold_g="0" silver_g="0.020434" platinum_g="0" mpg_g="0" />
+					</node>
+				</node>
+				<node text="1ПЕВ">
+					<node text="-25" name="Резистор 1ПЕВ-25">
+						<dgm gold_g="0" silver_g="0.0786" platinum_g="0" mpg_g="0" />
+					</node>
+					<node text="-7,5">
+						<node text="-10" name="Резистор 1ПЕВ-7,5-10">
+							<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
+						</node>
+					</node>
+					<node text="Т">
+						<node text="-10">
+							<node text="-3" name="Резистор 1ПЕВТ-10-3">
+								<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
+							</node>
+						</node>
+					</node>
+				</node>
+				<node text="С3">
+					<node text="-14">
+						<node text="-0,5" name="Резистор С3-14-0,5">
+							<dgm gold_g="0" silver_g="0.0167295" platinum_g="0" mpg_g="0" />
+						</node>
 					</node>
 				</node>
 			</node>
@@ -642,6 +818,37 @@
 						</node>
 					</node>
 				</node>
+				<node text="ОНп-">
+					<node text="КГ">
+						<node text="-26">
+							<regex-leaf text="-[56].*" name="Розетка ОНП-КГ-26-5/12,2х7,5-Р51">
+								<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
+							</regex-leaf>
+						</node>
+						<node text="-44">
+							<node text="-10">
+								<regex-leaf text=".*Р51.*" name="Розетка ОНП-КГ-44-10/21х7,5-Р51">
+									<dgm gold_g="0" silver_g="0.0674199" platinum_g="0" mpg_g="0" />
+								</regex-leaf>
+							</node>
+							<node text="-20">
+								<regex-leaf text=".*Р51.*" name="Розетка ОНП-КГ-44-20/33,5х7,5-Р51">
+									<dgm gold_g="0" silver_g="0.1348399" platinum_g="0" mpg_g="0" />
+								</regex-leaf>
+							</node>
+							<node text="-30">
+								<regex-leaf text=".*Р51.*" name="Розетка ОНП-КГ-44-30/46х7,5-Р51">
+									<dgm gold_g="0" silver_g="0.2022599" platinum_g="0" mpg_g="0" />
+								</regex-leaf>
+							</node>
+						</node>
+						<node text="-22">
+							<regex-leaf text=".*" name="Розетка ОНП-КГ-22-4/13х7,7-Р50">
+								<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
+							</regex-leaf>
+						</node>
+					</node>
+				</node>
 			</node>
 		</node>
 		<node text="Розрядник">
@@ -697,7 +904,7 @@
 		</node>
 		<node text="Конденсатор" optional="true">
 			<node text=" " optional="true">
-				<node text="МБМ-">
+				<node text="МБМ">
 					<regex-leaf text=".*" name="МБМ-160-0,05 мкФ">
 						<dgm gold_g="0" silver_g="0.0038" platinum_g="0" mpg_g="0" />
 					</regex-leaf>
@@ -941,6 +1148,9 @@
 								</node>
 							</node>
 						</node>
+						<node text="-Н30" name="Конденсатор КМ-6-Н30">
+							<dgm gold_g="0" silver_g="0.0342" platinum_g="0" mpg_g="0" />
+						</node>
 					</node>
 					<node text="5а" name="Конденсатор КМ-5а">
 						<node text="-Н90">
@@ -953,6 +1163,9 @@
 							<dgm gold_g="0" silver_g="0.0083" platinum_g="0" mpg_g="0" />
 						</node>
 						<dgm gold_g="0" silver_g="0.0083" platinum_g="0" mpg_g="0" />
+						<node text="-Н30" name="Конденсатор КМ-5а-Н30">
+							<dgm gold_g="0" silver_g="0.0136247" platinum_g="0.054471" mpg_g="0" />
+						</node>
 					</node>
 					<node text="3б">
 						<node text="-Н30К">
@@ -963,6 +1176,17 @@
 					</node>
 					<node text="4а" name="Конденсатор КМ-4а">
 						<dgm gold_g="0" silver_g="0.0161" platinum_g="0.0012" mpg_g="0" />
+					</node>
+					<node text="5">
+						<node text="-М1500" name="Конденсатор КМ-5-М1500">
+							<dgm gold_g="0" silver_g="0.0015708" platinum_g="0" mpg_g="0.0053393" />
+						</node>
+						<node text="-Н30" name="Конденсатор КМ-5-Н30">
+							<dgm gold_g="0" silver_g="0.0038" platinum_g="0.0141" mpg_g="0" />
+						</node>
+						<node text="-Н90" name="Конденсатор КМ-5-Н90">
+							<dgm gold_g="0" silver_g="0.005" platinum_g="0" mpg_g="0.0224" />
+						</node>
 					</node>
 				</node>
 				<node text="КД-">
@@ -1006,6 +1230,14 @@
 							<regex-leaf text=".*" name="К40П-2б-400-0,022">
 								<dgm gold_g="0" silver_g="0.006226" platinum_g="0" mpg_g="0" />
 							</regex-leaf>
+						</node>
+						<node text="2А" name="Конденсатор К40П-2А">
+							<dgm gold_g="0" silver_g="0.0015" platinum_g="0" mpg_g="0" />
+						</node>
+					</node>
+					<node text="У">
+						<node text="-9" name="Конденсатор К40У-9">
+							<dgm gold_g="0" silver_g="0.0143" platinum_g="0" mpg_g="0" />
 						</node>
 					</node>
 				</node>
@@ -1052,9 +1284,36 @@
 					</node>
 					<node text="29" name="Конденсатор К50-29">
 						<dgm gold_g="0" silver_g="0.0084" platinum_g="0" mpg_g="0" />
+						<node text="В" name="Конденсатор К50-29В">
+							<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
+						</node>
 					</node>
 					<node text="12" name="Конденсатор К50-12">
 						<dgm gold_g="0" silver_g="0.0003" platinum_g="0" mpg_g="0" />
+						<node text="А" name="Конденсатор К50-12А">
+							<dgm gold_g="0" silver_g="0.0003" platinum_g="0" mpg_g="0" />
+						</node>
+					</node>
+					<node text="2" name="Конденсатор К50-2">
+						<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
+					</node>
+					<node text="3" name="Конденсатор К50-3">
+						<dgm gold_g="0" silver_g="0.0138" platinum_g="0" mpg_g="0" />
+						<node text="А" name="Конденсатор К50-3А">
+							<dgm gold_g="0" silver_g="0.0138" platinum_g="0" mpg_g="0" />
+							<regex-leaf text=".*" name="Конденсатор К50-3А-100-2 мкф">
+								<dgm gold_g="0" silver_g="0.0138" platinum_g="0" mpg_g="0" />
+							</regex-leaf>
+						</node>
+					</node>
+					<node text="8" name="Конденсатор К50-8">
+						<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
+					</node>
+					<node text="16" name="Конденсатор К50-16">
+						<dgm gold_g="0" silver_g="0.0007" platinum_g="0" mpg_g="0" />
+					</node>
+					<node text="4" name="Конденсатор К50-4">
+						<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
 					</node>
 				</node>
 				<node text="К53-">
@@ -1066,6 +1325,9 @@
 					</node>
 					<node text="1" name="Конденсатор К53-1">
 						<dgm gold_g="0" silver_g="0.0086" platinum_g="0" mpg_g="0" />
+						<node text="А" name="Конденсатор К53-1А">
+							<dgm gold_g="0" silver_g="0.0009279" platinum_g="0" mpg_g="0" />
+						</node>
 					</node>
 					<node text="4" name="Конденсатор К53-4">
 						<dgm gold_g="0" silver_g="0.0038" platinum_g="0" mpg_g="0" />
@@ -1080,6 +1342,9 @@
 							<dgm gold_g="0" silver_g="0.004652" platinum_g="0" mpg_g="0" />
 						</regex-leaf>
 					</node>
+					<node text="7" name="Конденсатор К71-7">
+						<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
+					</node>
 				</node>
 				<node text="К73-">
 					<node text="П">
@@ -1089,6 +1354,9 @@
 					</node>
 					<node text="16" name="К73-16">
 						<dgm gold_g="0" silver_g="0.0444" platinum_g="0" mpg_g="0" />
+						<node text="В" name="Конденсатор К73-16В">
+							<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
+						</node>
 					</node>
 					<node text="17" name="К73-17">
 						<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
@@ -1146,6 +1414,45 @@
 							<dgm gold_g="0" silver_g="0.0108" platinum_g="0" mpg_g="0" />
 						</regex-leaf>
 						<dgm gold_g="0" silver_g="0.0108" platinum_g="0" mpg_g="0" />
+					</node>
+				</node>
+				<node text="К15-">
+					<node text="5" name="Конденсатор К15-5">
+						<dgm gold_g="0" silver_g="0.0312641" platinum_g="0" mpg_g="0" />
+					</node>
+				</node>
+				<node text="1КПВМ-">
+					<node text="2" name="Конденсатор 1КПВМ-2">
+						<dgm gold_g="0" silver_g="0.02" platinum_g="0" mpg_g="0" />
+					</node>
+				</node>
+				<node text="К4-">
+					<node text="3" name="Конденсатор К4-3">
+						<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
+					</node>
+				</node>
+				<node text="К50" name="Конденсатор К50">
+					<dgm gold_g="0" silver_g="0.0003" platinum_g="0" mpg_g="0" />
+				</node>
+				<node text="К75-">
+					<node text="10" name="Конденсатор К75-10">
+						<dgm gold_g="0" silver_g="0.0150705" platinum_g="0" mpg_g="0" />
+					</node>
+				</node>
+				<node text="СГМ-">
+					<node text="3">
+						<node text="А" name="Конденсатор СГМ-3А">
+							<dgm gold_g="0" silver_g="0.009582" platinum_g="0" mpg_g="0" />
+						</node>
+						<node text="Б" name="Конденсатор СГМ-3Б">
+							<dgm gold_g="0" silver_g="0.042739" platinum_g="0" mpg_g="0" />
+							<node text="АГ" name="Конденсатор СГМ-3БАГ">
+								<dgm gold_g="0" silver_g="0.010899" platinum_g="0" mpg_g="0" />
+							</node>
+						</node>
+					</node>
+					<node text="4" name="Конденсатор СГМ-4">
+						<dgm gold_g="0" silver_g="0.050048" platinum_g="0" mpg_g="0" />
 					</node>
 				</node>
 			</node>
@@ -1794,6 +2101,27 @@
 						<node text="1А" name="134ЛР1А">
 							<dgm gold_g="0.0084289" silver_g="0.0011016" platinum_g="0" mpg_g="0" />
 						</node>
+						<node text="2А" name="Мікросхема 134ЛР2А">
+							<dgm gold_g="0.0087" silver_g="0.001" platinum_g="0" mpg_g="0" />
+						</node>
+					</node>
+					<node text="ИД">
+						<node text="3" name="Мікросхема 134ИД3">
+							<dgm gold_g="0.0334374" silver_g="0.0472944" platinum_g="0" mpg_g="0" />
+						</node>
+						<node text="1" name="Мікросхема 134ИД1">
+							<dgm gold_g="0.00569" silver_g="0.0018" platinum_g="0.00002" mpg_g="0" />
+						</node>
+					</node>
+					<node text="ИЕ">
+						<node text="2" name="Мікросхема 134ИЕ2">
+							<dgm gold_g="0.0194736" silver_g="0.0019251" platinum_g="0" mpg_g="0" />
+						</node>
+					</node>
+					<node text="КП">
+						<node text="9" name="Мікросхема 134КП9">
+							<dgm gold_g="0.0087363" silver_g="0.0009786" platinum_g="0" mpg_g="0" />
+						</node>
 					</node>
 				</node>
 				<node text="133">
@@ -1813,12 +2141,34 @@
 							<node text="4" name="Мікросхема 133ЛА4">
 								<dgm gold_g="0.0106769" silver_g="0" platinum_g="0" mpg_g="0" />
 							</node>
+							<node text="8" name="Мікросхема 133ЛА8">
+								<dgm gold_g="0.00843" silver_g="0" platinum_g="0" mpg_g="0" />
+							</node>
+							<node text="З" name="Мікросхема 133ЛАЗ">
+								<dgm gold_g="0.0124142" silver_g="0.0007838" platinum_g="0" mpg_g="0" />
+							</node>
+							<node text="1" name="Мікросхема 133ЛА1">
+								<dgm gold_g="0.0106771" silver_g="0" platinum_g="0" mpg_g="0" />
+							</node>
+						</node>
+						<node text="П">
+							<node text="5" name="Мікросхема 133ЛП5">
+								<dgm gold_g="0.0106765" silver_g="0" platinum_g="0" mpg_g="0" />
+							</node>
+						</node>
+						<node text="Р">
+							<node text="3" name="Мікросхема 133ЛР3">
+								<dgm gold_g="0" silver_g="0.0106771" platinum_g="0" mpg_g="0" />
+							</node>
 						</node>
 					</node>
 					<node text="Т">
 						<node text="М">
 							<node text="2" name="Мікросхема 133ТМ2">
 								<dgm gold_g="0.0090168" silver_g="0.0007357" platinum_g="0" mpg_g="0" />
+							</node>
+							<node text="5" name="Мікросхема 133ТМ5">
+								<dgm gold_g="0.0115942" silver_g="0" platinum_g="0" mpg_g="0" />
 							</node>
 						</node>
 					</node>
@@ -1829,11 +2179,26 @@
 							<dgm gold_g="0.02653" silver_g="0" platinum_g="0" mpg_g="0" />
 						</node>
 					</node>
+					<node text="ЛА">
+						<node text="3" name="Мікросхема 130ЛА3">
+							<dgm gold_g="0.012" silver_g="0" platinum_g="0" mpg_g="0" />
+						</node>
+					</node>
 				</node>
 				<node text="122">
 					<node text="УД">
-						<node text="1В" name="122УД1В">
-							<dgm gold_g="0.0371" silver_g="0" platinum_g="0" mpg_g="0" />
+						<node text="1" name="Мікросхема 122УД1">
+							<dgm gold_g="0.0238774" silver_g="0" platinum_g="0" mpg_g="0" />
+							<regex-leaf text="[АБВ]" name="122УД1А">
+								<dgm gold_g="0.0371" silver_g="0" platinum_g="0" mpg_g="0" />
+							</regex-leaf>
+						</node>
+					</node>
+					<node text="УН">
+						<node text="1">
+							<regex-leaf text="[АБВГ]?" name="Мікросхема 122УН1Б">
+								<dgm gold_g="0" silver_g="0.0371" platinum_g="0" mpg_g="0" />
+							</regex-leaf>
 						</node>
 					</node>
 				</node>
@@ -2240,6 +2605,174 @@
 						</node>
 					</node>
 				</node>
+				<node text="136">
+					<node text="ЛА">
+						<regex-leaf text="[1234]" name="Мікросхема 136ЛА1">
+							<dgm gold_g="0.01067703" silver_g="0" platinum_g="0" mpg_g="0" />
+						</regex-leaf>
+					</node>
+					<node text="ЛН">
+						<node text="1" name="Мікросхема 136ЛН1">
+							<dgm gold_g="0.02" silver_g="0" platinum_g="0" mpg_g="0" />
+						</node>
+					</node>
+					<node text="ЛР">
+						<regex-leaf text="[13]" name="Мікросхема 136ЛР1">
+							<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
+						</regex-leaf>
+					</node>
+					<node text="ТВ">
+						<node text="1" name="Мікросхема 136ТВ1">
+							<dgm gold_g="0.01067722" silver_g="0" platinum_g="0" mpg_g="0" />
+						</node>
+					</node>
+					<node text="ТМ">
+						<node text="2" name="Мікросхема 136ТМ2">
+							<dgm gold_g="0.01067738" silver_g="0" platinum_g="0" mpg_g="0" />
+						</node>
+					</node>
+				</node>
+				<node text="143">
+					<node text="КТ">
+						<node text="1" name="Мікросхема 143ТК1">
+							<dgm gold_g="0.0085828" silver_g="0.0010751" platinum_g="0" mpg_g="0" />
+						</node>
+					</node>
+				</node>
+				<node text="149">
+					<node text="КТ">
+						<node text="16" name="Мікросхема 149КТ16">
+							<dgm gold_g="0.0298805" silver_g="0.0007132" platinum_g="0" mpg_g="0" />
+						</node>
+						<node text="18" name="Мікросхема 149КТ18">
+							<dgm gold_g="0.0261566" silver_g="0.0007132" platinum_g="0" mpg_g="0" />
+						</node>
+						<node text="1">
+							<node text="Б" name="Мікросхема 149КТ1Б">
+								<dgm gold_g="0.0097062" silver_g="0" platinum_g="0" mpg_g="0" />
+							</node>
+						</node>
+					</node>
+				</node>
+				<node text="153">
+					<node text="УД">
+						<node text="1" name="Мікросхема 153УД1">
+							<dgm gold_g="0.0266855" silver_g="0" platinum_g="0" mpg_g="0" />
+						</node>
+						<node text="2" name="Мікросхема 153УД2">
+							<dgm gold_g="0.017303" silver_g="0" platinum_g="0" mpg_g="0" />
+						</node>
+					</node>
+				</node>
+				<node text="156">
+					<node text="К" name="Мікросхема 156К">
+						<dgm gold_g="0.0199269" silver_g="0" platinum_g="0" mpg_g="0" />
+					</node>
+				</node>
+				<node text="159">
+					<node text="НТ">
+						<node text="1">
+							<node text="А" name="Мікросхема 159НТ1А">
+								<dgm gold_g="0.0259934" silver_g="0" platinum_g="0" mpg_g="0" />
+							</node>
+						</node>
+					</node>
+				</node>
+				<node text="193">
+					<node text="ИЕ">
+						<regex-leaf text="[13]" name="Мікросхема 193ИЕ1">
+							<dgm gold_g="0.0217275" silver_g="0.030555" platinum_g="0" mpg_g="0" />
+						</regex-leaf>
+					</node>
+				</node>
+				<node text="228">
+					<node text="УВ">
+						<node text="4" name="Мікросхема 228УВ4">
+							<dgm gold_g="0.0013749" silver_g="0" platinum_g="0" mpg_g="0" />
+						</node>
+					</node>
+				</node>
+				<node text="514">
+					<node text="ИД">
+						<regex-leaf text="[12]" name="Мікросхема 514ИД1">
+							<dgm gold_g="0.0148412" silver_g="0.0253771" platinum_g="0" mpg_g="0" />
+						</regex-leaf>
+					</node>
+				</node>
+				<node text="542">
+					<node text="НД">
+						<regex-leaf text="[12345]" name="Мікросхема 542НД1">
+							<dgm gold_g="0.0171459" silver_g="0.01872" platinum_g="0" mpg_g="0" />
+						</regex-leaf>
+					</node>
+				</node>
+				<node text="564">
+					<node text="ИЕ">
+						<node text="10" name="Мікросхема 564ИЕ10">
+							<dgm gold_g="0.0159" silver_g="0.0269572" platinum_g="0" mpg_g="0" />
+						</node>
+						<node text="9" name="Мікросхема 564ИЕ9">
+							<dgm gold_g="0" silver_g="0.022734" platinum_g="0" mpg_g="0" />
+						</node>
+					</node>
+					<node text="ИП">
+						<node text="2" name="Мікросхема 564ИП2">
+							<dgm gold_g="0.0168605" silver_g="0.02521" platinum_g="0" mpg_g="0" />
+						</node>
+					</node>
+					<node text="КП">
+						<node text="2" name="Мікросхема 564КП2">
+							<dgm gold_g="0" silver_g="0.0003262" platinum_g="0" mpg_g="0" />
+						</node>
+					</node>
+					<node text="ЛА">
+						<node text="7" name="Мікросхема 564ЛА7">
+							<dgm gold_g="0.0144166" silver_g="0" platinum_g="0" mpg_g="0" />
+						</node>
+					</node>
+					<node text="ЛЕ">
+						<node text="5" name="Мікросхема 564ЛЕ5">
+							<dgm gold_g="0.0143418" silver_g="0" platinum_g="0" mpg_g="0" />
+						</node>
+					</node>
+					<node text="ЛН">
+						<node text="2" name="Мікросхема 564ЛН2">
+							<dgm gold_g="0.01232" silver_g="0" platinum_g="0" mpg_g="0" />
+						</node>
+					</node>
+					<node text="ЛС">
+						<node text="2" name="Мікросхема 564ЛС2">
+							<dgm gold_g="0.01843" silver_g="0.02847" platinum_g="0" mpg_g="0" />
+						</node>
+					</node>
+					<node text="ПУ">
+						<node text="4" name="Мікросхема 564ПУ4">
+							<dgm gold_g="0.0168605" silver_g="0.0269579" platinum_g="0" mpg_g="0" />
+						</node>
+					</node>
+					<node text="ТВ">
+						<node text="1" name="Мікросхема 564ТВ1">
+							<dgm gold_g="0.0168605" silver_g="0.02521" platinum_g="0" mpg_g="0" />
+						</node>
+					</node>
+					<node text="ТМ">
+						<node text="2" name="Мікросхема 564ТМ2">
+							<dgm gold_g="0.0145183" silver_g="0" platinum_g="0" mpg_g="0" />
+						</node>
+						<node text="3" name="Мікросхема 564ТМ3">
+							<dgm gold_g="0.0168605" silver_g="0.02521" platinum_g="0" mpg_g="0" />
+						</node>
+					</node>
+				</node>
+				<node text="572">
+					<node text="ПА">
+						<node text="1">
+							<regex-leaf text="[АБВ]" name="Мікросхема 572ПА1А">
+								<dgm gold_g="0.0260338" silver_g="0.0302" platinum_g="0" mpg_g="0" />
+							</regex-leaf>
+						</node>
+					</node>
+				</node>
 			</node>
 		</node>
 		<node text="Діод" optional="true">
@@ -2314,13 +2847,14 @@
 						</regex-leaf>
 						<dgm gold_g="0" silver_g="0.0012803" platinum_g="0" mpg_g="0" />
 					</node>
-					<node text="237">
+					<node text="237" name="Діод Д237">
 						<node text="А" name="Д237А">
 							<dgm gold_g="0.00034" silver_g="0.000607" platinum_g="0" mpg_g="0" />
 						</node>
 						<node text="Б" name="Д237Б">
 							<dgm gold_g="0.00034" silver_g="0.000607" platinum_g="0" mpg_g="0" />
 						</node>
+						<dgm gold_g="0.0063779" silver_g="0.0011472" platinum_g="0" mpg_g="0" />
 					</node>
 					<node text="817">
 						<regex-leaf text="[АБВГДЄЕЖЗ]?" name="Д817Б">
@@ -2454,6 +2988,38 @@
 				</node>
 				<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
 			</node>
+		</node>
+		<node text="Індуктивність">
+			<node text=" " optional="true">
+				<regex-leaf text=".*" name=".*">
+					<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
+				</regex-leaf>
+			</node>
+		</node>
+		<node text="Амперметр">
+			<node text=" " optional="true">
+				<node text="М1692" name="Амперметр М1692">
+					<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
+				</node>
+				<node text="М4248" name="Амперметр М4248">
+					<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
+				</node>
+			</node>
+		</node>
+		<node text="Світлодіод" optional="true">
+			<node text=" " optional="true">
+				<node text="1б8904" name="Світлодіод 1Б8904">
+					<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
+				</node>
+				<node text="1Б">
+					<node text="9104" name="Світлодіод 1Б9104">
+						<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
+					</node>
+				</node>
+			</node>
+		</node>
+		<node text="1К0К0985" name="1К0К0985">
+			<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
 		</node>
 	</catalog>
 	<ignored>
