@@ -333,6 +333,13 @@ class XlsxPreprocessor:
 				return "partial"
 		return "unidentified"
 
+	def FindElementTypeByCanonical(self, Canonical: str) -> Optional[PreprocessElementType]:
+		Normalized = dgm_database.NormalizeText(Canonical)
+		for ElementType in self.Rules.ElementTypes:
+			if dgm_database.NormalizeText(ElementType.Canonical) == Normalized:
+				return ElementType
+		return None
+
 	def _RecordMatchesElementType(self, Record: dgm_database.ElementRecord, ElementType: PreprocessElementType) -> bool:
 		Canonical = dgm_database.NormalizeText(ElementType.Canonical)
 		DisplayName = dgm_database.NormalizeText(Record.DisplayName)

@@ -333,6 +333,10 @@ class XlsxPreprocessReviewWindow(tk.Toplevel):
 		TypeName = self.TypeVar.get()
 		if not TypeName:
 			return
+		ElementType = self.Preprocessor.FindElementTypeByCanonical(TypeName)
+		if ElementType is None:
+			tkinter.messagebox.showerror(WINDOW_TITLE, f"Unknown element type: {TypeName}", parent=self)
+			return
 		Selected = self._SelectedChanges()
 		if not Selected:
 			return
@@ -342,12 +346,12 @@ class XlsxPreprocessReviewWindow(tk.Toplevel):
 				Explicit = self.Preprocessor._FindExplicitType(BaseText)
 				if Explicit is not None:
 					BaseText = Explicit[1]
-				Occurrence.NewText = self.Preprocessor._CleanWhitespace(f"{TypeName} {BaseText}")
-				Occurrence.ElementType = TypeName
-				Occurrence.SafetyLevel = self.Preprocessor._ClassifyPrefixCandidate(Occurrence.NewText)
+				Occurrence.NewText = self.Preprocessor._MakeTypedCandidate(ElementType, BaseText)
+				Occurrence.ElementType = ElementType.Canonical
+				Occurrence.SafetyLevel = self.Preprocessor._ClassifyPrefixCandidate(Occurrence.NewText, ElementType)
 				Occurrence.DatabaseVerified = Occurrence.SafetyLevel == "safe"
 				Occurrence.Ambiguous = Occurrence.SafetyLevel in ("ambiguous", "unidentified")
-				Occurrence.StageNotes = [f"Stage 2: manually assigned {TypeName}"]
+				Occurrence.StageNotes = [f"Stage 2: manually assigned {ElementType.Canonical}"]
 		self.Changes = self._SortedChanges(self.Changes)
 		self._PopulateTree()
 
