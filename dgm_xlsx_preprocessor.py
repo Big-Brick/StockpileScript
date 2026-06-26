@@ -611,9 +611,18 @@ def CreateDefaultPreprocessRules(PathToRules: Path) -> None:
 
 	StageThree = XmlTree.SubElement(Root, "stage", {"id": "3", "name": "technical_normalization"})
 	AddRule(StageThree, "km_series_hyphenation", "Normalize КМ capacitor names like КМ 5б Н90 to КМ-5б-Н90", r"\bКМ[\s\-]*(\d+[а-яА-Яa-zA-Z]?)[\s\-]*(Н\d+)\b", "КМ-$1-$2", "capacitor")
+	AddRule(StageThree, "capacitor_k_prefix_space_hyphenation", "Normalize К-series capacitor designations with a space after К, e.g. К 50 6 to К50-6", r"\b[КK]\s+(10|15|22|31|40|41|42|50|52|53|57|71|72|73|75|76|77|78)[\s\-]+(\d+[а-яА-Яa-zA-Z]*)\b", "К$1-$2", "capacitor")
+	AddRule(StageThree, "resistor_sp_prefix_space_hyphenation", "Normalize СП resistor designations with split СП/series groups, e.g. СП 5 16 to СП5-16", r"\b[СC][\s\-]*[ПP]\s*(\d+)[\s\-]+(\d+[а-яА-Яa-zA-Z]*)\b", "СП$1-$2", "resistor")
+	AddRule(StageThree, "resistor_s_prefix_space_hyphenation", "Normalize С-series resistor designations with a space after С, e.g. С 2 14 to С2-14", r"\b[СC]\s+(1|2|3|5|6)[\s\-]+(\d+[а-яА-Яa-zA-Z]*)\b", "С$1-$2", "resistor")
+	AddRule(StageThree, "diode_2d_prefix_join", "Join 2Д diode prefixes split by whitespace", r"\b2\s*[ДD][\s\-]*(\d+[а-яА-Яa-zA-Z]*)\b", "2Д$1", "diode")
+	AddRule(StageThree, "diode_2s_prefix_join", "Join 2С diode/stabilizer prefixes split by whitespace", r"\b2\s*[СC][\s\-]*(\d+[а-яА-Яa-zA-Z]*)\b", "2С$1", "diode")
+	AddRule(StageThree, "diode_2a_prefix_join", "Join 2А diode prefixes split by whitespace", r"\b2\s*[АA][\s\-]*(\d+[а-яА-Яa-zA-Z]*)\b", "2А$1", "diode")
+	AddRule(StageThree, "diode_3i_prefix_join", "Join 3И diode prefixes split by whitespace", r"\b3\s*[ИI][\s\-]*(\d+[а-яА-Яa-zA-Z]*)\b", "3И$1", "diode")
 	AddRule(StageThree, "diode_d_series_join", "Normalize common Д-series diode designations split by whitespace", r"\b[ДD][\s\-]+(\d{1,4})\b", "Д$1", "diode")
 	AddRule(StageThree, "diode_d_trailing_letter_join", "Remove accidental space before the trailing letter in Д-series diode designations", r"\b(Д\d{1,4})\s+([а-яА-Яa-zA-Z])\b", "$1$2", "diode")
 	AddRule(StageThree, "semiconductor_trailing_letter_join", "Remove accidental space before trailing letters in common semiconductor designations", r"\b((?:КД|КС|КЦ|АЛ|КТ|ГТ|МП|КП|КН|КУ|П)\d{1,4})\s+([а-яА-Яa-zA-Z])\b", "$1$2", "diode,transistor,dinistor,thyristor")
+	AddRule(StageThree, "transistor_numeric_t_prefix_join", "Join numeric Т transistor prefixes, e.g. 2 Т 312 to 2Т312", r"\b([12])\s*[ТT][\s\-]*(\d+[а-яА-Яa-zA-Z]*)\b", "$1Т$2", "transistor")
+	AddRule(StageThree, "thyristor_2u_prefix_join", "Join 2У thyristor prefixes split by whitespace", r"\b2\s*[УY][\s\-]*(\d+[а-яА-Яa-zA-Z]*)\b", "2У$1", "thyristor")
 	AddRule(StageThree, "microchip_prefix_space_join", "Remove accidental space after microchip prefix, e.g. к 155ИД3 to к155ИД3", r"\b([КK][РPМM]?|[КK][МM])\s+(\d{3,4}[А-ЯA-Z]{1,4}\d{1,3}[А-ЯA-Z]?)\b", "$1$2", "microchip")
 	AddRule(StageThree, "res_relay_series_hyphenation", "Normalize РЕС relay names with missing hyphen", r"\bРЕС[\s\-]*(\d+)\b", "РЕС-$1", "relay")
 

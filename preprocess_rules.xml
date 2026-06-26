@@ -328,6 +328,11 @@
 			<pattern>\bКМ-(\d+[а-яА-Яa-zA-Z]?)-P([\s\-]*\d+[а-яА-Яa-zA-Z]*)\b</pattern>
 			<replacement>КМ-$1-П$2</replacement>
 		</rule>
+		<rule id="capacitor_k_prefix_space_hyphenation" enabled="true" element_types="capacitor">
+			<description>Normalize К-series capacitor designations with a space after К, e.g. К 50 6 to К50-6</description>
+			<pattern>\b[КK]\s+(10|15|22|31|40|41|42|50|52|53|57|71|72|73|75|76|77|78)[\s\-]+(\d+[а-яА-Яa-zA-Z]*)\b</pattern>
+			<replacement>К$1-$2</replacement>
+		</rule>
 		<rule id="capacitor_k_series_hyphenation" enabled="true" element_types="capacitor">
 			<description>Normalize common К-series capacitor designations such as К10 17 to К10-17</description>
 			<pattern>\b[КK](10|15|22|31|40|41|42|50|52|53|71|72|73|75|76|77|78)[\s\-]+(\d+[а-яА-Яa-zA-Z]*)\b</pattern>
@@ -348,15 +353,45 @@
 			<pattern>\b[МM][ЛL][ТT](?=-)</pattern>
 			<replacement>МЛТ</replacement>
 		</rule>
+		<rule id="resistor_sp_prefix_space_hyphenation" enabled="true" element_types="resistor">
+			<description>Normalize СП resistor designations with split СП/series groups, e.g. СП 5 16 to СП5-16</description>
+			<pattern>\b[СC][\s\-]*[ПP]\s*(\d+)[\s\-]+(\d+[а-яА-Яa-zA-Z]*)\b</pattern>
+			<replacement>СП$1-$2</replacement>
+		</rule>
 		<rule id="resistor_sp_hyphenation" enabled="true" element_types="resistor">
 			<description>Normalize СП variable resistor series spelling such as СП5 16 to СП5-16</description>
 			<pattern>\b[СC][ПP](\d+)[\s\-]+(\d+[а-яА-Яa-zA-Z]*)\b</pattern>
 			<replacement>СП$1-$2</replacement>
 		</rule>
+		<rule id="resistor_s_prefix_space_hyphenation" enabled="true" element_types="resistor">
+			<description>Normalize С-series resistor designations with a space after С, e.g. С 2 14 to С2-14</description>
+			<pattern>\b[СC]\s+(1|2|3|5|6)[\s\-]+(\d+[а-яА-Яa-zA-Z]*)\b</pattern>
+			<replacement>С$1-$2</replacement>
+		</rule>
 		<rule id="resistor_s_series_hyphenation" enabled="true" element_types="resistor">
 			<description>Normalize С1/С2/С5 fixed resistor series spelling such as С2 14 to С2-14</description>
 			<pattern>\b[СC](1|2|5|6)[\s\-]+(\d+[а-яА-Яa-zA-Z]*)\b</pattern>
 			<replacement>С$1-$2</replacement>
+		</rule>
+		<rule id="diode_2d_prefix_join" enabled="true" element_types="diode">
+			<description>Join 2Д diode prefixes split by whitespace</description>
+			<pattern>\b2\s*[ДD][\s\-]*(\d+[а-яА-Яa-zA-Z]*)\b</pattern>
+			<replacement>2Д$1</replacement>
+		</rule>
+		<rule id="diode_2s_prefix_join" enabled="true" element_types="diode">
+			<description>Join 2С diode/stabilizer prefixes split by whitespace</description>
+			<pattern>\b2\s*[СC][\s\-]*(\d+[а-яА-Яa-zA-Z]*)\b</pattern>
+			<replacement>2С$1</replacement>
+		</rule>
+		<rule id="diode_2a_prefix_join" enabled="true" element_types="diode">
+			<description>Join 2А diode prefixes split by whitespace</description>
+			<pattern>\b2\s*[АA][\s\-]*(\d+[а-яА-Яa-zA-Z]*)\b</pattern>
+			<replacement>2А$1</replacement>
+		</rule>
+		<rule id="diode_3i_prefix_join" enabled="true" element_types="diode">
+			<description>Join 3И diode prefixes split by whitespace</description>
+			<pattern>\b3\s*[ИI][\s\-]*(\d+[а-яА-Яa-zA-Z]*)\b</pattern>
+			<replacement>3И$1</replacement>
 		</rule>
 		<rule id="diode_kd_join" enabled="true" element_types="diode">
 			<description>Normalize КД diode designations split by whitespace</description>
@@ -393,6 +428,11 @@
 			<pattern>\b((?:КД|КС|КЦ|АЛ|КТ|ГТ|МП|КП|КН|КУ|П)\d{1,4})\s+([а-яА-Яa-zA-Z])\b</pattern>
 			<replacement>$1$2</replacement>
 		</rule>
+		<rule id="transistor_numeric_t_prefix_join" enabled="true" element_types="transistor">
+			<description>Join numeric Т transistor prefixes, e.g. 2 Т 312 to 2Т312</description>
+			<pattern>\b([12])\s*[ТT][\s\-]*(\d+[а-яА-Яa-zA-Z]*)\b</pattern>
+			<replacement>$1Т$2</replacement>
+		</rule>
 		<rule id="transistor_kt_join" enabled="true" element_types="transistor">
 			<description>Normalize КТ transistor designations split by whitespace</description>
 			<pattern>\b[КK][ТT][\s\-]+(\d+[а-яА-Яa-zA-Z]*)\b</pattern>
@@ -417,6 +457,11 @@
 			<description>Normalize КН dinistor / diode-thyristor designations split by whitespace</description>
 			<pattern>\b[КK][НH][\s\-]+(\d+[а-яА-Яa-zA-Z]*)\b</pattern>
 			<replacement>КН$1</replacement>
+		</rule>
+		<rule id="thyristor_2u_prefix_join" enabled="true" element_types="thyristor">
+			<description>Join 2У thyristor prefixes split by whitespace</description>
+			<pattern>\b2\s*[УY][\s\-]*(\d+[а-яА-Яa-zA-Z]*)\b</pattern>
+			<replacement>2У$1</replacement>
 		</rule>
 		<rule id="thyristor_ku_join" enabled="true" element_types="thyristor">
 			<description>Normalize КУ thyristor designations split by whitespace</description>
