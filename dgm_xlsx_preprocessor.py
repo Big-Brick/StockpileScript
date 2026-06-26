@@ -191,12 +191,7 @@ class XlsxPreprocessor:
 
 		Current = self._ApplyRules(Current, self.Rules.StageOneRules, "Stage 1", Notes)
 		Current, TypeVerified, TypeAmbiguous = self._NormalizeType(Current, Notes)
-		Current = self._ApplyRules(Current, self.Rules.StageThreeRules, "Stage 3", Notes)
-		CaseNormalized = NormalizeDesignationCase(Current)
-		if CaseNormalized != Current:
-			Notes.append("Stage 3: normalized designation letter casing")
-			Current = CaseNormalized
-		Current = self._CleanWhitespace(Current)
+		Current = self._ApplyTechnicalNormalization(Current, Notes)
 		Current = self._ApplyExactDatabaseCasing(Current, Notes)
 
 		DatabaseRecord = self.Database.FindElement(Current).Record
@@ -222,12 +217,7 @@ class XlsxPreprocessor:
 		Current = self._CleanWhitespace(Text)
 		if Current != Text:
 			Notes.append("Cleaned whitespace")
-		Current = self._ApplyRules(Current, self.Rules.StageThreeRules, "Stage 3", Notes)
-		CaseNormalized = NormalizeDesignationCase(Current)
-		if CaseNormalized != Current:
-			Notes.append("Stage 3: normalized designation letter casing")
-			Current = CaseNormalized
-		Current = self._CleanWhitespace(Current)
+		Current = self._ApplyTechnicalNormalization(Current, Notes)
 		Current = self._ApplyExactDatabaseCasing(Current, Notes)
 		DatabaseRecord = self.Database.FindElement(Current).Record
 		Verified = DatabaseRecord is not None and DatabaseRecord.HasDgm
@@ -245,6 +235,19 @@ class XlsxPreprocessor:
 			Notes.append("Stage 3: matched exact database letter casing")
 			return DatabaseText
 		return Text
+
+	def _ApplyTechnicalNormalization(self, Text: str, Notes: List[str]) -> str:
+		Explicit = self._FindLeadingExplicitType(Text)
+		if Explicit is None:
+			return Text
+
+		ElementType, Remainder = Explicit
+		Current = self._ApplyRules(Remainder, self.Rules.StageThreeRules, "Stage 3", Notes)
+		CaseNormalized = NormalizeDesignationCase(Current)
+		if CaseNormalized != Current:
+			Notes.append("Stage 3: normalized designation letter casing")
+			Current = CaseNormalized
+		return self._CleanWhitespace(f"{ElementType.Canonical} {Current}")
 
 
 	def _PreprocessPrefix(self, Row: int, Text: str) -> PreprocessChange:
@@ -420,10 +423,21 @@ class XlsxPreprocessor:
 				return ElementType, Remainder
 		return None
 
+	def _FindLeadingExplicitType(self, Text: str) -> Optional[Tuple[PreprocessElementType, str]]:
+		for ElementType in self.Rules.ElementTypes:
+			Aliases = [ElementType.Canonical] + ElementType.Aliases
+			for Alias in sorted(Aliases, key=len, reverse=True):
+				Pattern = re.compile(rf"^\s*({re.escape(Alias)})(\s|$)", flags=self.RegexFlags)
+				Match = Pattern.search(Text)
+				if Match is None:
+					continue
+				Remainder = self._CleanWhitespace(Text[Match.end(1):])
+				return ElementType, Remainder
+		return None
+
 	def _MakeTypedCandidate(self, ElementType: PreprocessElementType, Text: str) -> str:
 		Candidate = self._CleanWhitespace(f"{ElementType.Canonical} {Text}")
-		Candidate = self._ApplyRules(Candidate, self.Rules.StageThreeRules, "Stage 3", [])
-		return self._CleanWhitespace(NormalizeDesignationCase(Candidate))
+		return self._ApplyTechnicalNormalization(Candidate, [])
 
 	def _BuildRuntimePrefixRules(self) -> List[RuntimePrefixRule]:
 		Rules: List[RuntimePrefixRule] = []
@@ -598,6 +612,9 @@ def CreateDefaultPreprocessRules(PathToRules: Path) -> None:
 
 	StageThree = XmlTree.SubElement(Root, "stage", {"id": "3", "name": "technical_normalization"})
 	AddRule(StageThree, "km_series_hyphenation", "Normalize КМ capacitor names like КМ 5б Н90 to КМ-5б-Н90", r"\bКМ[\s\-]*(\d+[а-яА-Яa-zA-Z]?)[\s\-]*(Н\d+)\b", "КМ-$1-$2")
+	AddRule(StageThree, "diode_d_series_join", "Normalize common Д-series diode designations split by whitespace", r"\b[ДD][\s\-]+(\d{1,4})\b", "Д$1")
+	AddRule(StageThree, "diode_d_trailing_letter_join", "Remove accidental space before the trailing letter in Д-series diode designations", r"\b(Д\d{1,4})\s+([а-яА-Яa-zA-Z])\b", "$1$2")
+	AddRule(StageThree, "semiconductor_trailing_letter_join", "Remove accidental space before trailing letters in common semiconductor designations", r"\b((?:КД|КС|КЦ|АЛ|КТ|ГТ|МП|КП|КН|КУ|П)\d{1,4})\s+([а-яА-Яa-zA-Z])\b", "$1$2")
 	AddRule(StageThree, "res_relay_series_hyphenation", "Normalize РЕС relay names with missing hyphen", r"\bРЕС[\s\-]*(\d+)\b", "РЕС-$1")
 
 	Tree = XmlTree.ElementTree(Root)

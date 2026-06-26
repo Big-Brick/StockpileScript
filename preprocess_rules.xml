@@ -412,8 +412,18 @@
 		</rule>
 		<rule id="diode_d_series_join" enabled="true">
 			<description>Normalize common Д-series diode designations split by whitespace</description>
-			<pattern>\b[ДD][\s\-]+((?:7|9|18|20|22[036]|24[235]|81[4-8])\d*[а-яА-Яa-zA-Z]*)\b</pattern>
+			<pattern>\b[ДD][\s\-]+(\d{1,4})\b</pattern>
 			<replacement>Д$1</replacement>
+		</rule>
+		<rule id="diode_d_trailing_letter_join" enabled="true">
+			<description>Remove accidental space before the trailing letter in Д-series diode designations</description>
+			<pattern>\b(Д\d{1,4})\s+([а-яА-Яa-zA-Z])\b</pattern>
+			<replacement>$1$2</replacement>
+		</rule>
+		<rule id="semiconductor_trailing_letter_join" enabled="true">
+			<description>Remove accidental space before trailing letters in common semiconductor designations</description>
+			<pattern>\b((?:КД|КС|КЦ|АЛ|КТ|ГТ|МП|КП|КН|КУ|П)\d{1,4})\s+([а-яА-Яa-zA-Z])\b</pattern>
+			<replacement>$1$2</replacement>
 		</rule>
 		<rule id="transistor_kt_join" enabled="true">
 			<description>Normalize КТ transistor designations split by whitespace</description>
