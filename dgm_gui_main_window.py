@@ -20,10 +20,11 @@ class DgmMainWindow(tk.Tk, XlsxProcessingMixin, XlsxPreprocessingMixin, MissingE
 		self.Database = dgm_database.OpenDatabase(DatabasePath)
 		self.DatabaseEditor: Optional[DgmDatabaseViewer] = None
 		self.ProcessSubfolders = tk.BooleanVar(value=False)
+		self.AutoFillXlsxWithoutReview = tk.BooleanVar(value=False)
 
 		self.title(f"DGM Inventory Tools - {DatabasePath.name}")
-		self.geometry("360x480")
-		self.minsize(320, 440)
+		self.geometry("360x510")
+		self.minsize(320, 470)
 
 		self._ConfigureStyle()
 		self._BuildLayout()
@@ -41,13 +42,14 @@ class DgmMainWindow(tk.Tk, XlsxProcessingMixin, XlsxPreprocessingMixin, MissingE
 		ttk.Button(self, text="Preprocess .xlsx file", command=self._SelectAndPreprocessXlsxFile).grid(row=2, column=0, sticky="ew", padx=16, pady=4)
 		ttk.Button(self, text="Preprocess folder", command=self._SelectAndPreprocessXlsxFolder).grid(row=3, column=0, sticky="ew", padx=16, pady=4)
 		ttk.Checkbutton(self, text="Process selected folder subfolders", variable=self.ProcessSubfolders).grid(row=4, column=0, sticky="w", padx=16, pady=4)
-		ttk.Button(self, text="Fill .xlsx file", command=self._SelectAndProcessXlsxFile).grid(row=5, column=0, sticky="ew", padx=16, pady=4)
-		ttk.Button(self, text="Clean .xlsx DGM cells", command=self._SelectAndCleanXlsxFile).grid(row=6, column=0, sticky="ew", padx=16, pady=4)
-		ttk.Button(self, text="Fill folder", command=self._SelectAndProcessXlsxFolder).grid(row=7, column=0, sticky="ew", padx=16, pady=4)
-		ttk.Button(self, text="Review XLSX/database conflicts in file", command=self._SelectAndReviewXlsxConflictsFile).grid(row=8, column=0, sticky="ew", padx=16, pady=4)
-		ttk.Button(self, text="Review XLSX/database conflicts in folder", command=self._SelectAndReviewXlsxConflictsFolder).grid(row=9, column=0, sticky="ew", padx=16, pady=4)
-		ttk.Button(self, text="List missing elements in .xlsx file", command=self._SelectAndListMissingXlsxFile).grid(row=10, column=0, sticky="ew", padx=16, pady=4)
-		ttk.Button(self, text="List missing elements in folder", command=self._SelectAndListMissingXlsxFolder).grid(row=11, column=0, sticky="ew", padx=16, pady=(4, 16))
+		ttk.Checkbutton(self, text="Fill without review window", variable=self.AutoFillXlsxWithoutReview).grid(row=5, column=0, sticky="w", padx=16, pady=4)
+		ttk.Button(self, text="Fill .xlsx file", command=self._SelectAndProcessXlsxFile).grid(row=6, column=0, sticky="ew", padx=16, pady=4)
+		ttk.Button(self, text="Clean .xlsx DGM cells", command=self._SelectAndCleanXlsxFile).grid(row=7, column=0, sticky="ew", padx=16, pady=4)
+		ttk.Button(self, text="Fill folder", command=self._SelectAndProcessXlsxFolder).grid(row=8, column=0, sticky="ew", padx=16, pady=4)
+		ttk.Button(self, text="Review XLSX/database conflicts in file", command=self._SelectAndReviewXlsxConflictsFile).grid(row=9, column=0, sticky="ew", padx=16, pady=4)
+		ttk.Button(self, text="Review XLSX/database conflicts in folder", command=self._SelectAndReviewXlsxConflictsFolder).grid(row=10, column=0, sticky="ew", padx=16, pady=4)
+		ttk.Button(self, text="List missing elements in .xlsx file", command=self._SelectAndListMissingXlsxFile).grid(row=11, column=0, sticky="ew", padx=16, pady=4)
+		ttk.Button(self, text="List missing elements in folder", command=self._SelectAndListMissingXlsxFolder).grid(row=12, column=0, sticky="ew", padx=16, pady=(4, 16))
 
 	def _OpenDatabaseEditor(self) -> None:
 		if self.DatabaseEditor is not None and self.DatabaseEditor.winfo_exists():

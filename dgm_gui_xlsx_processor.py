@@ -81,6 +81,10 @@ class XlsxProcessingMixin:
 			tkinter.messagebox.showinfo(WINDOW_TITLE, "All selected XLSX files were processed.", parent=self)
 			return
 
+		if self._IsAutoFillXlsxMode():
+			self._AutoFillXlsxFiles(Files[Index:])
+			return
+
 		try:
 			Result = self._ProcessXlsxFile(Files[Index])
 		except Exception as Error:
@@ -88,6 +92,31 @@ class XlsxProcessingMixin:
 			return
 
 		XlsxReviewWindow(self, Result, Files, Index)
+
+	def _IsAutoFillXlsxMode(self) -> bool:
+		AutoFillVariable = getattr(self, "AutoFillXlsxWithoutReview", None)
+		return bool(AutoFillVariable is not None and AutoFillVariable.get())
+
+	def _AutoFillXlsxFiles(self, Files: List[Path]) -> None:
+		TotalFilledRows = 0
+		TotalMissingRows = 0
+		TotalConflictRows = 0
+		try:
+			for FilePath in Files:
+				Result = self._ProcessXlsxFile(FilePath)
+				TotalFilledRows += Result.ProcessedRows
+				TotalMissingRows += len(Result.Missing)
+				TotalConflictRows += len(Result.Conflicts)
+		except Exception as Error:
+			tkinter.messagebox.showerror(WINDOW_TITLE, f"Cannot process selected XLSX file(s): {Error}", parent=self)
+			return
+
+		tkinter.messagebox.showinfo(
+			WINDOW_TITLE,
+			f"Filled {TotalFilledRows} row(s) across {len(Files)} file(s).\n"
+			f"Skipped {TotalMissingRows} missing row(s) and {TotalConflictRows} conflicting row(s).",
+			parent=self,
+		)
 
 	def _ProcessXlsxFile(self, FilePath: Path) -> GuiProcessResult:
 		if openpyxl is None:
@@ -102,7 +131,6 @@ class XlsxProcessingMixin:
 
 		ProcessedRows: List[int] = []
 		IgnoredRows = 0
-		LastProcessedRow = 0
 		ConsecutiveIgnoredRows = 0
 		MissingByKey: Dict[Tuple[str, int, str], GuiMissingElement] = {}
 		Conflicts: List[GuiConflictRow] = []
@@ -131,16 +159,12 @@ class XlsxProcessingMixin:
 					else:
 						dgm_xlsx_common.WriteEntryToRow(Sheet, Row, self.Database.Columns, Entry)
 						ProcessedRows.append(Row)
-						LastProcessedRow = Row
 						ConsecutiveIgnoredRows = 0
 
 			if ConsecutiveIgnoredRows >= dgm_xlsx_common.STOP_AFTER_CONSECUTIVE_IGNORED_ROWS:
 				break
 			Row += 1
 
-		if LastProcessedRow > 0:
-			TotalRow = LastProcessedRow + 1
-			dgm_xlsx_common.WriteWorkbookTotals(Sheet, TotalRow, self.Database.Columns, ProcessedRows)
 		Workbook.save(FilePath)
 		return GuiProcessResult(FilePath, len(ProcessedRows), IgnoredRows, list(MissingByKey.values()), Conflicts)
 

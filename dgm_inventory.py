@@ -10,5 +10,4 @@ from dgm_xlsx_common import (  # noqa: F401
 	FindXlsxFiles,
 	STOP_AFTER_CONSECUTIVE_IGNORED_ROWS,
 	WriteEntryToRow,
-	WriteWorkbookTotals,
 )

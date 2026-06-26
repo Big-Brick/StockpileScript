@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import decimal
 from pathlib import Path
-from typing import Iterable, List
+from typing import List
 
 import dgm_database
 
@@ -37,41 +37,6 @@ def WriteEntryToRow(Sheet: openpyxl.worksheet.worksheet.Worksheet, Row: int, Col
 		PerElementCell.number_format = GRAM_NUMBER_FORMAT
 		TotalCell.value = f"={ColumnsInfo.PerElement[MetalKey]}{Row}*{ColumnsInfo.Quantity}{Row}"
 		TotalCell.number_format = GRAM_NUMBER_FORMAT
-
-
-def WriteWorkbookTotals(Sheet: openpyxl.worksheet.worksheet.Worksheet, TotalRow: int, ColumnsInfo: dgm_database.Columns, ProcessedRows: List[int]) -> None:
-	for MetalKey, _ in dgm_database.METALS:
-		TotalColumn = ColumnsInfo.Total[MetalKey]
-		Cell = Sheet[f"{TotalColumn}{TotalRow}"]
-		Cell.value = BuildSumFormula(TotalColumn, ProcessedRows)
-		Cell.number_format = GRAM_NUMBER_FORMAT
-
-
-def BuildSumFormula(Column: str, Rows: Iterable[int]) -> str:
-	SortedRows = sorted(set(Rows))
-	if not SortedRows:
-		return "=0"
-
-	Ranges: List[str] = []
-	Start = SortedRows[0]
-	Previous = SortedRows[0]
-
-	for Row in SortedRows[1:]:
-		if Row == Previous + 1:
-			Previous = Row
-			continue
-		Ranges.append(FormatRange(Column, Start, Previous))
-		Start = Row
-		Previous = Row
-
-	Ranges.append(FormatRange(Column, Start, Previous))
-	return f"=SUM({','.join(Ranges)})"
-
-
-def FormatRange(Column: str, Start: int, End: int) -> str:
-	if Start == End:
-		return f"{Column}{Start}"
-	return f"{Column}{Start}:{Column}{End}"
 
 
 def FindXlsxFiles(Folder: Path, IncludeSubfolders: bool = False) -> List[Path]:
