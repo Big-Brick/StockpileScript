@@ -137,6 +137,11 @@
 						</node>
 					</node>
 				</node>
+				<node text="КН">
+					<node text="-1" name="Перемикач КН-1">
+						<dgm gold_g="0" silver_g="0.52802" platinum_g="0" mpg_g="0" />
+					</node>
+				</node>
 			</node>
 		</node>
 		<node text="Розетка" optional="true">
@@ -374,6 +379,9 @@
 					<node text="35">
 						<node text="В" name="Резистор С5-35В">
 							<dgm gold_g="0" silver_g="0.0786" platinum_g="0" mpg_g="0" />
+							<regex-leaf text=".*" name="Резистор С5-35В-10Вт">
+								<dgm gold_g="0" silver_g="0.0786" platinum_g="0" mpg_g="0" />
+							</regex-leaf>
 						</node>
 					</node>
 					<node text="14" name="Резистор С5-14">
@@ -487,6 +495,9 @@
 							<dgm gold_g="0" silver_g="0.0996409" platinum_g="0" mpg_g="0.1251836" />
 						</node>
 					</node>
+					<node text="22" name="Резистор СП5-22">
+						<dgm gold_g="0" silver_g="0.0400696" platinum_g="0" mpg_g="0" />
+					</node>
 				</node>
 				<node text="ОМЛТ-" preprocess_prefix_regex="^ОМЛТ\-[0-9]+[A-Za-zА-Яа-яІіЇїЄєҐґ0-9\-]*\b">
 					<node text="0,25" name="ОМЛТ-0,25">
@@ -554,6 +565,15 @@
 				<node text="МТ">
 					<node text="-0,25" name="Резистор МТ-0,25">
 						<dgm gold_g="0" silver_g="0.00372" platinum_g="0" mpg_g="0" />
+					</node>
+					<node text="-0,125" name="Резистор МТ-0,125">
+						<dgm gold_g="0" silver_g="0.00372" platinum_g="0" mpg_g="0" />
+					</node>
+					<node text="-0,5" name="Резистор МТ-0,5">
+						<dgm gold_g="0" silver_g="0.006927" platinum_g="0" mpg_g="0" />
+					</node>
+					<node text="-2" name="Резистор МТ-2">
+						<dgm gold_g="0" silver_g="0.008748" platinum_g="0" mpg_g="0" />
 					</node>
 				</node>
 				<node text="ММТ">
@@ -734,6 +754,11 @@
 							</node>
 							<node text="ГШ02" name="Розетка ГРПМ1-31ГШ02">
 								<dgm gold_g="0" silver_g="0.192799" platinum_g="0" mpg_g="0" />
+							</node>
+						</node>
+						<node text="-61">
+							<node text="ШУ2" name="Роз'єм ГРПМ1-61ШУ2">
+								<dgm gold_g="0" silver_g="0.0397849" platinum_g="0" mpg_g="0" />
 							</node>
 						</node>
 					</node>
@@ -1680,6 +1705,27 @@
 							<dgm gold_g="0.0108019" silver_g="0" platinum_g="0" mpg_g="0" />
 						</regex-leaf>
 					</node>
+					<node text="206" name="Транзистор 2Т206">
+						<dgm gold_g="0.0009516" silver_g="0" platinum_g="0" mpg_g="0" />
+					</node>
+					<node text="302">
+						<node text="А" name="Транзистор 2Т302А">
+							<dgm gold_g="0.0148697" silver_g="0" platinum_g="0" mpg_g="0" />
+						</node>
+					</node>
+					<node text="608">
+						<node text="Б" name="Транзистор 2Т608Б">
+							<dgm gold_g="0.0224091" silver_g="0" platinum_g="0" mpg_g="0" />
+						</node>
+						<node text="А" name="Транзистор 2Т608А">
+							<dgm gold_g="0.0224091" silver_g="0" platinum_g="0" mpg_g="0" />
+						</node>
+					</node>
+					<node text="812">
+						<node text="А" name="Транзистор 2Т812А">
+							<dgm gold_g="0.0170125" silver_g="0" platinum_g="0" mpg_g="0" />
+						</node>
+					</node>
 				</node>
 				<node text="2П" preprocess_prefix_regex="^2П(?:[\s\-]?[0-9]+[A-Za-zА-Яа-яІіЇїЄєҐґ0-9\-]*)\b">
 					<node text="301">
@@ -2042,6 +2088,12 @@
 							<node text="5" name="Мікросхема 155ИЕ5">
 								<dgm gold_g="0.004282" silver_g="0" platinum_g="0" mpg_g="0" />
 							</node>
+							<node text="2" name="Мікросхема 155ИЕ2">
+								<dgm gold_g="0.0032015" silver_g="0" platinum_g="0" mpg_g="0" />
+							</node>
+							<node text="7" name="Мікросхема 155ИЕ7">
+								<dgm gold_g="0.00345" silver_g="0" platinum_g="0" mpg_g="0" />
+							</node>
 						</node>
 						<node text="П">
 							<node text="2" name="Мікросхема 155ИП2">
@@ -2049,6 +2101,11 @@
 							</node>
 							<node text="5" name="Мікросхема 155ИП5">
 								<dgm gold_g="0.001433" silver_g="0" platinum_g="0" mpg_g="0" />
+							</node>
+						</node>
+						<node text="М">
+							<node text="3" name="Мікросхема 155ИМ3">
+								<dgm gold_g="0.00363" silver_g="0" platinum_g="0" mpg_g="0" />
 							</node>
 						</node>
 					</node>
@@ -2064,6 +2121,11 @@
 							<node text="1" name="Мікросхема 155АГ1">
 								<dgm gold_g="0.0030562" silver_g="0" platinum_g="0" mpg_g="0" />
 							</node>
+						</node>
+					</node>
+					<node text="РУ">
+						<node text="2" name="Мікросхема 155РУ2">
+							<dgm gold_g="0.00393" silver_g="0" platinum_g="0" mpg_g="0" />
 						</node>
 					</node>
 				</node>
@@ -2530,6 +2592,9 @@
 							<node text="5" name="Мікросхема 556РТ5">
 								<dgm gold_g="0.0262257" silver_g="0.033241" platinum_g="0" mpg_g="0" />
 							</node>
+							<node text="4" name="Мікросхема 556РТ4">
+								<dgm gold_g="0.023456" silver_g="0.0269579" platinum_g="0" mpg_g="0" />
+							</node>
 						</node>
 					</node>
 				</node>
@@ -2540,6 +2605,11 @@
 						</regex-leaf>
 						<dgm gold_g="0.0106197" silver_g="0.001002" platinum_g="0" mpg_g="0" />
 					</node>
+					<node text="225">
+						<node text="А" name="Мікросхема 1НТ225А">
+							<dgm gold_g="0.00011" silver_g="0" platinum_g="0" mpg_g="0" />
+						</node>
+					</node>
 				</node>
 				<node text="142">
 					<node text="Е">
@@ -2547,6 +2617,11 @@
 							<node text="5">
 								<node text="В" name="Мікросхема 142ЕН5В">
 									<dgm gold_g="0.026" silver_g="0.0492407" platinum_g="0" mpg_g="0" />
+								</node>
+							</node>
+							<node text="1">
+								<node text="Б" name="Мікросхема 142ЕН1Б">
+									<dgm gold_g="0.016706" silver_g="0.0185826" platinum_g="0" mpg_g="0" />
 								</node>
 							</node>
 						</node>
