@@ -11,9 +11,10 @@ from dgm_gui_xlsx_processor import XlsxProcessingMixin
 from dgm_gui_xlsx_preprocessor import XlsxPreprocessingMixin
 from dgm_gui_missing_elements import MissingElementsMixin
 from dgm_gui_xlsx_conflicts import XlsxConflictsMixin
+from dgm_gui_xlsx_postprocessor import XlsxPostprocessingMixin
 
 
-class DgmMainWindow(tk.Tk, XlsxProcessingMixin, XlsxPreprocessingMixin, MissingElementsMixin, XlsxConflictsMixin):
+class DgmMainWindow(tk.Tk, XlsxProcessingMixin, XlsxPreprocessingMixin, MissingElementsMixin, XlsxConflictsMixin, XlsxPostprocessingMixin):
 	def __init__(self, DatabasePath: Path) -> None:
 		super().__init__()
 		self.DatabasePath = DatabasePath
@@ -23,8 +24,8 @@ class DgmMainWindow(tk.Tk, XlsxProcessingMixin, XlsxPreprocessingMixin, MissingE
 		self.AutoFillXlsxWithoutReview = tk.BooleanVar(value=False)
 
 		self.title(f"DGM Inventory Tools - {DatabasePath.name}")
-		self.geometry("360x510")
-		self.minsize(320, 470)
+		self.geometry("360x610")
+		self.minsize(320, 560)
 
 		self._ConfigureStyle()
 		self._BuildLayout()
@@ -49,7 +50,10 @@ class DgmMainWindow(tk.Tk, XlsxProcessingMixin, XlsxPreprocessingMixin, MissingE
 		ttk.Button(self, text="Review XLSX/database conflicts in file", command=self._SelectAndReviewXlsxConflictsFile).grid(row=9, column=0, sticky="ew", padx=16, pady=4)
 		ttk.Button(self, text="Review XLSX/database conflicts in folder", command=self._SelectAndReviewXlsxConflictsFolder).grid(row=10, column=0, sticky="ew", padx=16, pady=4)
 		ttk.Button(self, text="List missing elements in .xlsx file", command=self._SelectAndListMissingXlsxFile).grid(row=11, column=0, sticky="ew", padx=16, pady=4)
-		ttk.Button(self, text="List missing elements in folder", command=self._SelectAndListMissingXlsxFolder).grid(row=12, column=0, sticky="ew", padx=16, pady=(4, 16))
+		ttk.Button(self, text="List missing elements in folder", command=self._SelectAndListMissingXlsxFolder).grid(row=12, column=0, sticky="ew", padx=16, pady=4)
+		ttk.Button(self, text="Postprocess .xlsx file", command=self._SelectAndPostprocessXlsxFile).grid(row=13, column=0, sticky="ew", padx=16, pady=4)
+		ttk.Button(self, text="Postprocess folder", command=self._SelectAndPostprocessXlsxFolder).grid(row=14, column=0, sticky="ew", padx=16, pady=4)
+		ttk.Button(self, text="Postprocess registry", command=self._SelectAndPostprocessRegistry).grid(row=15, column=0, sticky="ew", padx=16, pady=(4, 16))
 
 	def _OpenDatabaseEditor(self) -> None:
 		if self.DatabaseEditor is not None and self.DatabaseEditor.winfo_exists():
