@@ -18,7 +18,6 @@ from dgm_xlsx_preprocessor import (
 	PREFIX_SAFETY_ORDER,
 	PREPROCESS_STAGES,
 	PreprocessChange,
-	SavePreprocessRules,
 	XlsxPreprocessor,
 )
 
@@ -393,8 +392,6 @@ class XlsxPreprocessReviewWindow(tk.Toplevel):
 		try:
 			self._WriteTextToOccurrences(Change, EditedText)
 			NewChanges = self._ReprocessEditedOccurrences(Change, EditedText)
-			if self.Preprocessor.CacheChanged:
-				SavePreprocessRules(self.Preprocessor.Rules)
 		except Exception as Error:
 			tkinter.messagebox.showerror(WINDOW_TITLE, f"Cannot edit XLSX text: {Error}", parent=self)
 			return
