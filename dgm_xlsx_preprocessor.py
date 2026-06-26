@@ -27,6 +27,7 @@ class PreprocessRegexRule:
 	Replacement: str
 	Description: str = ""
 	Enabled: bool = True
+	ElementTypes: List[str] = field(default_factory=list)
 
 
 @dataclass
@@ -242,7 +243,7 @@ class XlsxPreprocessor:
 			return Text
 
 		ElementType, Remainder = Explicit
-		Current = self._ApplyRules(Remainder, self.Rules.StageThreeRules, "Stage 3", Notes)
+		Current = self._ApplyRules(Remainder, self.Rules.StageThreeRules, "Stage 3", Notes, ElementType)
 		CaseNormalized = NormalizeDesignationCase(Current)
 		if CaseNormalized != Current:
 			Notes.append("Stage 3: normalized designation letter casing")
@@ -363,10 +364,12 @@ class XlsxPreprocessor:
 			Result = " ".join(Result.split())
 		return Result
 
-	def _ApplyRules(self, Text: str, Rules: Sequence[PreprocessRegexRule], StageName: str, Notes: List[str]) -> str:
+	def _ApplyRules(self, Text: str, Rules: Sequence[PreprocessRegexRule], StageName: str, Notes: List[str], ElementType: Optional[PreprocessElementType] = None) -> str:
 		Current = Text
 		for Rule in Rules:
 			if not Rule.Enabled:
+				continue
+			if ElementType is not None and Rule.ElementTypes and ElementType.Id not in Rule.ElementTypes:
 				continue
 			try:
 				Updated = re.sub(Rule.Pattern, ConvertReplacement(Rule.Replacement), Current, flags=self.RegexFlags)
@@ -564,12 +567,14 @@ def ParseRegexRule(Node: XmlTree.Element) -> PreprocessRegexRule:
 	PatternNode = Node.find("pattern")
 	ReplacementNode = Node.find("replacement")
 	DescriptionNode = Node.find("description")
+	ElementTypes = [Item.strip() for Item in Node.get("element_types", "").split(",") if Item.strip()]
 	return PreprocessRegexRule(
 		Id=Node.get("id", "unnamed_rule"),
 		Pattern=(PatternNode.text if PatternNode is not None and PatternNode.text is not None else ""),
 		Replacement=(ReplacementNode.text if ReplacementNode is not None and ReplacementNode.text is not None else ""),
 		Description=(DescriptionNode.text if DescriptionNode is not None and DescriptionNode.text is not None else ""),
 		Enabled=ReadBool(Node.get("enabled"), True),
+		ElementTypes=ElementTypes,
 	)
 
 
@@ -605,11 +610,12 @@ def CreateDefaultPreprocessRules(PathToRules: Path) -> None:
 	AddElementType(Types, "relay", "Реле", ["реле"])
 
 	StageThree = XmlTree.SubElement(Root, "stage", {"id": "3", "name": "technical_normalization"})
-	AddRule(StageThree, "km_series_hyphenation", "Normalize КМ capacitor names like КМ 5б Н90 to КМ-5б-Н90", r"\bКМ[\s\-]*(\d+[а-яА-Яa-zA-Z]?)[\s\-]*(Н\d+)\b", "КМ-$1-$2")
-	AddRule(StageThree, "diode_d_series_join", "Normalize common Д-series diode designations split by whitespace", r"\b[ДD][\s\-]+(\d{1,4})\b", "Д$1")
-	AddRule(StageThree, "diode_d_trailing_letter_join", "Remove accidental space before the trailing letter in Д-series diode designations", r"\b(Д\d{1,4})\s+([а-яА-Яa-zA-Z])\b", "$1$2")
-	AddRule(StageThree, "semiconductor_trailing_letter_join", "Remove accidental space before trailing letters in common semiconductor designations", r"\b((?:КД|КС|КЦ|АЛ|КТ|ГТ|МП|КП|КН|КУ|П)\d{1,4})\s+([а-яА-Яa-zA-Z])\b", "$1$2")
-	AddRule(StageThree, "res_relay_series_hyphenation", "Normalize РЕС relay names with missing hyphen", r"\bРЕС[\s\-]*(\d+)\b", "РЕС-$1")
+	AddRule(StageThree, "km_series_hyphenation", "Normalize КМ capacitor names like КМ 5б Н90 to КМ-5б-Н90", r"\bКМ[\s\-]*(\d+[а-яА-Яa-zA-Z]?)[\s\-]*(Н\d+)\b", "КМ-$1-$2", "capacitor")
+	AddRule(StageThree, "diode_d_series_join", "Normalize common Д-series diode designations split by whitespace", r"\b[ДD][\s\-]+(\d{1,4})\b", "Д$1", "diode")
+	AddRule(StageThree, "diode_d_trailing_letter_join", "Remove accidental space before the trailing letter in Д-series diode designations", r"\b(Д\d{1,4})\s+([а-яА-Яa-zA-Z])\b", "$1$2", "diode")
+	AddRule(StageThree, "semiconductor_trailing_letter_join", "Remove accidental space before trailing letters in common semiconductor designations", r"\b((?:КД|КС|КЦ|АЛ|КТ|ГТ|МП|КП|КН|КУ|П)\d{1,4})\s+([а-яА-Яa-zA-Z])\b", "$1$2", "diode,transistor,dinistor,thyristor")
+	AddRule(StageThree, "microchip_prefix_space_join", "Remove accidental space after microchip prefix, e.g. к 155ИД3 to к155ИД3", r"\b([КK][РPМM]?|[КK][МM])\s+(\d{3,4}[А-ЯA-Z]{1,4}\d{1,3}[А-ЯA-Z]?)\b", "$1$2", "microchip")
+	AddRule(StageThree, "res_relay_series_hyphenation", "Normalize РЕС relay names with missing hyphen", r"\bРЕС[\s\-]*(\d+)\b", "РЕС-$1", "relay")
 
 	Tree = XmlTree.ElementTree(Root)
 	IndentXml(Root)
@@ -621,8 +627,11 @@ def AddIgnorePattern(Parent: XmlTree.Element, PatternId: str, Description: str, 
 	PatternNode.text = Pattern
 
 
-def AddRule(Parent: XmlTree.Element, RuleId: str, Description: str, Pattern: str, Replacement: str) -> None:
-	Rule = XmlTree.SubElement(Parent, "rule", {"id": RuleId, "enabled": "true"})
+def AddRule(Parent: XmlTree.Element, RuleId: str, Description: str, Pattern: str, Replacement: str, ElementTypes: str = "") -> None:
+	Attributes = {"id": RuleId, "enabled": "true"}
+	if ElementTypes:
+		Attributes["element_types"] = ElementTypes
+	Rule = XmlTree.SubElement(Parent, "rule", Attributes)
 	XmlTree.SubElement(Rule, "description").text = Description
 	XmlTree.SubElement(Rule, "pattern").text = Pattern
 	XmlTree.SubElement(Rule, "replacement").text = Replacement
