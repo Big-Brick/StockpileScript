@@ -233,7 +233,7 @@ class XlsxPreprocessor:
 	def _ApplyExactDatabaseCasing(self, Text: str, Notes: List[str]) -> str:
 		Result = self.Database.FindElement(Text)
 		Record = Result.Record
-		if Record is None or not Record.HasDgm:
+		if Record is None or not Record.HasDgm or Result.MatchedByRegex:
 			return Text
 		DatabaseText = BuildExactDatabaseText(Record)
 		if not DatabaseText:
@@ -248,13 +248,20 @@ class XlsxPreprocessor:
 		Original = Text
 		Current = self._CleanWhitespace(Text)
 		ExistingType = self._FindExplicitType(Current)
-		ExistingRecord = self.Database.FindElement(Current).Record
-		if ExistingType is not None and ExistingRecord is not None and ExistingRecord.HasDgm:
+		ExistingResult = self.Database.FindElement(Current)
+		ExistingRecord = ExistingResult.Record
+		if (
+			ExistingType is not None
+			and ExistingRecord is not None
+			and ExistingRecord.HasDgm
+			and not ExistingResult.MatchedByRegex
+			and self._RecordMatchesElementType(ExistingRecord, ExistingType[0])
+		):
 			return PreprocessChange(Row, Original, Current, ["Stage 2: existing prefixed text verified by exact database match"], True, False, "prefix", ExistingType[0].Canonical, "safe")
 		elif ExistingType is not None:
 			ElementType, Remainder = ExistingType
 			Candidate = self._CleanWhitespace(f"{ElementType.Canonical} {Remainder}")
-			Safety = self._ClassifyPrefixCandidate(Candidate)
+			Safety = self._ClassifyPrefixCandidate(Candidate, ElementType)
 			if Safety in ("safe", "partial") and Candidate == Current:
 				return PreprocessChange(Row, Original, Current, [f"Stage 2: existing prefix accepted ({PREFIX_SAFETY_LABELS[Safety]})"], Safety == "safe", False, "prefix", ElementType.Canonical, Safety)
 			return PreprocessChange(Row, Original, Candidate, [f"Stage 2: normalized explicit type as {ElementType.Canonical}"], Safety == "safe", Safety == "ambiguous", "prefix", ElementType.Canonical, Safety)
@@ -265,7 +272,7 @@ class XlsxPreprocessor:
 			for ElementType in self.Rules.ElementTypes:
 				if any(PrefixMatches(Token, Prefix) for Prefix in ElementType.Prefixes):
 					Candidate = self._MakeTypedCandidate(ElementType, Current)
-					Safety = self._ClassifyPrefixCandidate(Candidate)
+					Safety = self._ClassifyPrefixCandidate(Candidate, ElementType)
 					if Safety in ("safe", "partial"):
 						PrefixMatchesByCache.append((ElementType, Candidate, Safety))
 			if len(PrefixMatchesByCache) == 1:
@@ -279,7 +286,7 @@ class XlsxPreprocessor:
 		PartialMatches: List[Tuple[PreprocessElementType, str]] = []
 		for ElementType in self.Rules.ElementTypes:
 			Candidate = self._MakeTypedCandidate(ElementType, Current)
-			Safety = self._ClassifyPrefixCandidate(Candidate)
+			Safety = self._ClassifyPrefixCandidate(Candidate, ElementType)
 			if Safety == "safe":
 				ExactMatches.append((ElementType, Candidate))
 			elif Safety == "partial":
@@ -307,15 +314,27 @@ class XlsxPreprocessor:
 			return Change.SafetyLevel not in ("safe", "partial") or Change.NewText != Change.OriginalText
 		return Change.NewText != Change.OriginalText
 
-	def _ClassifyPrefixCandidate(self, Candidate: str) -> str:
+	def _ClassifyPrefixCandidate(self, Candidate: str, ElementType: PreprocessElementType) -> str:
 		Result = self.Database.FindElement(Candidate)
-		if Result.Record is not None and Result.Record.HasDgm:
+		if (
+			Result.Record is not None
+			and Result.Record.HasDgm
+			and not Result.MatchedByRegex
+			and self._RecordMatchesElementType(Result.Record, ElementType)
+		):
 			return "safe"
 		for Match in Result.PartialMatches:
+			if not self._RecordMatchesElementType(Match.Record, ElementType):
+				continue
 			NonOptionalNodes = sum(1 for Record in Match.Record.IterPath() if not dgm_database.IsOptionalNode(Record.Node))
 			if NonOptionalNodes >= 2:
 				return "partial"
 		return "unidentified"
+
+	def _RecordMatchesElementType(self, Record: dgm_database.ElementRecord, ElementType: PreprocessElementType) -> bool:
+		Canonical = dgm_database.NormalizeText(ElementType.Canonical)
+		DisplayName = dgm_database.NormalizeText(Record.DisplayName)
+		return DisplayName == Canonical or DisplayName.startswith(Canonical + " ")
 
 	def GetStageName(self, StageId: str) -> str:
 		for Stage in PREPROCESS_STAGES:
@@ -401,8 +420,14 @@ class XlsxPreprocessor:
 	def _DatabaseAccepts(self, ElementType: PreprocessElementType, Candidate: str) -> bool:
 		if not ElementType.DatabaseCheck:
 			return True
-		Record = self.Database.FindElement(Candidate).Record
-		return Record is not None and Record.HasDgm
+		Result = self.Database.FindElement(Candidate)
+		Record = Result.Record
+		return (
+			Record is not None
+			and Record.HasDgm
+			and not Result.MatchedByRegex
+			and self._RecordMatchesElementType(Record, ElementType)
+		)
 
 	def _RememberPrefix(self, ElementType: PreprocessElementType, Text: str, Notes: List[str]) -> None:
 		if not self.Rules.AutoUpdateCache or ElementType.XmlNode is None:
@@ -610,7 +635,14 @@ def ExtractLeadingPrefix(Text: str) -> str:
 
 
 def PrefixMatches(Token: str, Prefix: str) -> bool:
-	return Token.casefold().startswith(Prefix.casefold())
+	TokenFolded = Token.casefold()
+	PrefixFolded = Prefix.casefold()
+	if TokenFolded == PrefixFolded:
+		return True
+	if not TokenFolded.startswith(PrefixFolded):
+		return False
+	Remainder = Token[len(Prefix):]
+	return bool(Remainder) and not Remainder[0].isalpha()
 
 
 def IndentXml(Element: XmlTree.Element, Level: int = 0) -> None:
