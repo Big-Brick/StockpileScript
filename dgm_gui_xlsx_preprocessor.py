@@ -98,7 +98,7 @@ class XlsxPreprocessingMixin:
 
 	def _PreprocessXlsxQueue(self, Files: List[Path], Index: int = 0, StageIndex: int = 0, LogWindow: Optional["PreprocessLogWindow"] = None) -> None:
 		if StageIndex >= len(PREPROCESS_STAGES):
-			if LogWindow is not None:
+			if LogWindow is not None and LogWindow.IsUsable():
 				LogWindow.Append("All selected XLSX files were preprocessed.")
 			else:
 				tkinter.messagebox.showinfo(WINDOW_TITLE, "All selected XLSX files were preprocessed.", parent=self)
@@ -115,7 +115,7 @@ class XlsxPreprocessingMixin:
 
 		GroupedChanges = self._GroupPreprocessChanges(Changes)
 		if not GroupedChanges:
-			if LogWindow is None:
+			if LogWindow is None or not LogWindow.IsUsable():
 				LogWindow = PreprocessLogWindow(self)
 			LogWindow.Append(f"Skipped {Stage.Name}; no corrections found in {len(Files)} selected file(s).")
 			self._PreprocessXlsxQueue(Files, 0, StageIndex + 1, LogWindow)
@@ -149,7 +149,15 @@ class PreprocessLogWindow(tk.Toplevel):
 		Scroll.grid(row=0, column=1, sticky="ns", padx=(0, 10), pady=10)
 		self.Text.configure(yscrollcommand=Scroll.set)
 
+	def IsUsable(self) -> bool:
+		try:
+			return bool(self.winfo_exists()) and bool(self.Text.winfo_exists())
+		except tkinter.TclError:
+			return False
+
 	def Append(self, Message: str) -> None:
+		if not self.IsUsable():
+			return
 		self.Text.configure(state="normal")
 		self.Text.insert("end", Message + "\n")
 		self.Text.see("end")
@@ -478,7 +486,7 @@ class XlsxPreprocessReviewWindow(tk.Toplevel):
 		except Exception as Error:
 			tkinter.messagebox.showerror(WINDOW_TITLE, f"Cannot apply preprocessing changes: {Error}", parent=self)
 			return
-		if self.LogWindow is None:
+		if self.LogWindow is None or not self.LogWindow.IsUsable():
 			self.LogWindow = PreprocessLogWindow(self.ParentViewer)
 		OccurrenceCount = sum(Change.OccurrenceCount for Change in Changes)
 		self.LogWindow.Append(f"Applied {len(Changes)} unique corrections ({OccurrenceCount} row occurrence(s)) for {self.StageName}.")
