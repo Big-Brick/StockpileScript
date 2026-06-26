@@ -1,45 +1,12 @@
 <?xml version='1.0' encoding='utf-8'?>
 <xlsx_preprocess_rules version="1">
 	<ignored_texts>
-		<pattern id="board_contains_placed" enabled="true" description="Board/block header listing placed or available components">
-    		\b(плата|блок|модуль|вузол)\b.*\b(на\s+ньому|на\s+н(і|и)й|де|в\s+якому|у\s+якому)\b.*\b(розміщен[іи]|розташован[іи]|встановлен[іи]|змонтован[іи]|наявн[іи]|присутн[іи])\b
-	    </pattern>
-		<pattern id="board_contains_short" enabled="true" description="Short board/block header ending with на ній:">
-		    \b(плата|блок|модуль|вузол)\b.*\bна\s+н(і|и)й\b\s*:?$
-    	</pattern>
-		<pattern id="board_missing_elements" enabled="true" description="Board/block header listing missing components">
-		    \b(плата|блок|модуль|вузол)\b.*\b(відсутн[іи]|немає|відсутнє|без)\b
-    	</pattern>
-		<pattern id="board_available_except" enabled="true" description="Board/block header listing available components except missing ones">
-		    \b(плата|блок|модуль|вузол)\b.*\b(в\s+наявності|наявн[іи]|присутн[іи])\b.*\b(за\s+виключенням|за\s+винятком|крім|окрім)\b
-    	</pattern>
-		<pattern id="generic_placed_marker" enabled="true" description="Generic phrase marker for placed/listed contents rows">
-	    	\b(на\s+н(і|и)й|на\s+якій|де)\b\s*:?\s*$|\b(на\s+н(і|и)й|на\s+якій|де)\b.*\b(розміщен[іи]|розташован[іи]|встановлен[іи]|змонтован[іи])\b
-    	</pattern>
-		<pattern id="generic_missing_marker" enabled="true" description="Generic phrase marker for missing/excluded contents rows">
-		    \b(відсутн[іи]|немає)\b\s*:?$|\b(в\s+наявності|наявн[іи])\b.*\b(за\s+виключенням|за\s+винятком|крім|окрім)\b
-    	</pattern>
-		<pattern id="generic_military_rank" enabled="true" description="Rows containing Ukrainian military rank words">
-		    \b(\s*працівник\s*ЗСУ\w*|\s*прац.\s*ЗСУ\w*|\s*пр.\s*ЗСУ\w*|рекрут\w*|солдат\w*|сержант\w*|старшин\w*|прапорщик\w*|лейтенант\w*|капітан\w*|майор\w*|підполковник\w*|полковник\w*|генерал\w*)\b
-	    </pattern>
-		<pattern id="generic_commission" enabled="true" description="Rows containing commission wording">
-		    \bкомісі\w*\b
-	    </pattern>
-		<pattern id="generic_completeness" enabled="true" description="Rows containing completeness/complectation wording">
-		    \b(комплектн\w*|комплектаці\w*)\b
-	    </pattern>
-		<pattern id="generic_placed_word" enabled="true" description="Rows containing placed/located wording">
-		    \bрозміщен\w*\b
-	    </pattern>
-		<pattern id="generic_available_word" enabled="true" description="Rows containing available/present wording">
-		    \bнаявн\w*\b
-	    </pattern>
-		<pattern id="generic_property_word" enabled="true" description="Rows containing property wording">
-		    \bмайн\w*\b
-	    </pattern>
-		<pattern id="generic_counting_word" enabled="true" description="Rows containing count/calculation wording">
-		    \bпідрахун\w*\b
-	    </pattern>
+		<pattern id="board_plate_word" enabled="true" description="Rows containing board/PCB word плат-а/и/і/у/... variations">\bплат(а|и|і|у|ою|ею|ах|ами|ам)?\b</pattern>
+		<pattern id="generic_context_word_pair" enabled="true" description="Rows containing at least two separate context words that cannot be an element designation">\b(?:на|у|в|н[іи]й|ньому|якому|якій|яких|який|яка|яке|де|що|цей|ця|це|цьому|цій)\b.*\b(?:на|у|в|н[іи]й|ньому|якому|якій|яких|який|яка|яке|де|що|цей|ця|це|цьому|цій)\b</pattern>
+		<pattern id="generic_missing_marker" enabled="true" description="Rows containing explicit missing/excluded wording">\b(відсутн[іи]|немає|відсутнє|без)\b</pattern>
+		<pattern id="generic_military_rank" enabled="true" description="Rows containing Ukrainian military rank words">\b(\s*працівник\s*ЗСУ\w*|\s*прац\.\s*ЗСУ\w*|\s*пр\.\s*ЗСУ\w*|рекрут\w*|солдат\w*|сержант\w*|старшин\w*|прапорщик\w*|лейтенант\w*|капітан\w*|майор\w*|підполковник\w*|полковник\w*|генерал\w*)\b</pattern>
+		<pattern id="generic_commission" enabled="true" description="Rows containing commission wording">\bкомісі\w*\b</pattern>
+		<pattern id="generic_completeness" enabled="true" description="Rows containing completeness/complectation wording">\b(комплектн\w*|комплектаці\w*)\b</pattern>
 	</ignored_texts>
 	<settings>
 		<regex_flags ignore_case="true" unicode="true" />
