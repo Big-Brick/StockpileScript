@@ -134,10 +134,11 @@ class DgmDatabaseViewer(tk.Toplevel, XlsxProcessingMixin):
 		self.IgnoredCountLabel.grid(row=2, column=0, sticky="w", pady=(4, 0))
 
 	def _PopulateDatabaseViews(self) -> None:
-		self._PopulateCatalogTree()
+		self._PopulateCatalogTree(PreserveState=True)
 		self._PopulateIgnoredList()
 
-	def _PopulateCatalogTree(self) -> None:
+	def _PopulateCatalogTree(self, PreserveState: bool = True) -> None:
+		ExpandedNodeIds, SelectedNodeId = self._GetCatalogTreeState() if PreserveState else (set(), None)
 		self.CatalogItems.clear()
 		self.CatalogItemPaths.clear()
 		for Item in self.CatalogTree.get_children():
@@ -149,6 +150,35 @@ class DgmDatabaseViewer(tk.Toplevel, XlsxProcessingMixin):
 			self._InsertCatalogNode(CatalogRoot, Child, [])
 
 		self._SortCatalogTreeChildren()
+		if PreserveState:
+			self._RestoreCatalogTreeState(ExpandedNodeIds, SelectedNodeId)
+
+	def _GetCatalogTreeState(self) -> tuple[set[int], Optional[int]]:
+		ExpandedNodeIds: set[int] = set()
+		for ItemId, Node in self.CatalogItems.items():
+			if self.CatalogTree.item(ItemId, "open"):
+				ExpandedNodeIds.add(id(Node))
+
+		SelectedNodeId: Optional[int] = None
+		SelectedNode = self._GetSelectedCatalogNode()
+		if SelectedNode is not None:
+			SelectedNodeId = id(SelectedNode)
+		return ExpandedNodeIds, SelectedNodeId
+
+	def _RestoreCatalogTreeState(self, ExpandedNodeIds: set[int], SelectedNodeId: Optional[int]) -> None:
+		SelectedItem = ""
+		for ItemId, Node in self.CatalogItems.items():
+			NodeId = id(Node)
+			if NodeId in ExpandedNodeIds:
+				self.CatalogTree.item(ItemId, open=True)
+			if SelectedNodeId is not None and NodeId == SelectedNodeId:
+				SelectedItem = ItemId
+		for RootItem in self.CatalogTree.get_children(""):
+			self.CatalogTree.item(RootItem, open=True)
+		if SelectedItem:
+			self.CatalogTree.selection_set(SelectedItem)
+			self.CatalogTree.focus(SelectedItem)
+			self.CatalogTree.see(SelectedItem)
 
 	def _SortCatalogTreeChildren(self, ParentItemId: str = "") -> None:
 		Children = list(self.CatalogTree.get_children(ParentItemId))
@@ -290,7 +320,7 @@ class DgmDatabaseViewer(tk.Toplevel, XlsxProcessingMixin):
 			tkinter.messagebox.showerror(WINDOW_TITLE, str(Error), parent=self)
 			return
 
-		self._PopulateCatalogTree()
+		self._PopulateCatalogTree(PreserveState=True)
 
 	def _ModifySelectedCatalogNode(self) -> None:
 		Node = self._GetSelectedCatalogNode()
@@ -308,7 +338,7 @@ class DgmDatabaseViewer(tk.Toplevel, XlsxProcessingMixin):
 			tkinter.messagebox.showerror(WINDOW_TITLE, str(Error), parent=self)
 			return
 
-		self._PopulateCatalogTree()
+		self._PopulateCatalogTree(PreserveState=True)
 
 	def _ApplyCatalogNodeChanges(self, Node: XmlTree.Element, Values: Dict[str, str]) -> None:
 		Text = Values["text"]
@@ -360,7 +390,7 @@ class DgmDatabaseViewer(tk.Toplevel, XlsxProcessingMixin):
 			tkinter.messagebox.showerror(WINDOW_TITLE, str(Error), parent=self)
 			return
 
-		self._PopulateCatalogTree()
+		self._PopulateCatalogTree(PreserveState=True)
 
 	def _RemoveSelectedCatalogNode(self) -> None:
 		Node = self._GetSelectedCatalogNode()
@@ -386,7 +416,7 @@ class DgmDatabaseViewer(tk.Toplevel, XlsxProcessingMixin):
 			tkinter.messagebox.showerror(WINDOW_TITLE, str(Error), parent=self)
 			return
 
-		self._PopulateCatalogTree()
+		self._PopulateCatalogTree(PreserveState=True)
 
 
 	def _SearchCatalog(self) -> None:

@@ -306,6 +306,7 @@ class AddElementDialog(tk.Toplevel):
 		Name: str,
 		StructuredResult: dgm_database.ElementSearchResult,
 		InitialMode: str = "auto",
+		InitialValues: Optional[dgm_database.DgmValues] = None,
 	) -> None:
 		super().__init__(Parent)
 		self.Result: Optional[GuiAddElementResult] = None
@@ -374,7 +375,8 @@ class AddElementDialog(tk.Toplevel):
 		for Index, (MetalKey, MetalName) in enumerate(dgm_database.METALS):
 			ttk.Label(Values, text=MetalName).grid(row=0, column=Index, sticky="w")
 			Entry = ttk.Entry(Values, width=12)
-			Entry.insert(0, "0")
+			InitialValue = InitialValues.GetMetalValue(MetalKey) if InitialValues is not None else dgm_database.ReadDecimal("0")
+			Entry.insert(0, dgm_database.DecimalToText(InitialValue))
 			Entry.grid(row=1, column=Index, padx=(0, 6))
 			self.ValueEntries[MetalKey] = Entry
 		Buttons = ttk.Frame(self, height=self.BUTTON_SECTION_HEIGHT)

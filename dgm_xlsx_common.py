@@ -19,8 +19,8 @@ def CellHasUsableText(Value: object) -> bool:
 	return isinstance(Value, str) and bool(Value.strip())
 
 
-def DecimalToExcelNumber(Value: decimal.Decimal) -> float:
-	return float(Value)
+def DecimalToExcelValue(Value: decimal.Decimal) -> str:
+	return dgm_database.DecimalToText(Value)
 
 
 def ClearDgmCells(Sheet: openpyxl.worksheet.worksheet.Worksheet, Row: int, ColumnsInfo: dgm_database.Columns) -> None:
@@ -33,7 +33,7 @@ def WriteEntryToRow(Sheet: openpyxl.worksheet.worksheet.Worksheet, Row: int, Col
 	for MetalKey, _ in dgm_database.METALS:
 		PerElementCell = Sheet[f"{ColumnsInfo.PerElement[MetalKey]}{Row}"]
 		TotalCell = Sheet[f"{ColumnsInfo.Total[MetalKey]}{Row}"]
-		PerElementCell.value = DecimalToExcelNumber(Entry.GetMetalValue(MetalKey))
+		PerElementCell.value = DecimalToExcelValue(Entry.GetMetalValue(MetalKey))
 		PerElementCell.number_format = GRAM_NUMBER_FORMAT
 		TotalCell.value = f"={ColumnsInfo.PerElement[MetalKey]}{Row}*{ColumnsInfo.Quantity}{Row}"
 		TotalCell.number_format = GRAM_NUMBER_FORMAT

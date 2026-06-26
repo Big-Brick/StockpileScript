@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 import dgm_database
 
@@ -26,7 +26,7 @@ class GuiConflictRow:
 	SheetName: str
 	Row: int
 	Name: str
-	Record: dgm_database.ElementRecord
+	Record: Optional[dgm_database.ElementRecord]
 	SheetValues: dgm_database.DgmValues
 	DatabaseValues: dgm_database.DgmValues
 	Details: str

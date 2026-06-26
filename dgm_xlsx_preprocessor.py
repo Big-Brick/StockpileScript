@@ -194,6 +194,7 @@ class XlsxPreprocessor:
 			Notes.append("Stage 3: normalized designation letter casing")
 			Current = CaseNormalized
 		Current = self._CleanWhitespace(Current)
+		Current = self._ApplyExactDatabaseCasing(Current, Notes)
 
 		DatabaseRecord = self.Database.FindElement(Current).Record
 		DatabaseVerified = TypeVerified or (DatabaseRecord is not None and DatabaseRecord.HasDgm)
@@ -224,9 +225,24 @@ class XlsxPreprocessor:
 			Notes.append("Stage 3: normalized designation letter casing")
 			Current = CaseNormalized
 		Current = self._CleanWhitespace(Current)
+		Current = self._ApplyExactDatabaseCasing(Current, Notes)
 		DatabaseRecord = self.Database.FindElement(Current).Record
 		Verified = DatabaseRecord is not None and DatabaseRecord.HasDgm
 		return PreprocessChange(Row, Original, Current, Notes, Verified, False, "technical")
+
+	def _ApplyExactDatabaseCasing(self, Text: str, Notes: List[str]) -> str:
+		Result = self.Database.FindElement(Text)
+		Record = Result.Record
+		if Record is None or not Record.HasDgm:
+			return Text
+		DatabaseText = BuildExactDatabaseText(Record)
+		if not DatabaseText:
+			return Text
+		if Text != DatabaseText and Text.casefold() == DatabaseText.casefold() and len(Text) == len(DatabaseText):
+			Notes.append("Stage 3: matched exact database letter casing")
+			return DatabaseText
+		return Text
+
 
 	def _PreprocessPrefix(self, Row: int, Text: str) -> PreprocessChange:
 		Original = Text
@@ -401,6 +417,18 @@ class XlsxPreprocessor:
 		ElementType.Prefixes.append(Prefix)
 		self.CacheChanged = True
 		Notes.append(f"Stage 2: cached new prefix {Prefix}")
+
+
+def BuildExactDatabaseText(Record: dgm_database.ElementRecord) -> str:
+	Parts: List[str] = []
+	for PathRecord in Record.IterPath():
+		if not PathRecord.ConsumedText:
+			continue
+		if PathRecord.MatchedByRegex:
+			Parts.append(PathRecord.ConsumedText)
+		else:
+			Parts.append(PathRecord.DisplayText)
+	return "".join(Parts)
 
 
 def LoadPreprocessRules(PathToRules: Path) -> PreprocessRules:

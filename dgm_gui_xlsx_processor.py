@@ -196,7 +196,9 @@ class XlsxProcessingMixin:
 	def _RowHasConflictingDgmValues(self, Sheet: object, Row: int, Entry: dgm_database.ElementRecord) -> bool:
 		for MetalKey, _ in dgm_database.METALS:
 			Value = self._ReadSheetDgmValue(Sheet, self.Database.Columns.PerElement[MetalKey], Row)
-			if Value is not None and Value != 0 and Value != Entry.GetMetalValue(MetalKey):
+			if Value is None or Value == 0:
+				continue
+			if Value != Entry.GetMetalValue(MetalKey):
 				return True
 		return False
 
