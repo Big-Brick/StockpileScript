@@ -4,7 +4,7 @@ import re
 import xml.etree.ElementTree as XmlTree
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import Dict, List, Optional, Pattern, Sequence, Tuple
 
 import dgm_database
 import dgm_xlsx_common
@@ -17,6 +17,7 @@ except ImportError:
 
 RULES_VERSION = "1"
 DEFAULT_RULES_FILENAME = "preprocess_rules.xml"
+DATABASE_PREFIX_REGEX_ATTR = "preprocess_prefix_regex"
 
 
 @dataclass
@@ -33,9 +34,14 @@ class PreprocessElementType:
 	Id: str
 	Canonical: str
 	Aliases: List[str] = field(default_factory=list)
-	Prefixes: List[str] = field(default_factory=list)
 	DatabaseCheck: bool = True
 	XmlNode: Optional[XmlTree.Element] = None
+
+
+@dataclass
+class RuntimePrefixRule:
+	ElementType: PreprocessElementType
+	Pattern: Pattern[str]
 
 
 @dataclass
@@ -46,7 +52,6 @@ class PreprocessRules:
 	IgnoreCase: bool = True
 	CollapseWhitespace: bool = True
 	TrimWhitespace: bool = True
-	AutoUpdateCache: bool = True
 	IgnoredTextRules: List[PreprocessRegexRule] = field(default_factory=list)
 	StageOneRules: List[PreprocessRegexRule] = field(default_factory=list)
 	StageThreeRules: List[PreprocessRegexRule] = field(default_factory=list)
@@ -96,7 +101,7 @@ class XlsxPreprocessor:
 		self.Database = Database
 		self.Rules = LoadPreprocessRules(RulesPath)
 		self.RegexFlags = re.IGNORECASE if self.Rules.IgnoreCase else 0
-		self.CacheChanged = False
+		self.RuntimePrefixRules = self._BuildRuntimePrefixRules()
 
 	def PreprocessWorkbook(self, FilePath: Path, StageId: str = "all") -> List[PreprocessChange]:
 		if openpyxl is None:
@@ -166,8 +171,6 @@ class XlsxPreprocessor:
 			for Change in SheetChanges:
 				Sheet[f"{self.Database.Columns.Name}{Change.Row}"].value = Change.NewText
 			Workbook.save(FilePath)
-		if self.CacheChanged:
-			SavePreprocessRules(self.Rules)
 
 	def PreprocessText(self, Row: int, Text: str, StageId: str = "all") -> PreprocessChange:
 		if StageId == "language":
@@ -266,21 +269,21 @@ class XlsxPreprocessor:
 				return PreprocessChange(Row, Original, Current, [f"Stage 2: existing prefix accepted ({PREFIX_SAFETY_LABELS[Safety]})"], Safety == "safe", False, "prefix", ElementType.Canonical, Safety)
 			return PreprocessChange(Row, Original, Candidate, [f"Stage 2: normalized explicit type as {ElementType.Canonical}"], Safety == "safe", Safety == "ambiguous", "prefix", ElementType.Canonical, Safety)
 
-		PrefixMatchesByCache: List[Tuple[PreprocessElementType, str, str]] = []
-		Token = ExtractLeadingPrefix(Current)
-		if Token:
-			for ElementType in self.Rules.ElementTypes:
-				if any(PrefixMatches(Token, Prefix) for Prefix in ElementType.Prefixes):
-					Candidate = self._MakeTypedCandidate(ElementType, Current)
-					Safety = self._ClassifyPrefixCandidate(Candidate, ElementType)
-					if Safety in ("safe", "partial"):
-						PrefixMatchesByCache.append((ElementType, Candidate, Safety))
-			if len(PrefixMatchesByCache) == 1:
-				ElementType, Candidate, Safety = PrefixMatchesByCache[0]
-				return PreprocessChange(Row, Original, Candidate, [f"Stage 2: inferred {ElementType.Canonical} from cached prefix {Token}"], Safety == "safe", False, "prefix", ElementType.Canonical, Safety)
-			if len(PrefixMatchesByCache) > 1:
-				Types = ", ".join(Match[0].Canonical for Match in PrefixMatchesByCache)
-				return PreprocessChange(Row, Original, Current, [f"Stage 2: ambiguous cached prefix {Token}: {Types}"], False, True, "prefix", "", "ambiguous")
+		PrefixMatchesByPattern: List[Tuple[PreprocessElementType, str, str]] = []
+		for PrefixRule in self.RuntimePrefixRules:
+			if PrefixRule.Pattern.search(Current) is None:
+				continue
+			ElementType = PrefixRule.ElementType
+			Candidate = self._MakeTypedCandidate(ElementType, Current)
+			Safety = self._ClassifyPrefixCandidate(Candidate, ElementType)
+			if Safety in ("safe", "partial"):
+				PrefixMatchesByPattern.append((ElementType, Candidate, Safety))
+		if len(PrefixMatchesByPattern) == 1:
+			ElementType, Candidate, Safety = PrefixMatchesByPattern[0]
+			return PreprocessChange(Row, Original, Candidate, [f"Stage 2: inferred {ElementType.Canonical} from database prefix pattern"], Safety == "safe", False, "prefix", ElementType.Canonical, Safety)
+		if len(PrefixMatchesByPattern) > 1:
+			Types = ", ".join(Match[0].Canonical for Match in PrefixMatchesByPattern)
+			return PreprocessChange(Row, Original, Current, [f"Stage 2: ambiguous database prefix patterns: {Types}"], False, True, "prefix", "", "ambiguous")
 
 		ExactMatches: List[Tuple[PreprocessElementType, str]] = []
 		PartialMatches: List[Tuple[PreprocessElementType, str]] = []
@@ -294,7 +297,6 @@ class XlsxPreprocessor:
 
 		if len(ExactMatches) == 1:
 			ElementType, Candidate = ExactMatches[0]
-			self._RememberPrefix(ElementType, Current, [])
 			return PreprocessChange(Row, Original, Candidate, [f"Stage 2: inferred {ElementType.Canonical} by exact database match"], True, False, "prefix", ElementType.Canonical, "safe")
 		if len(ExactMatches) > 1:
 			Types = ", ".join(Match[0].Canonical for Match in ExactMatches)
@@ -375,14 +377,14 @@ class XlsxPreprocessor:
 				Notes.append(f"Stage 2: moved/capitalized type as {ElementType.Canonical}")
 			return Updated, self._DatabaseAccepts(ElementType, Updated), False
 
-		Token = ExtractLeadingPrefix(Text)
-		if Token:
-			for ElementType in self.Rules.ElementTypes:
-				if any(PrefixMatches(Token, Prefix) for Prefix in ElementType.Prefixes):
-					Candidate = self._MakeTypedCandidate(ElementType, Text)
-					if self._DatabaseAccepts(ElementType, Candidate):
-						Notes.append(f"Stage 2: inferred {ElementType.Canonical} from cached prefix {Token}")
-						return Candidate, True, False
+		for PrefixRule in self.RuntimePrefixRules:
+			if PrefixRule.Pattern.search(Text) is None:
+				continue
+			ElementType = PrefixRule.ElementType
+			Candidate = self._MakeTypedCandidate(ElementType, Text)
+			if self._DatabaseAccepts(ElementType, Candidate):
+				Notes.append(f"Stage 2: inferred {ElementType.Canonical} from database prefix pattern")
+				return Candidate, True, False
 
 		Matches: List[Tuple[PreprocessElementType, str]] = []
 		for ElementType in self.Rules.ElementTypes:
@@ -393,7 +395,6 @@ class XlsxPreprocessor:
 		if len(Matches) == 1:
 			ElementType, Candidate = Matches[0]
 			Notes.append(f"Stage 2: inferred {ElementType.Canonical} by database search")
-			self._RememberPrefix(ElementType, Text, Notes)
 			return Candidate, True, False
 		if len(Matches) > 1:
 			Notes.append("Stage 2: ambiguous database type inference")
@@ -417,6 +418,30 @@ class XlsxPreprocessor:
 		Candidate = self._ApplyRules(Candidate, self.Rules.StageThreeRules, "Stage 3", [])
 		return self._CleanWhitespace(NormalizeDesignationCase(Candidate))
 
+	def _BuildRuntimePrefixRules(self) -> List[RuntimePrefixRule]:
+		Rules: List[RuntimePrefixRule] = []
+		ElementTypesByCanonical = {dgm_database.NormalizeText(ElementType.Canonical): ElementType for ElementType in self.Rules.ElementTypes}
+
+		def Walk(Node: XmlTree.Element, OptionalParents: bool, ActiveType: Optional[PreprocessElementType]) -> None:
+			NodeText = Node.get("text", "")
+			NodeType = ElementTypesByCanonical.get(dgm_database.NormalizeText(NodeText), ActiveType)
+			PatternText = Node.get(DATABASE_PREFIX_REGEX_ATTR, "").strip()
+			NodePrefixText = NodeText.strip().rstrip("-–—")
+			if OptionalParents and NodeType is not None and PatternText and len(NodePrefixText) >= 2:
+				try:
+					Rules.append(RuntimePrefixRule(NodeType, re.compile(PatternText, flags=self.RegexFlags)))
+				except re.error:
+					pass
+			ChildrenHaveOptionalParents = OptionalParents and dgm_database.IsOptionalNode(Node)
+			for Child in list(Node):
+				if Child.tag == "node":
+					Walk(Child, ChildrenHaveOptionalParents, NodeType)
+
+		for Child in list(self.Database.CatalogNode):
+			if Child.tag == "node":
+				Walk(Child, True, None)
+		return Rules
+
 	def _DatabaseAccepts(self, ElementType: PreprocessElementType, Candidate: str) -> bool:
 		if not ElementType.DatabaseCheck:
 			return True
@@ -428,21 +453,6 @@ class XlsxPreprocessor:
 			and not Result.MatchedByRegex
 			and self._RecordMatchesElementType(Record, ElementType)
 		)
-
-	def _RememberPrefix(self, ElementType: PreprocessElementType, Text: str, Notes: List[str]) -> None:
-		if not self.Rules.AutoUpdateCache or ElementType.XmlNode is None:
-			return
-		Prefix = ExtractLeadingPrefix(Text)
-		if not Prefix or any(PrefixMatches(Prefix, Existing) for Existing in ElementType.Prefixes):
-			return
-		CacheNode = ElementType.XmlNode.find("prefix_cache")
-		if CacheNode is None:
-			CacheNode = XmlTree.SubElement(ElementType.XmlNode, "prefix_cache")
-		XmlTree.SubElement(CacheNode, "prefix").text = Prefix
-		ElementType.Prefixes.append(Prefix)
-		self.CacheChanged = True
-		Notes.append(f"Stage 2: cached new prefix {Prefix}")
-
 
 def BuildExactDatabaseText(Record: dgm_database.ElementRecord) -> str:
 	Parts: List[str] = []
@@ -474,14 +484,11 @@ def LoadPreprocessRules(PathToRules: Path) -> PreprocessRules:
 	if Settings is not None:
 		RegexFlags = Settings.find("regex_flags")
 		Whitespace = Settings.find("whitespace")
-		Cache = Settings.find("cache")
 		if RegexFlags is not None:
 			Rules.IgnoreCase = ReadBool(RegexFlags.get("ignore_case"), True)
 		if Whitespace is not None:
 			Rules.CollapseWhitespace = ReadBool(Whitespace.get("collapse"), True)
 			Rules.TrimWhitespace = ReadBool(Whitespace.get("trim"), True)
-		if Cache is not None:
-			Rules.AutoUpdateCache = ReadBool(Cache.get("auto_update"), True)
 
 	IgnoredTextsNode = Root.find("ignored_texts")
 	if IgnoredTextsNode is not None:
@@ -503,16 +510,13 @@ def LoadPreprocessRules(PathToRules: Path) -> PreprocessRules:
 			if not Canonical:
 				continue
 			AliasesNode = TypeNode.find("aliases")
-			PrefixNode = TypeNode.find("prefix_cache")
 			DatabaseCheckNode = TypeNode.find("database_check")
 			Aliases = [Child.text.strip() for Child in (AliasesNode.findall("alias") if AliasesNode is not None else []) if Child.text and Child.text.strip()]
-			Prefixes = [Child.text.strip() for Child in (PrefixNode.findall("prefix") if PrefixNode is not None else []) if Child.text and Child.text.strip()]
 			Rules.ElementTypes.append(
 				PreprocessElementType(
 					Id=TypeId,
 					Canonical=Canonical,
 					Aliases=Aliases,
-					Prefixes=Prefixes,
 					DatabaseCheck=ReadBool(DatabaseCheckNode.get("enabled") if DatabaseCheckNode is not None else None, True),
 					XmlNode=TypeNode,
 				)
@@ -559,7 +563,6 @@ def CreateDefaultPreprocessRules(PathToRules: Path) -> None:
 	Settings = XmlTree.SubElement(Root, "settings")
 	XmlTree.SubElement(Settings, "regex_flags", {"ignore_case": "true", "unicode": "true"})
 	XmlTree.SubElement(Settings, "whitespace", {"collapse": "true", "trim": "true"})
-	XmlTree.SubElement(Settings, "cache", {"auto_update": "true"})
 
 	IgnoredTexts = XmlTree.SubElement(Root, "ignored_texts")
 	AddIgnorePattern(IgnoredTexts, "board_contains_placed", "Board/block header listing placed components", r"\b(плата|блок|модуль|вузол)\b.*\b(на\s+н(і|и)й|де|в\s+якому|у\s+якому)\b.*\b(розміщен[іи]|встановлен[іи]|змонтован[іи]|наявн[іи]|присутн[іи]|розташован[іи])\b")
@@ -581,10 +584,10 @@ def CreateDefaultPreprocessRules(PathToRules: Path) -> None:
 	AddRule(StageOne, "ru_diode_to_uk_diode", "Russian диод to Ukrainian діод", r"\bдиод\b", "діод")
 
 	Types = XmlTree.SubElement(Root, "element_types")
-	AddElementType(Types, "capacitor", "Конденсатор", ["конденсатор", "конд", "кондер"], ["КМ", "К10", "К50"])
-	AddElementType(Types, "resistor", "Резистор", ["резистор", "сопротивление", "опір"], ["МЛТ", "СП", "С2"])
-	AddElementType(Types, "diode", "Діод", ["діод", "диод"], ["Д", "КД"])
-	AddElementType(Types, "relay", "Реле", ["реле"], ["РЕС", "РП"])
+	AddElementType(Types, "capacitor", "Конденсатор", ["конденсатор", "конд", "кондер"])
+	AddElementType(Types, "resistor", "Резистор", ["резистор", "сопротивление", "опір"])
+	AddElementType(Types, "diode", "Діод", ["діод", "диод"])
+	AddElementType(Types, "relay", "Реле", ["реле"])
 
 	StageThree = XmlTree.SubElement(Root, "stage", {"id": "3", "name": "technical_normalization"})
 	AddRule(StageThree, "km_series_hyphenation", "Normalize КМ capacitor names like КМ 5б Н90 to КМ-5б-Н90", r"\bКМ[\s\-]*(\d+[а-яА-Яa-zA-Z]?)[\s\-]*(Н\d+)\b", "КМ-$1-$2")
@@ -607,14 +610,11 @@ def AddRule(Parent: XmlTree.Element, RuleId: str, Description: str, Pattern: str
 	XmlTree.SubElement(Rule, "replacement").text = Replacement
 
 
-def AddElementType(Parent: XmlTree.Element, TypeId: str, Canonical: str, Aliases: Sequence[str], Prefixes: Sequence[str]) -> None:
+def AddElementType(Parent: XmlTree.Element, TypeId: str, Canonical: str, Aliases: Sequence[str]) -> None:
 	TypeNode = XmlTree.SubElement(Parent, "type", {"id": TypeId, "canonical": Canonical})
 	AliasesNode = XmlTree.SubElement(TypeNode, "aliases")
 	for Alias in Aliases:
 		XmlTree.SubElement(AliasesNode, "alias").text = Alias
-	CacheNode = XmlTree.SubElement(TypeNode, "prefix_cache")
-	for Prefix in Prefixes:
-		XmlTree.SubElement(CacheNode, "prefix").text = Prefix
 	XmlTree.SubElement(TypeNode, "database_check", {"enabled": "true"})
 
 
@@ -626,23 +626,6 @@ def ReadBool(Value: Optional[str], Default: bool) -> bool:
 
 def ConvertReplacement(Replacement: str) -> str:
 	return re.sub(r"\$(\d+)", r"\\\1", Replacement)
-
-
-def ExtractLeadingPrefix(Text: str) -> str:
-	Clean = Text.strip()
-	Match = re.match(r"^([A-Za-zА-Яа-яІіЇїЄєҐґ]+\d*)", Clean)
-	return Match.group(1).upper() if Match else ""
-
-
-def PrefixMatches(Token: str, Prefix: str) -> bool:
-	TokenFolded = Token.casefold()
-	PrefixFolded = Prefix.casefold()
-	if TokenFolded == PrefixFolded:
-		return True
-	if not TokenFolded.startswith(PrefixFolded):
-		return False
-	Remainder = Token[len(Prefix):]
-	return bool(Remainder) and not Remainder[0].isalpha()
 
 
 def IndentXml(Element: XmlTree.Element, Level: int = 0) -> None:
