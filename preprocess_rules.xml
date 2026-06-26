@@ -4,6 +4,7 @@
 		<pattern id="board_plate_word" enabled="true" description="Rows containing board/PCB word плат-а/и/і/у/... variations">\bплат(а|и|і|у|ою|ею|ах|ами|ам)?\b</pattern>
 		<pattern id="generic_context_word_pair" enabled="true" description="Rows containing at least two separate context words that cannot be an element designation">\b(?:на|у|в|н[іи]й|ньому|якому|якій|яких|який|яка|яке|де|що|цей|ця|це|цьому|цій)\b.*\b(?:на|у|в|н[іи]й|ньому|якому|якій|яких|який|яка|яке|де|що|цей|ця|це|цьому|цій)\b</pattern>
 		<pattern id="generic_missing_marker" enabled="true" description="Rows containing explicit missing/excluded wording">\b(відсутн[іи]|немає|відсутнє|без)\b</pattern>
+		<pattern id="generic_safe_ignore_words" enabled="true" description="Rows containing safe non-element words крім/того/розміщені variants">\b(о?крім\w*|того|розміщен\w*)\b</pattern>
 		<pattern id="generic_military_rank" enabled="true" description="Rows containing Ukrainian military rank words">\b(\s*працівник\s*ЗСУ\w*|\s*прац\.\s*ЗСУ\w*|\s*пр\.\s*ЗСУ\w*|рекрут\w*|солдат\w*|сержант\w*|старшин\w*|прапорщик\w*|лейтенант\w*|капітан\w*|майор\w*|підполковник\w*|полковник\w*|генерал\w*)\b</pattern>
 		<pattern id="generic_commission" enabled="true" description="Rows containing commission wording">\bкомісі\w*\b</pattern>
 		<pattern id="generic_completeness" enabled="true" description="Rows containing completeness/complectation wording">\b(комплектн\w*|комплектаці\w*)\b</pattern>
