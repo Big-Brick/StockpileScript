@@ -268,6 +268,20 @@ class MissingElementsWindow(tk.Toplevel):
 			tkinter.messagebox.showinfo(WINDOW_TITLE, "Select one or more missing element rows to edit.", parent=self)
 		return Summaries, Occurrences
 
+	def _LongestCommonLeadingSubstring(self, Texts: List[str]) -> str:
+		if not Texts:
+			return ""
+		Prefix = Texts[0]
+		for Text in Texts[1:]:
+			MaxLength = min(len(Prefix), len(Text))
+			Index = 0
+			while Index < MaxLength and Prefix[Index] == Text[Index]:
+				Index += 1
+			Prefix = Prefix[:Index]
+			if not Prefix:
+				break
+		return Prefix
+
 	def _EditSelectedInXlsx(self) -> None:
 		Summaries, Occurrences = self._SelectedOccurrencesForEdit()
 		if not Summaries or not Occurrences:
@@ -281,7 +295,7 @@ class MissingElementsWindow(tk.Toplevel):
 			if not Proceed:
 				return
 
-		InitialValue = Summaries[0].Name if len(Summaries) == 1 else ""
+		InitialValue = self._LongestCommonLeadingSubstring([Occurrence.Name for Occurrence in Occurrences])
 		EditedText = tkinter.simpledialog.askstring(
 			"Edit XLSX text",
 			f"Text to write to {len(Occurrences)} selected XLSX row(s):",
