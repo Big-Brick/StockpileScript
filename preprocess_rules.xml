@@ -197,6 +197,10 @@
 		<type id="connector" canonical="Роз'єм">
 			<aliases>
 				<alias>роз'єм</alias>
+				<alias>роз"єм</alias>
+				<alias>роз`єм</alias>
+				<alias>Роз"єм</alias>
+				<alias>Роз`єм</alias>
 				<alias>розєм</alias>
 				<alias>розьем</alias>
 				<alias>разъем</alias>
