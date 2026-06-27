@@ -297,6 +297,8 @@ class DgmDatabaseViewer(tk.Toplevel, XlsxProcessingMixin):
 			self.Database.AddDgmToExistingPath(Name, Result.Values, Result.PathParts)
 		elif Result.Mode == "regex":
 			self.Database.AddRegexElement(Name, Result.Values, Result.PathParts, Result.RegexText)
+		elif Result.Mode == "node_no_dgm":
+			self.Database.AddRegularNodePath(Result.PathParts)
 		else:
 			self.Database.AddElement(Name, Result.Values, Result.PathParts)
 

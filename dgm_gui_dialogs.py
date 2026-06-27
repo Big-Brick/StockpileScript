@@ -323,17 +323,21 @@ class AddElementDialog(tk.Toplevel):
 		self.NewPathEditor.grid(row=1, column=0, sticky="nsew")
 		AddModeFrame = ttk.LabelFrame(self.NewFrame, text="New element type")
 		AddModeFrame.grid(row=2, column=0, sticky="ew", pady=(8, 0))
-		AddModeFrame.columnconfigure(1, weight=1)
+		AddModeFrame.columnconfigure(2, weight=1)
 		self.AddMode = tk.StringVar(value="node")
-		ttk.Radiobutton(AddModeFrame, text="Exact structured node", variable=self.AddMode, value="node").grid(row=0, column=0, sticky="w", padx=(6, 12), pady=4)
-		ttk.Radiobutton(AddModeFrame, text="Regex leaf node", variable=self.AddMode, value="regex").grid(row=0, column=1, sticky="w", pady=4)
+		ttk.Radiobutton(AddModeFrame, text="Exact structured node with DGM", variable=self.AddMode, value="node", command=self._UpdateDgmValueState).grid(row=0, column=0, sticky="w", padx=(6, 12), pady=4)
+		ttk.Radiobutton(AddModeFrame, text="Regex leaf node", variable=self.AddMode, value="regex", command=self._UpdateDgmValueState).grid(row=0, column=1, sticky="w", padx=(0, 12), pady=4)
+		ttk.Radiobutton(AddModeFrame, text="Regular node without DGM", variable=self.AddMode, value="node_no_dgm", command=self._UpdateDgmValueState).grid(row=0, column=2, sticky="w", pady=4)
 
 		Values = ttk.LabelFrame(self, text="DGM values, g", height=self.VALUES_SECTION_HEIGHT)
 		Values.grid(row=4, column=0, sticky="ew", padx=10, pady=8)
 		Values.grid_propagate(False)
 		self.ValueEntries: Dict[str, ttk.Entry] = {}
+		self.ValueLabels: Dict[str, ttk.Label] = {}
 		for Index, (MetalKey, MetalName) in enumerate(dgm_database.METALS):
-			ttk.Label(Values, text=MetalName).grid(row=0, column=Index, sticky="w")
+			Label = ttk.Label(Values, text=MetalName)
+			Label.grid(row=0, column=Index, sticky="w")
+			self.ValueLabels[MetalKey] = Label
 			Entry = ttk.Entry(Values, width=12)
 			InitialValue = InitialValues.GetMetalValue(MetalKey) if InitialValues is not None else dgm_database.ReadDecimal("0")
 			Entry.insert(0, dgm_database.DecimalToText(InitialValue))
@@ -344,7 +348,16 @@ class AddElementDialog(tk.Toplevel):
 		ttk.Button(Buttons, text="Cancel", command=self._Cancel).grid(row=0, column=0, padx=(0, 6))
 		ttk.Button(Buttons, text="Add", command=self._Save).grid(row=0, column=1)
 		self._UpdateModeState()
+		self._UpdateDgmValueState()
 		self.wait_window(self)
+
+	def _UpdateDgmValueState(self) -> None:
+		DisableValues = self.DialogMode.get() == "new" and self.AddMode.get() == "node_no_dgm"
+		State = "disabled" if DisableValues else "normal"
+		for Entry in self.ValueEntries.values():
+			Entry.configure(state=State)
+		for Label in self.ValueLabels.values():
+			Label.configure(state=State)
 
 	def _BuildCandidateRows(self, StructuredResult: dgm_database.ElementSearchResult) -> List[dgm_database.PartialElementMatch]:
 		Rows: List[dgm_database.PartialElementMatch] = []
@@ -399,6 +412,7 @@ class AddElementDialog(tk.Toplevel):
 		else:
 			self.NewFrame.grid()
 			self._ApplySelectedParentToPathEditor()
+		self._UpdateDgmValueState()
 
 	def _PopulateCandidateList(self, Mode: str) -> None:
 		self.CandidateList.delete(0, tk.END)
@@ -466,16 +480,24 @@ class AddElementDialog(tk.Toplevel):
 		return Name
 
 	def _Save(self) -> None:
-		try:
+		if self.DialogMode.get() == "new" and self.AddMode.get() == "node_no_dgm":
 			Values = dgm_database.DgmValues(
-				GoldG=dgm_database.ReadDecimal(self.ValueEntries["gold"].get()),
-				SilverG=dgm_database.ReadDecimal(self.ValueEntries["silver"].get()),
-				PlatinumG=dgm_database.ReadDecimal(self.ValueEntries["platinum"].get()),
-				MpgG=dgm_database.ReadDecimal(self.ValueEntries["mpg"].get()),
+				GoldG=dgm_database.ReadDecimal("0"),
+				SilverG=dgm_database.ReadDecimal("0"),
+				PlatinumG=dgm_database.ReadDecimal("0"),
+				MpgG=dgm_database.ReadDecimal("0"),
 			)
-		except decimal.InvalidOperation as Error:
-			tkinter.messagebox.showerror(WINDOW_TITLE, f"Invalid DGM value: {Error}", parent=self)
-			return
+		else:
+			try:
+				Values = dgm_database.DgmValues(
+					GoldG=dgm_database.ReadDecimal(self.ValueEntries["gold"].get()),
+					SilverG=dgm_database.ReadDecimal(self.ValueEntries["silver"].get()),
+					PlatinumG=dgm_database.ReadDecimal(self.ValueEntries["platinum"].get()),
+					MpgG=dgm_database.ReadDecimal(self.ValueEntries["mpg"].get()),
+				)
+			except decimal.InvalidOperation as Error:
+				tkinter.messagebox.showerror(WINDOW_TITLE, f"Invalid DGM value: {Error}", parent=self)
+				return
 		Candidate = self._GetCandidate()
 		if self.DialogMode.get() == "existing":
 			if Candidate is None or Candidate.Record.HasDgm:
@@ -494,6 +516,8 @@ class AddElementDialog(tk.Toplevel):
 					tkinter.messagebox.showerror(WINDOW_TITLE, "Regex leaf text cannot be empty.", parent=self)
 					return
 				self.Result = GuiAddElementResult("regex", Values, ParentPathParts + NewPathParts[:-1], RegexText)
+			elif self.AddMode.get() == "node_no_dgm":
+				self.Result = GuiAddElementResult("node_no_dgm", Values, ParentPathParts + NewPathParts)
 			else:
 				self.Result = GuiAddElementResult("new", Values, ParentPathParts + NewPathParts)
 		self.destroy()

@@ -503,6 +503,23 @@ class DgmDatabase:
 		Record.WriteValuesToXml()
 		return Record
 
+	def AddRegularNodePath(self, PathParts: Sequence[str]) -> ElementRecord:
+		CleanParts = [Part for Part in PathParts if Part != ""]
+		if not CleanParts:
+			raise RuntimeError("Enter at least one new node")
+
+		Parent = self.CatalogNode
+		for Part in CleanParts:
+			Parent = self.EnsureRegularNode(Parent, Part)
+
+		return ElementRecord(
+			self,
+			Parent,
+			CleanParts[-1],
+			DgmValues(decimal.Decimal("0"), decimal.Decimal("0"), decimal.Decimal("0"), decimal.Decimal("0")),
+			False,
+		)
+
 	def AddRegexElement(self, Name: str, Values: DgmValues, ParentPathParts: Sequence[str], Text: str) -> ElementRecord:
 		Pattern = Text.strip()
 		if not Pattern:
