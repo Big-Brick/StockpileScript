@@ -96,6 +96,15 @@ PREFIX_SAFETY_LABELS = {
 	"unidentified": "Unidentified by rules",
 }
 
+# Stage 1 character-level normalization. These are Latin/Russian glyphs that
+# are routinely typed into Ukrainian/Cyrillic element designations by OCR or
+# mixed keyboard layout and should be normalized before regex rules run.
+UKRAINIAN_LOOKALIKE_TRANSLATION = str.maketrans({
+	"A": "А", "B": "В", "C": "С", "E": "Е", "H": "Н", "I": "І", "K": "К", "M": "М", "O": "О", "P": "Р", "T": "Т", "X": "Х", "Y": "У",
+	"a": "а", "c": "с", "e": "е", "i": "і", "k": "к", "m": "м", "o": "о", "p": "р", "t": "т", "x": "х", "y": "у",
+	"Ё": "Е", "ё": "е", "Э": "Е", "э": "е",
+})
+
 
 class XlsxPreprocessor:
 	def __init__(self, Database: dgm_database.DgmDatabase, RulesPath: Path) -> None:
@@ -190,6 +199,7 @@ class XlsxPreprocessor:
 			Notes.append("Ignored block/header row")
 			return PreprocessChange(Row, Original, Current, Notes, False, False)
 
+		Current = self._NormalizeUkrainianLookalikes(Current, Notes)
 		Current = self._ApplyRules(Current, self.Rules.StageOneRules, "Stage 1", Notes)
 		Current, TypeVerified, TypeAmbiguous = self._NormalizeType(Current, Notes)
 		Current = self._ApplyTechnicalNormalization(Current, Notes)
@@ -209,6 +219,7 @@ class XlsxPreprocessor:
 		Current = self._CleanWhitespace(Text)
 		if Current != Text:
 			Notes.append("Cleaned whitespace")
+		Current = self._NormalizeUkrainianLookalikes(Current, Notes)
 		Current = self._ApplyRules(Current, self.Rules.StageOneRules, "Stage 1", Notes)
 		return PreprocessChange(Row, Original, Current, Notes, True, False, "language")
 
@@ -363,6 +374,12 @@ class XlsxPreprocessor:
 		if self.Rules.CollapseWhitespace:
 			Result = " ".join(Result.split())
 		return Result
+
+	def _NormalizeUkrainianLookalikes(self, Text: str, Notes: List[str]) -> str:
+		Updated = Text.translate(UKRAINIAN_LOOKALIKE_TRANSLATION)
+		if Updated != Text:
+			Notes.append("Stage 1: normalized Latin/Russian lookalike letters to Ukrainian")
+		return Updated
 
 	def _ApplyRules(self, Text: str, Rules: Sequence[PreprocessRegexRule], StageName: str, Notes: List[str], ElementType: Optional[PreprocessElementType] = None) -> str:
 		Current = Text
