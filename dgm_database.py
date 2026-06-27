@@ -585,6 +585,13 @@ class DgmDatabase:
 			Parent = self.EnsureRegularNode(Parent, Part)
 		return Parent
 
+	def FindOrCreateChildPath(self, Parent: XmlTree.Element, PathParts: Sequence[str]) -> XmlTree.Element:
+		for Part in PathParts:
+			if Part == "":
+				continue
+			Parent = self.EnsureRegularNode(Parent, Part)
+		return Parent
+
 	def FindParent(self, PathParts: Sequence[str]) -> Optional[XmlTree.Element]:
 		Parent = self.CatalogNode
 		for Part in PathParts:
@@ -699,6 +706,41 @@ class DgmDatabase:
 		Node.set("text", Text[:-CharacterCount])
 		for Child in Children:
 			Child.set("text", TrailingText + Child.get("text", ""))
+
+	def MoveCatalogNodeToParent(self, Node: XmlTree.Element, ExistingParent: XmlTree.Element, NewPathParts: Sequence[str]) -> None:
+		if Node is self.CatalogNode or Node.tag not in CATALOG_ELEMENT_TAGS:
+			raise RuntimeError("Only catalog node and regex leaf entries can be moved")
+		if ExistingParent is not self.CatalogNode and ExistingParent.tag != "node":
+			raise RuntimeError("Selected destination parent is not a regular catalog node")
+
+		OldParent = self.FindCatalogParentOfNode(Node)
+		if OldParent is None:
+			raise RuntimeError("Selected catalog entry is not attached to the database")
+
+		NewParent = self.FindOrCreateChildPath(ExistingParent, NewPathParts)
+		if NewParent is Node or self.IsCatalogDescendant(NewParent, Node):
+			raise RuntimeError("Cannot move a catalog entry under itself or one of its children")
+
+		OldParent.remove(Node)
+		NewParent.append(Node)
+
+	def MoveCatalogChildrenToParent(self, Node: XmlTree.Element, ExistingParent: XmlTree.Element, NewPathParts: Sequence[str]) -> None:
+		if Node is self.CatalogNode or Node.tag not in CATALOG_ELEMENT_TAGS:
+			raise RuntimeError("Only catalog nodes can have their children moved")
+		if ExistingParent is not self.CatalogNode and ExistingParent.tag != "node":
+			raise RuntimeError("Selected destination parent is not a regular catalog node")
+
+		ChildrenToMove = [Child for Child in list(Node) if Child.tag in CATALOG_ELEMENT_TAGS]
+		if not ChildrenToMove:
+			raise RuntimeError("Selected catalog node has no child nodes to move")
+
+		NewParent = self.FindOrCreateChildPath(ExistingParent, NewPathParts)
+		if NewParent is Node or self.IsCatalogDescendant(NewParent, Node):
+			raise RuntimeError("Cannot move children under the selected node or one of its descendants")
+
+		for Child in ChildrenToMove:
+			Node.remove(Child)
+			NewParent.append(Child)
 
 	def CatalogNodeHasNonZeroDgmValues(self, Node: XmlTree.Element) -> bool:
 		NodesToCheck = [Node]

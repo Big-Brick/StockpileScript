@@ -384,12 +384,14 @@ class DgmDatabaseViewer(tk.Toplevel, XlsxProcessingMixin):
 		if Node is None:
 			return
 
-		Dialog = MoveCatalogNodeDialog(self, self.Database, self._GetSelectedCatalogPathParts()[:-1])
+		CurrentParent = self.Database.FindCatalogParentOfNode(Node) or self.Database.CatalogNode
+		Dialog = MoveCatalogNodeDialog(self, self.Database, CurrentParent)
 		if Dialog.Result is None:
 			return
 
 		try:
-			self.Database.MoveCatalogNode(Node, Dialog.Result)
+			ExistingParent, NewPathParts = Dialog.Result
+			self.Database.MoveCatalogNodeToParent(Node, ExistingParent, NewPathParts)
 			self.Database.Save()
 		except Exception as Error:
 			tkinter.messagebox.showerror(WINDOW_TITLE, str(Error), parent=self)
@@ -402,12 +404,14 @@ class DgmDatabaseViewer(tk.Toplevel, XlsxProcessingMixin):
 		if Node is None:
 			return
 
-		Dialog = MoveCatalogNodeDialog(self, self.Database, self._GetSelectedCatalogPathParts()[:-1])
+		CurrentParent = self.Database.FindCatalogParentOfNode(Node) or self.Database.CatalogNode
+		Dialog = MoveCatalogNodeDialog(self, self.Database, CurrentParent)
 		if Dialog.Result is None:
 			return
 
 		try:
-			self.Database.MoveCatalogChildren(Node, Dialog.Result)
+			ExistingParent, NewPathParts = Dialog.Result
+			self.Database.MoveCatalogChildrenToParent(Node, ExistingParent, NewPathParts)
 			self.Database.Save()
 		except Exception as Error:
 			tkinter.messagebox.showerror(WINDOW_TITLE, str(Error), parent=self)

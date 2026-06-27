@@ -5,7 +5,7 @@ import tkinter as tk
 import tkinter.messagebox
 import tkinter.ttk as ttk
 import xml.etree.ElementTree as XmlTree
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 import dgm_database
 from dgm_gui_common import GuiAddElementResult, WINDOW_TITLE
@@ -124,12 +124,13 @@ class CatalogNodeEditDialog(tk.Toplevel):
 class MoveCatalogNodeDialog(tk.Toplevel):
 	STOP_VALUE = "<use selected existing node>"
 
-	def __init__(self, Parent: tk.Tk, Database: dgm_database.DgmDatabase, CurrentParentPath: List[str]) -> None:
+	def __init__(self, Parent: tk.Tk, Database: dgm_database.DgmDatabase, CurrentParentNode: XmlTree.Element) -> None:
 		super().__init__(Parent)
 		self.Database = Database
-		self.Result: Optional[List[str]] = None
+		self.Result: Optional[Tuple[XmlTree.Element, List[str]]] = None
 		self._ExistingCombos: List[ttk.Combobox] = []
 		self._ExistingSelections: List[tk.StringVar] = []
+		self._ExistingComboNodes: List[List[XmlTree.Element]] = []
 
 		self.title("Move catalog node")
 		self.transient(Parent)
@@ -158,7 +159,7 @@ class MoveCatalogNodeDialog(tk.Toplevel):
 		ttk.Button(ButtonFrame, text="Cancel", command=self._Cancel).grid(row=0, column=0, sticky="e", padx=(20, 6))
 		ttk.Button(ButtonFrame, text="Move", command=self._Move).grid(row=0, column=1, sticky="e")
 
-		self._SetExistingPath(CurrentParentPath)
+		self._SetExistingNode(CurrentParentNode)
 		self.bind("<Escape>", lambda _Event: self._Cancel())
 		self.bind("<Return>", lambda _Event: self._Move())
 		self.protocol("WM_DELETE_WINDOW", self._Cancel)
@@ -168,51 +169,90 @@ class MoveCatalogNodeDialog(tk.Toplevel):
 	def _NodeText(self, Node: XmlTree.Element) -> str:
 		return Node.get("text", Node.get("name", Node.tag))
 
-	def _ExistingPathParts(self) -> List[str]:
-		Parts: List[str] = []
-		for Var in self._ExistingSelections:
-			Value = Var.get()
-			if Value == self.STOP_VALUE or not Value:
+	def _SelectedExistingNode(self) -> XmlTree.Element:
+		Parent = self.Database.CatalogNode
+		for Combo, Nodes in zip(self._ExistingCombos, self._ExistingComboNodes):
+			SelectedIndex = Combo.current()
+			if SelectedIndex < 0 or SelectedIndex >= len(Nodes):
 				break
-			Parts.append(Value)
-			NextNode = self.Database.FindParent(Parts)
-			if NextNode is None:
-				break
-		return Parts
+			Parent = Nodes[SelectedIndex]
+		return Parent
 
-	def _ChildNames(self, ParentPath: List[str]) -> List[str]:
-		Parent = self.Database.FindParent(ParentPath)
-		if Parent is None:
-			return []
-		return [self._NodeText(Child) for Child in list(Parent) if Child.tag == "node"]
+	def _SelectedExistingNodeChain(self) -> List[XmlTree.Element]:
+		Chain: List[XmlTree.Element] = []
+		for Combo, Nodes in zip(self._ExistingCombos, self._ExistingComboNodes):
+			SelectedIndex = Combo.current()
+			if SelectedIndex < 0 or SelectedIndex >= len(Nodes):
+				break
+			Chain.append(Nodes[SelectedIndex])
+		return Chain
+
+	def _ChildNodes(self, Parent: XmlTree.Element) -> List[XmlTree.Element]:
+		return [Child for Child in list(Parent) if Child.tag == "node"]
+
+	def _SetExistingNode(self, Node: XmlTree.Element) -> None:
+		Nodes: List[XmlTree.Element] = []
+		Current = Node
+		while Current is not self.Database.CatalogNode:
+			Parent = self.Database.FindCatalogParentOfNode(Current)
+			if Parent is None:
+				break
+			Nodes.append(Current)
+			Current = Parent
+		Nodes.reverse()
+		self._SetExistingNodes(Nodes)
 
 	def _SetExistingPath(self, Parts: List[str]) -> None:
+		Nodes: List[XmlTree.Element] = []
+		Parent = self.Database.CatalogNode
+		for Part in Parts:
+			SelectedNode = self._FindChildByText(Parent, Part)
+			if SelectedNode is None:
+				break
+			Nodes.append(SelectedNode)
+			Parent = SelectedNode
+		self._SetExistingNodes(Nodes)
+
+	def _SetExistingNodes(self, Nodes: List[XmlTree.Element]) -> None:
 		for Widget in self._ExistingCombos:
 			Widget.destroy()
 		self._ExistingCombos.clear()
 		self._ExistingSelections.clear()
-		ParentPath: List[str] = []
-		for Part in Parts:
-			if Part not in self._ChildNames(ParentPath):
-				break
-			self._AddExistingCombo(ParentPath, Part)
-			ParentPath.append(Part)
-		self._AddExistingCombo(ParentPath, self.STOP_VALUE)
+		self._ExistingComboNodes.clear()
 
-	def _AddExistingCombo(self, ParentPath: List[str], Selected: str) -> None:
-		Var = tk.StringVar(value=Selected)
-		Values = self._ChildNames(ParentPath) + [self.STOP_VALUE]
+		Parent = self.Database.CatalogNode
+		for Node in Nodes:
+			if Node not in self._ChildNodes(Parent):
+				break
+			self._AddExistingCombo(Parent, Node)
+			Parent = Node
+		self._AddExistingCombo(Parent, None)
+
+	def _FindChildByText(self, Parent: XmlTree.Element, Text: str) -> Optional[XmlTree.Element]:
+		for Child in self._ChildNodes(Parent):
+			if self._NodeText(Child) == Text:
+				return Child
+		return None
+
+	def _AddExistingCombo(self, Parent: XmlTree.Element, SelectedNode: Optional[XmlTree.Element]) -> None:
+		Nodes = self._ChildNodes(Parent)
+		Values = [self._NodeText(Node) for Node in Nodes] + [self.STOP_VALUE]
+		SelectedIndex = Nodes.index(SelectedNode) if SelectedNode in Nodes else len(Nodes)
+
+		Var = tk.StringVar(value=Values[SelectedIndex])
 		Combo = ttk.Combobox(self.ExistingComboFrame, textvariable=Var, values=Values, state="readonly")
+		Combo.current(SelectedIndex)
 		Combo.grid(row=len(self._ExistingCombos), column=0, sticky="ew", pady=(0, 4))
 		Combo.bind("<<ComboboxSelected>>", self._OnExistingSelectionChanged)
 		self._ExistingCombos.append(Combo)
 		self._ExistingSelections.append(Var)
+		self._ExistingComboNodes.append(Nodes)
 
 	def _OnExistingSelectionChanged(self, _Event: tk.Event) -> None:
-		self._SetExistingPath(self._ExistingPathParts())
+		self._SetExistingNodes(self._SelectedExistingNodeChain())
 
 	def _Move(self) -> None:
-		self.Result = self._ExistingPathParts() + self.NewPathEditor.GetPathParts()
+		self.Result = (self._SelectedExistingNode(), self.NewPathEditor.GetPathParts())
 		self.destroy()
 
 	def _Cancel(self) -> None:
