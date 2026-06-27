@@ -18,35 +18,12 @@
 				<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
 			</regex-leaf>
 		</node>
-		<node text="Вилка" optional="true">
-			<node text=" " name=" " optional="true">
-				<node text="РП">
-					<node text="10-">
-						<node text="15" name="Вилка РП10-15">
-							<dgm gold_g="0" silver_g="0.205" platinum_g="0" mpg_g="0" />
-						</node>
-					</node>
-				</node>
-			</node>
-		</node>
 		<node text="Лампа ">
 			<node text="ИНС-1" name="Лампа ИНС-1">
 				<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
 			</node>
 			<node text="6051Н-В" name="Лампа 6051Н-В">
 				<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
-			</node>
-		</node>
-		<node text="Мікротумблер ">
-			<node text="Т">
-				<node text="3" name="Мікротумблер Т3">
-					<dgm gold_g="0" silver_g="0.301454" platinum_g="0" mpg_g="0" />
-				</node>
-			</node>
-			<node text="Т-">
-				<node text="3" name="Мікротумблер Т-3">
-					<dgm gold_g="0" silver_g="0.233454" platinum_g="0" mpg_g="0" />
-				</node>
 			</node>
 		</node>
 		<node text="Перемикач" name="Перемикач">
@@ -142,35 +119,9 @@
 						<dgm gold_g="0" silver_g="0.52802" platinum_g="0" mpg_g="0" />
 					</node>
 				</node>
-			</node>
-		</node>
-		<node text="Розетка" optional="true">
-			<node text=" " optional="true">
-				<node text="РП">
-					<node text="10">
-						<node text="-15" name="Розетка РП10-15">
-							<dgm gold_g="0" silver_g="0.3222" platinum_g="0" mpg_g="0" />
-						</node>
-					</node>
-				</node>
-				<node text="СР-">
-					<node text="50">
-						<node text="-272С" name="Розетка приборна СР-50-272С">
-							<dgm gold_g="0" silver_g="0.258186" platinum_g="0" mpg_g="0" />
-						</node>
-						<node text="-83П" name="Розетка СР-50-83П">
-							<dgm gold_g="0" silver_g="0.377" platinum_g="0" mpg_g="0" />
-						</node>
-						<node text="-73" name="Розетка приборна СР-50-73">
-							<dgm gold_g="0" silver_g="0.03247" platinum_g="0" mpg_g="0" />
-						</node>
-					</node>
-				</node>
-				<node text="РГ1Н-">
-					<node text="3">
-						<node text="-5К" name="Розетка РГ1Н-3-5К">
-							<dgm gold_g="0" silver_g="0.41" platinum_g="0" mpg_g="0" />
-						</node>
+				<node text="Т-">
+					<node text="3" name="Мікротумблер Т-3">
+						<dgm gold_g="0" silver_g="0.233454" platinum_g="0" mpg_g="0" />
 					</node>
 				</node>
 			</node>
@@ -195,21 +146,30 @@
 						<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
 					</regex-leaf>
 				</node>
-				<node text="ДМ-" preprocess_prefix_regex="^ДМ\-[0-9]+[A-Za-zА-Яа-яІіЇїЄєҐґ0-9\-]*\b">
-					<node text="0,1" name="Дроссель ДМ-0,1">
+				<node text="ДМ" preprocess_prefix_regex="^ДМ\-[0-9]+[A-Za-zА-Яа-яІіЇїЄєҐґ0-9\-]*\b">
+					<node text="-0,1" name="Дроссель ДМ-0,1">
 						<regex-leaf text=".*" name="Дроссель ДМ-0,1-200">
-							<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
+							<dgm gold_g="0" silver_g="0.0006" platinum_g="0" mpg_g="0" />
 						</regex-leaf>
-						<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
+						<dgm gold_g="0" silver_g="0.0006" platinum_g="0" mpg_g="0" />
 					</node>
-					<node text="0,6">
+					<node text="-0,6">
 						<regex-leaf text=".*" name="Дроссель ДМ-0,6-10">
-							<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
+							<dgm gold_g="0" silver_g="0.0006" platinum_g="0" mpg_g="0" />
 						</regex-leaf>
+						<dgm gold_g="0" silver_g="0.0006" platinum_g="0" mpg_g="0" />
 					</node>
-					<node text="0,4">
+					<node text="-0,4">
 						<regex-leaf text=".*" name="ДМ-0,4-125">
-							<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
+							<dgm gold_g="0" silver_g="0.0006" platinum_g="0" mpg_g="0" />
+						</regex-leaf>
+						<dgm gold_g="0" silver_g="0.0006" platinum_g="0" mpg_g="0" />
+					</node>
+					<dgm gold_g="0" silver_g="0.000969" platinum_g="0" mpg_g="0" />
+					<node text="-0,2">
+						<dgm gold_g="0" silver_g="0.0006" platinum_g="0" mpg_g="0" />
+						<regex-leaf text=".*" name="Дроссель ДМ-0,2-200">
+							<dgm gold_g="0" silver_g="0.0006" platinum_g="0" mpg_g="0" />
 						</regex-leaf>
 					</node>
 				</node>
@@ -221,11 +181,6 @@
 				</node>
 				<node text="ВЧ">
 					<regex-leaf text=".*" name="Дросель ВЧ ПБТ4.712.002">
-						<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
-					</regex-leaf>
-				</node>
-				<node text="Д">
-					<regex-leaf text=".*" name="Дросель Д313">
 						<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
 					</regex-leaf>
 				</node>
@@ -660,6 +615,13 @@
 						</node>
 					</node>
 				</node>
+				<node text="НР1-">
+					<node text="9">
+						<node text="А" name="НР1-9А">
+							<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
+						</node>
+					</node>
+				</node>
 			</node>
 		</node>
 		<node text="Резонатор">
@@ -693,15 +655,6 @@
 				<node text="5 пін б/н" name="Роз'єм 5 пін б/н">
 					<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
 				</node>
-				<node text="РП">
-					<node text="10">
-						<node text="-15">
-							<node text="Л" name="Роз'єм РП10-15Л">
-								<dgm gold_g="0" silver_g="0.32" platinum_g="0" mpg_g="0" />
-							</node>
-						</node>
-					</node>
-				</node>
 				<node text="РРПМ">
 					<node text="1">
 						<node text="-31">
@@ -728,6 +681,15 @@
 						<regex-leaf text=".*" name="Роз'єм РГ3КП-3Г2Т">
 							<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
 						</regex-leaf>
+					</node>
+					<node text="1">
+						<node text="Н">
+							<node text="-3">
+								<node text="-5К" name="Розетка РГ1Н-3-5К">
+									<dgm gold_g="0" silver_g="0.41" platinum_g="0" mpg_g="0" />
+								</node>
+							</node>
+						</node>
 					</node>
 				</node>
 				<node text="ГРПМ">
@@ -810,15 +772,28 @@
 						</node>
 					</node>
 				</node>
-				<node text="СР-">
-					<node text="50">
+				<node text="СР">
+					<node text="-50">
 						<node text="-267">
-							<node text="-Ф" name="Вилка СР-50-267-Ф">
+							<node text="Ф" name="Вилка СР-50-267Ф">
 								<dgm gold_g="0" silver_g="0.09897" platinum_g="0" mpg_g="0" />
 							</node>
 						</node>
 						<node text="-111" name="Вилка кабельна СР-50-111">
 							<dgm gold_g="0" silver_g="0.086" platinum_g="0" mpg_g="0" />
+						</node>
+						<node text="-73" name="Розетка приборна СР-50-73">
+							<dgm gold_g="0" silver_g="0.03247" platinum_g="0" mpg_g="0" />
+						</node>
+						<node text="-272">
+							<node text="С" name="Розетка приборна СР-50-272С">
+								<dgm gold_g="0" silver_g="0.258186" platinum_g="0" mpg_g="0" />
+							</node>
+						</node>
+						<node text="-83">
+							<node text="П" name="Розетка СР-50-83П">
+								<dgm gold_g="0" silver_g="0.377" platinum_g="0" mpg_g="0" />
+							</node>
 						</node>
 					</node>
 				</node>
@@ -941,6 +916,42 @@
 						</node>
 					</node>
 				</node>
+				<node text="2РМДТ">
+					</node>
+				<node text="МРН">
+					</node>
+				<node text="РП">
+					<node text="10">
+						<node text="-15">
+							<node text=" Розетка" name="Розетка РП10-15">
+								<dgm gold_g="0" silver_g="0.3222" platinum_g="0" mpg_g="0" />
+							</node>
+							<node text=" Вилка" name="Вилка РП10-15">
+								<dgm gold_g="0" silver_g="0.205" platinum_g="0" mpg_g="0" />
+							</node>
+							<node text="Л" name="Роз'єм РП10-15Л">
+								<dgm gold_g="0" silver_g="0.32" platinum_g="0" mpg_g="0" />
+							</node>
+						</node>
+					</node>
+				</node>
+				<node text="РМГ" />
+				<node text="СНО" />
+				<node text="СНЦ" />
+				<node text="СШР" />
+				<node text="СШРГ" name="Роз'єм СШРГ">
+					<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
+				</node>
+				<node text="ГРПМШ">
+					</node>
+				<node text="РПМ">
+					<node text="РГ1Н" />
+					<node text="РШ2Н" />
+				</node>
+				<node text="РПС1" />
+				<node text="РС">
+					</node>
+				<node text="СКП" />
 			</node>
 		</node>
 		<node text="Розрядник">
@@ -950,36 +961,8 @@
 				</node>
 			</node>
 		</node>
-		<node text="НР1-">
-			<node text="9">
-				<node text="А" name="НР1-9А">
-					<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
-				</node>
-			</node>
-		</node>
 		<node text="Короб алюмінієвий, запаяний, без номеру" name="Короб алюмінієвий, запаяний, без номеру">
 			<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
-		</node>
-		<node text="Кінескоп" name="Кінескоп">
-			<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
-		</node>
-		<node text="Діодний міст">
-			<node text=" ">
-				<node text="КЦ">
-					<node text="405">
-						<node text="Е" name="Діодний міст КЦ405Е">
-							<dgm gold_g="0.00136" silver_g="0.00051" platinum_g="0" mpg_g="0" />
-						</node>
-					</node>
-				</node>
-			</node>
-		</node>
-		<node text="Дисковод">
-			<node text=" ">
-				<regex-leaf text=".*" name="Дисковод YD-580B з/н 5003-0800">
-					<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
-				</regex-leaf>
-			</node>
 		</node>
 		<node text="Лінія затримки">
 			<node text=" ">
@@ -3517,6 +3500,13 @@
 						</node>
 					</node>
 				</node>
+				<node text="КЦ">
+					<node text="405">
+						<node text="Е" name="Діодний міст КЦ405Е">
+							<dgm gold_g="0.00136" silver_g="0.00051" platinum_g="0" mpg_g="0" />
+						</node>
+					</node>
+				</node>
 			</node>
 			<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
 		</node>
@@ -3563,22 +3553,32 @@
 		</node>
 		<node text="Світлодіод" optional="true">
 			<node text=" " optional="true">
-				<node text="1б8904" name="Світлодіод 1Б8904">
-					<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
-				</node>
 				<node text="1Б">
 					<node text="9104" name="Світлодіод 1Б9104">
+						<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
+					</node>
+					<node text="8904" name="Світлодіод 1Б8904">
 						<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
 					</node>
 				</node>
 			</node>
 		</node>
-		<node text="1К0К0985" name="1К0К0985">
-			<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
-		</node>
 		<node text="Інше " name="Інше " optional="true">
 			<node text="КВ" name="Інше КВ">
 				<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
+			</node>
+			<node text="Кінескоп" name="Кінескоп">
+				<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
+			</node>
+			<node text="1К0К0985" name="1К0К0985">
+				<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
+			</node>
+			<node text="Дисковод">
+				<node text=" ">
+					<regex-leaf text=".*" name="Дисковод YD-580B з/н 5003-0800">
+						<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
+					</regex-leaf>
+				</node>
 			</node>
 		</node>
 	</catalog>
