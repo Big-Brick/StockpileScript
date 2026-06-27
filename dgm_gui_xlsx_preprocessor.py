@@ -248,8 +248,9 @@ class XlsxPreprocessReviewWindow(tk.Toplevel):
 			column=4,
 			padx=(0, 6),
 		)
-		ttk.Button(ButtonFrame, text="Next stage", command=self._NextStage).grid(row=0, column=5, padx=(0, 6))
-		ttk.Button(ButtonFrame, text="Close", command=self.destroy).grid(row=0, column=6)
+		ttk.Button(ButtonFrame, text="Dump visible originals", command=self._DumpVisibleOriginals).grid(row=0, column=5, padx=(0, 6))
+		ttk.Button(ButtonFrame, text="Next stage", command=self._NextStage).grid(row=0, column=6, padx=(0, 6))
+		ttk.Button(ButtonFrame, text="Close", command=self.destroy).grid(row=0, column=7)
 
 	def _SortedChanges(self, Changes: List[GroupedPreprocessChange]) -> List[GroupedPreprocessChange]:
 		if self.StageId != "prefix":
@@ -324,6 +325,48 @@ class XlsxPreprocessReviewWindow(tk.Toplevel):
 			RowText = ",".join(str(Row) for Row in sorted(Rows))
 			Parts.append(f"{FilePath.name}: {RowText}")
 		return "; ".join(Parts)
+
+	def _VisibleChanges(self) -> List[GroupedPreprocessChange]:
+		Visible: List[GroupedPreprocessChange] = []
+		SeenIds = set()
+
+		def AddIfChange(ItemId: str) -> None:
+			Change = self.ItemToChange.get(ItemId)
+			if Change is not None and id(Change) not in SeenIds:
+				SeenIds.add(id(Change))
+				Visible.append(Change)
+
+		def Walk(ItemId: str) -> None:
+			AddIfChange(ItemId)
+			if self.Tree.item(ItemId, "open") or ItemId in self.ItemToChange:
+				for Child in self.Tree.get_children(ItemId):
+					Walk(Child)
+
+		for RootItem in self.Tree.get_children(""):
+			Walk(RootItem)
+		return Visible
+
+	def _DumpVisibleOriginals(self) -> None:
+		Changes = self._VisibleChanges()
+		if not Changes:
+			tkinter.messagebox.showinfo(WINDOW_TITLE, "No visible correction rows to dump.", parent=self)
+			return
+		SelectedFile = tkinter.filedialog.asksaveasfilename(
+			title="Save visible original texts",
+			defaultextension=".txt",
+			filetypes=(("Text file", "*.txt"), ("All files", "*.*")),
+			parent=self,
+		)
+		if not SelectedFile:
+			return
+		OutputPath = Path(SelectedFile).expanduser().resolve()
+		Lines = []
+		for Change in Changes:
+			FirstOccurrence = Change.Occurrences[0] if Change.Occurrences else None
+			FileName = FirstOccurrence.FilePath.name if FirstOccurrence is not None else ""
+			Lines.append(f"{FileName}	{Change.OriginalText}")
+		OutputPath.write_text("\n".join(Lines) + "\n", encoding="utf-8")
+		tkinter.messagebox.showinfo(WINDOW_TITLE, f"Dumped {len(Lines)} visible original text row(s) to '{OutputPath}'.", parent=self)
 
 	def _SelectedChanges(self) -> List[GroupedPreprocessChange]:
 		Changes: List[GroupedPreprocessChange] = []
