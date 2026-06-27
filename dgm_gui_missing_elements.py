@@ -56,7 +56,7 @@ class MissingElementsWindow(tk.Toplevel):
 		self._UpdateSummaryLabel()
 
 		Columns = ("count", "files", "first_location")
-		self.Tree = ttk.Treeview(self, columns=Columns, show="tree headings", selectmode="browse")
+		self.Tree = ttk.Treeview(self, columns=Columns, show="tree headings", selectmode="extended")
 		self.Tree.heading("#0", text="Database partial match / element text")
 		self.Tree.heading("count", text="Count")
 		self.Tree.heading("files", text="Files")
@@ -221,39 +221,71 @@ class MissingElementsWindow(tk.Toplevel):
 		self.ParentViewer._PopulateIgnoredList()
 		self._RemoveSummary(Item)
 
-	def _SelectedOccurrencesForEdit(self) -> Tuple[Optional[MissingElementSummary], List[GuiMissingElement]]:
+	def _SelectedOccurrencesForEdit(self) -> Tuple[List[MissingElementSummary], List[GuiMissingElement]]:
 		Selection = self.Tree.selection()
 		if not Selection:
-			tkinter.messagebox.showinfo(WINDOW_TITLE, "Select a missing element row to edit.", parent=self)
-			return None, []
-		ItemId = Selection[0]
-		OccurrenceInfo = self.OccurrenceItems.get(ItemId)
-		if OccurrenceInfo is not None:
-			_, Summary, Occurrence = OccurrenceInfo
-			return Summary, [Occurrence]
-		Summary = self._SelectedItem()
-		if Summary is None:
-			tkinter.messagebox.showinfo(WINDOW_TITLE, "Select a missing element row to edit.", parent=self)
-			return None, []
-		return Summary, list(Summary.Occurrences)
+			tkinter.messagebox.showinfo(WINDOW_TITLE, "Select one or more missing element rows to edit.", parent=self)
+			return [], []
+
+		Summaries: List[MissingElementSummary] = []
+		Occurrences: List[GuiMissingElement] = []
+		SeenSummaryIds: set[int] = set()
+		SeenOccurrenceKeys: set[Tuple[Path, str, int]] = set()
+
+		def AddSummary(Summary: MissingElementSummary) -> None:
+			SummaryId = id(Summary)
+			if SummaryId not in SeenSummaryIds:
+				SeenSummaryIds.add(SummaryId)
+				Summaries.append(Summary)
+			for Occurrence in Summary.Occurrences:
+				AddOccurrence(Occurrence)
+
+		def AddOccurrence(Occurrence: GuiMissingElement) -> None:
+			Key = (Occurrence.FilePath, Occurrence.SheetName, Occurrence.Row)
+			if Key in SeenOccurrenceKeys:
+				return
+			SeenOccurrenceKeys.add(Key)
+			Occurrences.append(Occurrence)
+
+		for ItemId in Selection:
+			OccurrenceInfo = self.OccurrenceItems.get(ItemId)
+			if OccurrenceInfo is not None:
+				_, Summary, Occurrence = OccurrenceInfo
+				if id(Summary) not in SeenSummaryIds:
+					SeenSummaryIds.add(id(Summary))
+					Summaries.append(Summary)
+				AddOccurrence(Occurrence)
+				continue
+
+			Group, Summary = self.TreeItems.get(ItemId, (None, None))
+			if Summary is not None:
+				AddSummary(Summary)
+			elif Group is not None:
+				for GroupSummary in Group.ItemsByName.values():
+					AddSummary(GroupSummary)
+
+		if not Occurrences:
+			tkinter.messagebox.showinfo(WINDOW_TITLE, "Select one or more missing element rows to edit.", parent=self)
+		return Summaries, Occurrences
 
 	def _EditSelectedInXlsx(self) -> None:
-		Summary, Occurrences = self._SelectedOccurrencesForEdit()
-		if Summary is None or not Occurrences:
+		Summaries, Occurrences = self._SelectedOccurrencesForEdit()
+		if not Summaries or not Occurrences:
 			return
 		if len(Occurrences) > 1:
 			Proceed = tkinter.messagebox.askyesno(
 				WINDOW_TITLE,
-				f"This missing element has {len(Occurrences)} row occurrences. Edit all of them?",
+				f"Edit {len(Occurrences)} selected XLSX row occurrences?",
 				parent=self,
 			)
 			if not Proceed:
 				return
 
+		InitialValue = Summaries[0].Name if len(Summaries) == 1 else ""
 		EditedText = tkinter.simpledialog.askstring(
 			"Edit XLSX text",
-			"Text to write to XLSX:",
-			initialvalue=Summary.Name,
+			f"Text to write to {len(Occurrences)} selected XLSX row(s):",
+			initialvalue=InitialValue,
 			parent=self,
 		)
 		if EditedText is None:
