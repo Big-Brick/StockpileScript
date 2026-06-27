@@ -76,7 +76,8 @@ class MissingElementsWindow(tk.Toplevel):
 		ttk.Button(Buttons, text="Add selected to database...", command=self._AddSelectedToDatabase).grid(row=0, column=0, padx=(0, 6))
 		ttk.Button(Buttons, text="Add selected to ignore list", command=self._IgnoreSelected).grid(row=0, column=1, padx=(0, 6))
 		ttk.Button(Buttons, text="Edit selected in XLSX", command=self._EditSelectedInXlsx).grid(row=0, column=2, padx=(0, 6))
-		ttk.Button(Buttons, text="Close", command=self.destroy).grid(row=0, column=3)
+		ttk.Button(Buttons, text="Dump no-partial originals", command=self._DumpNoPartialOriginals).grid(row=0, column=3, padx=(0, 6))
+		ttk.Button(Buttons, text="Close", command=self.destroy).grid(row=0, column=4)
 
 	def _UpdateSummaryLabel(self) -> None:
 		MissingCount = sum(len(Group.ItemsByName) for Group in self.Groups)
@@ -134,6 +135,49 @@ class MissingElementsWindow(tk.Toplevel):
 
 	def _FormatLocation(self, Occurrence: GuiMissingElement) -> str:
 		return f"{Occurrence.FilePath.name} / {Occurrence.SheetName} / row {Occurrence.Row}"
+
+	def _DumpNoPartialOriginals(self) -> None:
+		Items = self._ItemsWithoutUsablePartialMatches()
+		if not Items:
+			tkinter.messagebox.showinfo(WINDOW_TITLE, "No missing rows without usable database partial matches to dump.", parent=self)
+			return
+		SelectedFile = tkinter.filedialog.asksaveasfilename(
+			title="Save missing original texts",
+			defaultextension=".txt",
+			filetypes=(("Text file", "*.txt"), ("All files", "*.*")),
+			parent=self,
+		)
+		if not SelectedFile:
+			return
+		OutputPath = Path(SelectedFile).expanduser().resolve()
+		Lines = []
+		for Item in Items:
+			FirstOccurrence = Item.Occurrences[0] if Item.Occurrences else None
+			FileName = FirstOccurrence.FilePath.name if FirstOccurrence is not None else ""
+			Lines.append(f"{FileName}\t{Item.Name}")
+		OutputPath.write_text("\n".join(Lines) + "\n", encoding="utf-8")
+		tkinter.messagebox.showinfo(WINDOW_TITLE, f"Dumped {len(Lines)} missing original text row(s) to '{OutputPath}'.", parent=self)
+
+	def _ItemsWithoutUsablePartialMatches(self) -> List[MissingElementSummary]:
+		Items: List[MissingElementSummary] = []
+		for Group in self.Groups:
+			for Item in Group.ItemsByName.values():
+				if not self._HasUsablePartialMatch(Item.Name):
+					Items.append(Item)
+		return sorted(Items, key=lambda Item: Item.Name.casefold())
+
+	def _HasUsablePartialMatch(self, Text: str) -> bool:
+		SearchResult = self.ParentViewer.Database.FindElement(Text)
+		Matches = list(SearchResult.PartialMatches)
+		if SearchResult.Record is not None and SearchResult.Record.Node.tag == "node":
+			Matches.insert(0, dgm_database.PartialElementMatch(Record=SearchResult.Record))
+		return any(not self._MatchUsesUnconsumedOptionalNode(Match) for Match in Matches)
+
+	def _MatchUsesUnconsumedOptionalNode(self, Match: dgm_database.PartialElementMatch) -> bool:
+		return any(
+			dgm_database.IsOptionalNode(Record.Node) and not Record.ConsumedText
+			for Record in Match.Record.IterPath()
+		)
 
 	def _SelectedItem(self) -> Optional[MissingElementSummary]:
 		Selection = self.Tree.selection()
