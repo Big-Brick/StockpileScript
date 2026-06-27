@@ -108,6 +108,13 @@ class NewNodePathEditor(ttk.Frame):
 		return f"{self.FILLED_MARKER if Part else self.EMPTY_MARKER} {Part}"
 
 	def _SelectPathIndex(self, Index: int) -> None:
+		self._SetListSelection(Index)
+		self._UpdatingEntry = True
+		self.PartEntry.delete(0, tk.END)
+		self.PartEntry.insert(0, self._RawPathParts()[self._SelectedPathIndex])
+		self._UpdatingEntry = False
+
+	def _SetListSelection(self, Index: int) -> None:
 		if self.PathList.size() == 0:
 			self.PathList.insert(tk.END, self._DisplayPart(""))
 		self._SelectedPathIndex = max(0, min(Index, self.PathList.size() - 1))
@@ -115,10 +122,6 @@ class NewNodePathEditor(ttk.Frame):
 		self.PathList.selection_set(self._SelectedPathIndex)
 		self.PathList.activate(self._SelectedPathIndex)
 		self.PathList.see(self._SelectedPathIndex)
-		self._UpdatingEntry = True
-		self.PartEntry.delete(0, tk.END)
-		self.PartEntry.insert(0, self._RawPathParts()[self._SelectedPathIndex])
-		self._UpdatingEntry = False
 
 	def _OnPathPartSelect(self, _Event: tk.Event) -> None:
 		Selection = self.PathList.curselection()
@@ -130,12 +133,14 @@ class NewNodePathEditor(ttk.Frame):
 	def _OnEntryChanged(self, _Event: tk.Event) -> None:
 		if self._UpdatingEntry:
 			return
-		self.EnsureSelection()
+
+		CurrentText = self.PartEntry.get()
+		self._SetListSelection(self._SelectedPathIndex)
 		Parts = self._RawPathParts()
-		Parts[self._SelectedPathIndex] = self.PartEntry.get()
+		Parts[self._SelectedPathIndex] = CurrentText
 		self.PathList.delete(self._SelectedPathIndex)
-		self.PathList.insert(self._SelectedPathIndex, self._DisplayPart(Parts[self._SelectedPathIndex]))
-		self._SelectPathIndex(self._SelectedPathIndex)
+		self.PathList.insert(self._SelectedPathIndex, self._DisplayPart(CurrentText))
+		self._SetListSelection(self._SelectedPathIndex)
 
 	def _MoveSelectedRow(self, Delta: int) -> None:
 		self.EnsureSelection()
