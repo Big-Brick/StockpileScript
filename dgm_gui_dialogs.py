@@ -121,137 +121,192 @@ class CatalogNodeEditDialog(tk.Toplevel):
 
 
 class MoveCatalogNodeDialog(tk.Toplevel):
-	def __init__(self, Parent: tk.Tk, CurrentParentPath: List[str]) -> None:
+	STOP_VALUE = "<use selected existing node>"
+	EMPTY_MARKER = "○"
+	FILLED_MARKER = "●"
+
+	def __init__(self, Parent: tk.Tk, Database: dgm_database.DgmDatabase, CurrentParentPath: List[str]) -> None:
 		super().__init__(Parent)
+		self.Database = Database
 		self.Result: Optional[List[str]] = None
+		self._ExistingCombos: List[ttk.Combobox] = []
+		self._ExistingSelections: List[tk.StringVar] = []
+		self._SelectedPathIndex = 0
+		self._UpdatingEntry = False
 
 		self.title("Move catalog node")
 		self.transient(Parent)
 		self.grab_set()
 		self.resizable(False, False)
-
 		self.columnconfigure(0, weight=1)
 		self.rowconfigure(1, weight=1)
 
-		ttk.Label(self, text="New parent path").grid(row=0, column=0, sticky="w", padx=10, pady=(10, 4))
+		ExistingFrame = ttk.LabelFrame(self, text="Existing parent node")
+		ExistingFrame.grid(row=0, column=0, sticky="ew", padx=10, pady=(10, 6))
+		ExistingFrame.columnconfigure(0, weight=1)
+		self.ExistingComboFrame = ttk.Frame(ExistingFrame)
+		self.ExistingComboFrame.grid(row=0, column=0, sticky="ew", padx=6, pady=6)
+		self.ExistingComboFrame.columnconfigure(0, weight=1)
+		ttk.Label(ExistingFrame, text="Pick children one level at a time; choose the stop value to use the previous node.").grid(row=1, column=0, sticky="w", padx=6, pady=(0, 6))
 
-		self.PathList = tk.Listbox(self, height=8, width=48, exportselection=False)
-		self.PathList.grid(row=1, column=0, sticky="nsew", padx=10, pady=(0, 6))
+		NewFrame = ttk.LabelFrame(self, text="New nodes to create under selected existing node")
+		NewFrame.grid(row=1, column=0, sticky="nsew", padx=10, pady=(0, 6))
+		NewFrame.columnconfigure(0, weight=1)
+		NewFrame.rowconfigure(0, weight=1)
+		self.PathList = tk.Listbox(NewFrame, height=8, width=54, exportselection=False, activestyle="dotbox")
+		self.PathList.grid(row=0, column=0, sticky="nsew", padx=6, pady=(6, 4))
+		self.PathList.bind("<<ListboxSelect>>", self._OnPathPartSelect)
+		self.PathList.bind("<FocusOut>", lambda _Event: self._EnsurePathSelection())
 
-		for Part in CurrentParentPath:
-			self.PathList.insert(tk.END, Part)
-
-		EditFrame = ttk.Frame(self)
-		EditFrame.grid(row=2, column=0, sticky="ew", padx=10, pady=(0, 6))
+		EditFrame = ttk.Frame(NewFrame)
+		EditFrame.grid(row=1, column=0, sticky="ew", padx=6, pady=(0, 6))
 		EditFrame.columnconfigure(0, weight=1)
-
 		self.PartEntry = ttk.Entry(EditFrame)
 		self.PartEntry.grid(row=0, column=0, sticky="ew", padx=(0, 6))
-
-		ttk.Button(EditFrame, text="Add", command=self._AddPart).grid(row=0, column=1, padx=(0, 6))
-		ttk.Button(EditFrame, text="Replace", command=self._ReplacePart).grid(row=0, column=2)
+		self.PartEntry.bind("<KeyRelease>", self._OnEntryChanged)
+		self.PartEntry.bind("<FocusIn>", lambda _Event: self._EnsurePathSelection())
+		ttk.Button(EditFrame, text="Add empty row", command=self._AddPart).grid(row=0, column=1)
 
 		ButtonFrame = ttk.Frame(self)
-		ButtonFrame.grid(row=3, column=0, sticky="ew", padx=10, pady=(0, 10))
-
+		ButtonFrame.grid(row=2, column=0, sticky="ew", padx=10, pady=(0, 10))
 		ttk.Button(ButtonFrame, text="Remove", command=self._RemovePart).grid(row=0, column=0, padx=(0, 6))
 		ttk.Button(ButtonFrame, text="Up", command=self._MovePartUp).grid(row=0, column=1, padx=(0, 6))
 		ttk.Button(ButtonFrame, text="Down", command=self._MovePartDown).grid(row=0, column=2, padx=(0, 6))
-
 		ttk.Button(ButtonFrame, text="Cancel", command=self._Cancel).grid(row=0, column=3, sticky="e", padx=(20, 6))
 		ttk.Button(ButtonFrame, text="Move", command=self._Move).grid(row=0, column=4, sticky="e")
 
-		ttk.Label(
-			self,
-			text="Each row is one parent node. Empty list means catalog root."
-		).grid(row=4, column=0, sticky="w", padx=10, pady=(0, 10))
-
-		self.PathList.bind("<<ListboxSelect>>", self._OnSelect)
-
+		self._SetExistingPath(CurrentParentPath)
+		self._SetPathParts([])
 		self.bind("<Escape>", lambda _Event: self._Cancel())
 		self.bind("<Return>", lambda _Event: self._Move())
 		self.protocol("WM_DELETE_WINDOW", self._Cancel)
-
 		self.PartEntry.focus_set()
 		self.wait_window(self)
 
-	def _GetSelectedIndex(self) -> Optional[int]:
-		Selection = self.PathList.curselection()
-		if not Selection:
-			return None
-		return int(Selection[0])
+	def _NodeText(self, Node: XmlTree.Element) -> str:
+		return Node.get("text", Node.get("name", Node.tag))
 
-	def _OnSelect(self, _Event: tk.Event) -> None:
-		Index = self._GetSelectedIndex()
-		if Index is None:
-			return
+	def _ExistingPathParts(self) -> List[str]:
+		Parts: List[str] = []
+		for Var in self._ExistingSelections:
+			Value = Var.get()
+			if Value == self.STOP_VALUE or not Value:
+				break
+			Parts.append(Value)
+			NextNode = self.Database.FindParent(Parts)
+			if NextNode is None:
+				break
+		return Parts
 
+	def _ChildNames(self, ParentPath: List[str]) -> List[str]:
+		Parent = self.Database.FindParent(ParentPath)
+		if Parent is None:
+			return []
+		return [self._NodeText(Child) for Child in list(Parent) if Child.tag == "node"]
+
+	def _SetExistingPath(self, Parts: List[str]) -> None:
+		for Widget in self._ExistingCombos:
+			Widget.destroy()
+		self._ExistingCombos.clear()
+		self._ExistingSelections.clear()
+		ParentPath: List[str] = []
+		for Part in Parts:
+			if Part not in self._ChildNames(ParentPath):
+				break
+			self._AddExistingCombo(ParentPath, Part)
+			ParentPath.append(Part)
+		self._AddExistingCombo(ParentPath, self.STOP_VALUE)
+
+	def _AddExistingCombo(self, ParentPath: List[str], Selected: str) -> None:
+		Var = tk.StringVar(value=Selected)
+		Values = self._ChildNames(ParentPath) + [self.STOP_VALUE]
+		Combo = ttk.Combobox(self.ExistingComboFrame, textvariable=Var, values=Values, state="readonly")
+		Combo.grid(row=len(self._ExistingCombos), column=0, sticky="ew", pady=(0, 4))
+		Combo.bind("<<ComboboxSelected>>", self._OnExistingSelectionChanged)
+		self._ExistingCombos.append(Combo)
+		self._ExistingSelections.append(Var)
+
+	def _OnExistingSelectionChanged(self, _Event: tk.Event) -> None:
+		self._SetExistingPath(self._ExistingPathParts())
+
+	def _RawPathParts(self) -> List[str]:
+		return [self.PathList.get(Index)[2:] for Index in range(self.PathList.size())]
+
+	def _DisplayPart(self, Part: str) -> str:
+		return f"{self.FILLED_MARKER if Part else self.EMPTY_MARKER} {Part}"
+
+	def _SetPathParts(self, Parts: List[str]) -> None:
+		self.PathList.delete(0, tk.END)
+		for Part in Parts or [""]:
+			self.PathList.insert(tk.END, self._DisplayPart(Part))
+		self._SelectPathIndex(min(self._SelectedPathIndex, self.PathList.size() - 1))
+
+	def _SelectPathIndex(self, Index: int) -> None:
+		if self.PathList.size() == 0:
+			self.PathList.insert(tk.END, self._DisplayPart(""))
+		self._SelectedPathIndex = max(0, min(Index, self.PathList.size() - 1))
+		self.PathList.selection_clear(0, tk.END)
+		self.PathList.selection_set(self._SelectedPathIndex)
+		self.PathList.activate(self._SelectedPathIndex)
+		self.PathList.see(self._SelectedPathIndex)
+		self._UpdatingEntry = True
 		self.PartEntry.delete(0, tk.END)
-		self.PartEntry.insert(0, self.PathList.get(Index))
+		self.PartEntry.insert(0, self._RawPathParts()[self._SelectedPathIndex])
+		self._UpdatingEntry = False
+
+	def _EnsurePathSelection(self) -> None:
+		self._SelectPathIndex(self._SelectedPathIndex)
+
+	def _OnPathPartSelect(self, _Event: tk.Event) -> None:
+		Selection = self.PathList.curselection()
+		if Selection:
+			self._SelectPathIndex(int(Selection[0]))
+		else:
+			self._EnsurePathSelection()
+
+	def _OnEntryChanged(self, _Event: tk.Event) -> None:
+		if self._UpdatingEntry:
+			return
+		self._EnsurePathSelection()
+		Parts = self._RawPathParts()
+		Parts[self._SelectedPathIndex] = self.PartEntry.get()
+		self.PathList.delete(self._SelectedPathIndex)
+		self.PathList.insert(self._SelectedPathIndex, self._DisplayPart(Parts[self._SelectedPathIndex]))
+		self._SelectPathIndex(self._SelectedPathIndex)
 
 	def _AddPart(self) -> None:
-		Part = self.PartEntry.get()
-
-		# ВАЖЛИВО: не робимо .strip(), бо trailing space може бути значущим.
-		if Part == "":
-			return
-
-		self.PathList.insert(tk.END, Part)
-		self.PartEntry.delete(0, tk.END)
-
-	def _ReplacePart(self) -> None:
-		Index = self._GetSelectedIndex()
-		if Index is None:
-			return
-
-		Part = self.PartEntry.get()
-
-		# ВАЖЛИВО: не робимо .strip().
-		if Part == "":
-			return
-
-		self.PathList.delete(Index)
-		self.PathList.insert(Index, Part)
-		self.PathList.selection_set(Index)
+		self.PathList.insert(tk.END, self._DisplayPart(""))
+		self._SelectPathIndex(self.PathList.size() - 1)
 
 	def _RemovePart(self) -> None:
-		Index = self._GetSelectedIndex()
-		if Index is None:
-			return
-
-		self.PathList.delete(Index)
+		self._EnsurePathSelection()
+		self.PathList.delete(self._SelectedPathIndex)
+		self._SelectPathIndex(min(self._SelectedPathIndex, self.PathList.size() - 1))
 
 	def _MovePartUp(self) -> None:
-		Index = self._GetSelectedIndex()
-		if Index is None or Index <= 0:
-			return
-
-		Part = self.PathList.get(Index)
-		self.PathList.delete(Index)
-		self.PathList.insert(Index - 1, Part)
-		self.PathList.selection_set(Index - 1)
+		self._MoveSelectedPart(-1)
 
 	def _MovePartDown(self) -> None:
-		Index = self._GetSelectedIndex()
-		if Index is None or Index >= self.PathList.size() - 1:
-			return
+		self._MoveSelectedPart(1)
 
-		Part = self.PathList.get(Index)
-		self.PathList.delete(Index)
-		self.PathList.insert(Index + 1, Part)
-		self.PathList.selection_set(Index + 1)
+	def _MoveSelectedPart(self, Delta: int) -> None:
+		self._EnsurePathSelection()
+		NewIndex = self._SelectedPathIndex + Delta
+		if NewIndex < 0 or NewIndex >= self.PathList.size():
+			return
+		Parts = self._RawPathParts()
+		Parts[self._SelectedPathIndex], Parts[NewIndex] = Parts[NewIndex], Parts[self._SelectedPathIndex]
+		self._SelectedPathIndex = NewIndex
+		self._SetPathParts(Parts)
 
 	def _Move(self) -> None:
-		self.Result = []
-
-		for Index in range(self.PathList.size()):
-			self.Result.append(self.PathList.get(Index))
-
+		self.Result = self._ExistingPathParts() + [Part for Part in self._RawPathParts() if Part != ""]
 		self.destroy()
 
 	def _Cancel(self) -> None:
 		self.Result = None
 		self.destroy()
+
 
 
 

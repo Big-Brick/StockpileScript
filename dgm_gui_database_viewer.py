@@ -4,6 +4,7 @@ import decimal
 from typing import Dict, List, Optional
 import tkinter as tk
 import tkinter.messagebox
+import tkinter.simpledialog
 import tkinter.ttk as ttk
 import xml.etree.ElementTree as XmlTree
 
@@ -105,6 +106,8 @@ class DgmDatabaseViewer(tk.Toplevel, XlsxProcessingMixin):
 		self.CatalogContextMenu.add_command(label="Add node...", command=self._AddCatalogNode)
 		self.CatalogContextMenu.add_command(label="Modify database node...", command=self._ModifySelectedCatalogNode)
 		self.CatalogContextMenu.add_command(label="Move node to another parent...", command=self._MoveSelectedCatalogNode)
+		self.CatalogContextMenu.add_command(label="Move all children to another parent...", command=self._MoveSelectedCatalogNodeChildren)
+		self.CatalogContextMenu.add_command(label="Move trailing characters to children...", command=self._MoveTrailingCharactersToChildren)
 		self.CatalogContextMenu.add_separator()
 		self.CatalogContextMenu.add_command(label="Remove node", command=self._RemoveSelectedCatalogNode)
 		self.CatalogTree.bind("<Button-3>", self._ShowCatalogContextMenu)
@@ -379,12 +382,53 @@ class DgmDatabaseViewer(tk.Toplevel, XlsxProcessingMixin):
 		if Node is None:
 			return
 
-		Dialog = MoveCatalogNodeDialog(self, self._GetSelectedCatalogPathParts()[:-1])
+		Dialog = MoveCatalogNodeDialog(self, self.Database, self._GetSelectedCatalogPathParts()[:-1])
 		if Dialog.Result is None:
 			return
 
 		try:
 			self.Database.MoveCatalogNode(Node, Dialog.Result)
+			self.Database.Save()
+		except Exception as Error:
+			tkinter.messagebox.showerror(WINDOW_TITLE, str(Error), parent=self)
+			return
+
+		self._PopulateCatalogTree(PreserveState=True)
+
+	def _MoveSelectedCatalogNodeChildren(self) -> None:
+		Node = self._GetSelectedCatalogNode()
+		if Node is None:
+			return
+
+		Dialog = MoveCatalogNodeDialog(self, self.Database, self._GetSelectedCatalogPathParts()[:-1])
+		if Dialog.Result is None:
+			return
+
+		try:
+			self.Database.MoveCatalogChildren(Node, Dialog.Result)
+			self.Database.Save()
+		except Exception as Error:
+			tkinter.messagebox.showerror(WINDOW_TITLE, str(Error), parent=self)
+			return
+
+		self._PopulateCatalogTree(PreserveState=True)
+
+	def _MoveTrailingCharactersToChildren(self) -> None:
+		Node = self._GetSelectedCatalogNode()
+		if Node is None:
+			return
+
+		Count = tkinter.simpledialog.askinteger(
+			WINDOW_TITLE,
+			"How many trailing characters should be removed from the selected node and prepended to each child?",
+			parent=self,
+			minvalue=1,
+		)
+		if Count is None:
+			return
+
+		try:
+			self.Database.MoveTrailingTextToChildren(Node, Count)
 			self.Database.Save()
 		except Exception as Error:
 			tkinter.messagebox.showerror(WINDOW_TITLE, str(Error), parent=self)

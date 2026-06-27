@@ -648,6 +648,41 @@ class DgmDatabase:
 		OldParent.remove(Node)
 		NewParent.append(Node)
 
+	def MoveCatalogChildren(self, Node: XmlTree.Element, NewParentPathParts: Sequence[str]) -> None:
+		if Node is self.CatalogNode or Node.tag not in CATALOG_ELEMENT_TAGS:
+			raise RuntimeError("Only catalog nodes can have their children moved")
+
+		ChildrenToMove = [Child for Child in list(Node) if Child.tag in CATALOG_ELEMENT_TAGS]
+		if not ChildrenToMove:
+			raise RuntimeError("Selected catalog node has no child nodes to move")
+
+		NewParent = self.FindOrCreateParent(NewParentPathParts)
+		if NewParent is Node or self.IsCatalogDescendant(NewParent, Node):
+			raise RuntimeError("Cannot move children under the selected node or one of its descendants")
+
+		for Child in ChildrenToMove:
+			Node.remove(Child)
+			NewParent.append(Child)
+
+	def MoveTrailingTextToChildren(self, Node: XmlTree.Element, CharacterCount: int) -> None:
+		if Node is self.CatalogNode or Node.tag != "node":
+			raise RuntimeError("Only regular catalog nodes can be split")
+		if CharacterCount <= 0:
+			raise RuntimeError("Character count must be greater than zero")
+
+		Text = Node.get("text", "")
+		if CharacterCount >= len(Text):
+			raise RuntimeError("Character count must be less than the selected node text length")
+
+		Children = [Child for Child in list(Node) if Child.tag in CATALOG_ELEMENT_TAGS]
+		if not Children:
+			raise RuntimeError("Selected catalog node has no child nodes to update")
+
+		TrailingText = Text[-CharacterCount:]
+		Node.set("text", Text[:-CharacterCount])
+		for Child in Children:
+			Child.set("text", TrailingText + Child.get("text", ""))
+
 	def CatalogNodeHasNonZeroDgmValues(self, Node: XmlTree.Element) -> bool:
 		NodesToCheck = [Node]
 		while NodesToCheck:
