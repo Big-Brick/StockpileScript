@@ -31,6 +31,22 @@ class MissingElementSummary:
 	Occurrences: List[GuiMissingElement] = field(default_factory=list)
 
 
+def MatchUsesUnconsumedOptionalNode(Match: dgm_database.PartialElementMatch) -> bool:
+	return any(
+		dgm_database.IsOptionalNode(Record.Node) and not Record.ConsumedText
+		for Record in Match.Record.IterPath()
+	)
+
+
+def PartialMatchGroupTitle(Match: dgm_database.PartialElementMatch, MaxNodes: int = 3) -> str:
+	Parts = [Record.DisplayText for Record in Match.Record.IterPath()[:MaxNodes]]
+	return " => ".join(Parts)
+
+
+def CountGroupOccurrences(Group: MissingElementGroup) -> int:
+	return sum(len(Item.Occurrences) for Item in Group.ItemsByName.values())
+
+
 class MissingElementsWindow(tk.Toplevel):
 	def __init__(self, Parent: tk.Toplevel, Files: List[Path], Groups: List[MissingElementGroup], IgnoredRows: int) -> None:
 		super().__init__(Parent)
@@ -92,7 +108,7 @@ class MissingElementsWindow(tk.Toplevel):
 		self.OccurrenceItems.clear()
 		self._UpdateSummaryLabel()
 		for Group in sorted(self.Groups, key=lambda Group: Group.SortText.casefold()):
-			GroupOccurrenceCount = sum(len(Item.Occurrences) for Item in Group.ItemsByName.values())
+			GroupOccurrenceCount = CountGroupOccurrences(Group)
 			GroupFiles = self._FormatFiles([Occurrence for Item in Group.ItemsByName.values() for Occurrence in Item.Occurrences])
 			GroupId = self._GroupTreeId(Group)
 			self.Tree.insert("", "end", iid=GroupId, text=Group.Title, values=(GroupOccurrenceCount, GroupFiles, ""), open=(GroupId in ExpandedItems))
@@ -174,10 +190,7 @@ class MissingElementsWindow(tk.Toplevel):
 		return any(not self._MatchUsesUnconsumedOptionalNode(Match) for Match in Matches)
 
 	def _MatchUsesUnconsumedOptionalNode(self, Match: dgm_database.PartialElementMatch) -> bool:
-		return any(
-			dgm_database.IsOptionalNode(Record.Node) and not Record.ConsumedText
-			for Record in Match.Record.IterPath()
-		)
+		return MatchUsesUnconsumedOptionalNode(Match)
 
 	def _SelectedItem(self) -> Optional[MissingElementSummary]:
 		Selection = self.Tree.selection()
@@ -313,6 +326,7 @@ class MissingElementsWindow(tk.Toplevel):
 			self._WriteOccurrencesToXlsx(Occurrences, EditedText)
 			self._RemoveOccurrences(Occurrences)
 			self._RecheckEditedOccurrences(Occurrences, EditedText)
+			self.Groups = self.ParentViewer._MergeSmallTextGroups(self.Groups)
 		except Exception as Error:
 			tkinter.messagebox.showerror(WINDOW_TITLE, f"Cannot edit XLSX text: {Error}", parent=self)
 			return
@@ -446,13 +460,58 @@ class MissingElementsMixin:
 				if ConsecutiveIgnoredRows >= dgm_xlsx_common.STOP_AFTER_CONSECUTIVE_IGNORED_ROWS:
 					break
 				Row += 1
-		return list(GroupsByKey.values()), IgnoredRows
+		return self._MergeSmallTextGroups(list(GroupsByKey.values())), IgnoredRows
+
+	def _MergeSmallTextGroups(self, Groups: List[MissingElementGroup], MinimumOccurrences: int = 100) -> List[MissingElementGroup]:
+		TextGroups = sorted((Group for Group in Groups if self._IsTextGroup(Group)), key=lambda Group: Group.SortText.casefold())
+		OtherGroups = [Group for Group in Groups if not self._IsTextGroup(Group)]
+		if not TextGroups:
+			return Groups
+
+		Buckets: List[List[MissingElementGroup]] = []
+		CurrentBucket: List[MissingElementGroup] = []
+		CurrentCount = 0
+		for Group in TextGroups:
+			CurrentBucket.append(Group)
+			CurrentCount += CountGroupOccurrences(Group)
+			if CurrentCount >= MinimumOccurrences:
+				Buckets.append(CurrentBucket)
+				CurrentBucket = []
+				CurrentCount = 0
+
+		if CurrentBucket:
+			if Buckets:
+				Buckets[-1].extend(CurrentBucket)
+			else:
+				Buckets.append(CurrentBucket)
+
+		MergedTextGroups = [self._MergeTextGroupBucket(Bucket, Index) for Index, Bucket in enumerate(Buckets, start=1)]
+		return OtherGroups + MergedTextGroups
+
+	def _IsTextGroup(self, Group: MissingElementGroup) -> bool:
+		return Group.Key.startswith("text:") or Group.Key.startswith("text_merged:")
+
+	def _MergeTextGroupBucket(self, Bucket: List[MissingElementGroup], Index: int) -> MissingElementGroup:
+		if len(Bucket) == 1:
+			return Bucket[0]
+		Labels = [Group.Title.removeprefix("Text: ") for Group in Bucket]
+		Title = f"Text: {Labels[0]} - {Labels[-1]}"
+		Merged = MissingElementGroup(f"text_merged:{Index}", Title, Title)
+		for Group in Bucket:
+			for NameKey, Item in Group.ItemsByName.items():
+				Existing = Merged.ItemsByName.get(NameKey)
+				if Existing is None:
+					Merged.ItemsByName[NameKey] = Item
+				else:
+					Existing.Occurrences.extend(Item.Occurrences)
+		return Merged
 
 	def _AddMissingElement(self, GroupsByKey: Dict[str, MissingElementGroup], Item: GuiMissingElement, Matches: List[dgm_database.PartialElementMatch]) -> None:
-		Best = sorted(Matches, key=lambda Match: len(dgm_database.NormalizeText(Match.DisplayName)), reverse=True)
+		UsableMatches = [Match for Match in Matches if not MatchUsesUnconsumedOptionalNode(Match)]
+		Best = sorted(UsableMatches, key=lambda Match: len(dgm_database.NormalizeText(PartialMatchGroupTitle(Match))), reverse=True)
 		if Best:
-			GroupKey = "match:" + dgm_database.NormalizeText(Best[0].DisplayName)
-			Title = Best[0].DisplayName
+			Title = PartialMatchGroupTitle(Best[0])
+			GroupKey = "match:" + dgm_database.NormalizeText(Title)
 		else:
 			Simple = Item.Name[:1].upper() if Item.Name else "#"
 			GroupKey = "text:" + Simple.casefold()
