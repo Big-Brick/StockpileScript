@@ -9,6 +9,7 @@ from typing import Dict, List, Optional
 
 import dgm_database
 from dgm_gui_common import GuiAddElementResult, WINDOW_TITLE
+from dgm_gui_widgets import NewNodePathEditor
 
 
 class CatalogNodeEditDialog(tk.Toplevel):
@@ -122,8 +123,6 @@ class CatalogNodeEditDialog(tk.Toplevel):
 
 class MoveCatalogNodeDialog(tk.Toplevel):
 	STOP_VALUE = "<use selected existing node>"
-	EMPTY_MARKER = "○"
-	FILLED_MARKER = "●"
 
 	def __init__(self, Parent: tk.Tk, Database: dgm_database.DgmDatabase, CurrentParentPath: List[str]) -> None:
 		super().__init__(Parent)
@@ -131,8 +130,6 @@ class MoveCatalogNodeDialog(tk.Toplevel):
 		self.Result: Optional[List[str]] = None
 		self._ExistingCombos: List[ttk.Combobox] = []
 		self._ExistingSelections: List[tk.StringVar] = []
-		self._SelectedPathIndex = 0
-		self._UpdatingEntry = False
 
 		self.title("Move catalog node")
 		self.transient(Parent)
@@ -153,34 +150,19 @@ class MoveCatalogNodeDialog(tk.Toplevel):
 		NewFrame.grid(row=1, column=0, sticky="nsew", padx=10, pady=(0, 6))
 		NewFrame.columnconfigure(0, weight=1)
 		NewFrame.rowconfigure(0, weight=1)
-		self.PathList = tk.Listbox(NewFrame, height=8, width=54, exportselection=False, activestyle="dotbox")
-		self.PathList.grid(row=0, column=0, sticky="nsew", padx=6, pady=(6, 4))
-		self.PathList.bind("<<ListboxSelect>>", self._OnPathPartSelect)
-		self.PathList.bind("<FocusOut>", lambda _Event: self._EnsurePathSelection())
-
-		EditFrame = ttk.Frame(NewFrame)
-		EditFrame.grid(row=1, column=0, sticky="ew", padx=6, pady=(0, 6))
-		EditFrame.columnconfigure(0, weight=1)
-		self.PartEntry = ttk.Entry(EditFrame)
-		self.PartEntry.grid(row=0, column=0, sticky="ew", padx=(0, 6))
-		self.PartEntry.bind("<KeyRelease>", self._OnEntryChanged)
-		self.PartEntry.bind("<FocusIn>", lambda _Event: self._EnsurePathSelection())
-		ttk.Button(EditFrame, text="Add empty row", command=self._AddPart).grid(row=0, column=1)
+		self.NewPathEditor = NewNodePathEditor(NewFrame, ListRows=8, ListWidth=54)
+		self.NewPathEditor.grid(row=0, column=0, sticky="nsew", padx=6, pady=6)
 
 		ButtonFrame = ttk.Frame(self)
 		ButtonFrame.grid(row=2, column=0, sticky="ew", padx=10, pady=(0, 10))
-		ttk.Button(ButtonFrame, text="Remove", command=self._RemovePart).grid(row=0, column=0, padx=(0, 6))
-		ttk.Button(ButtonFrame, text="Up", command=self._MovePartUp).grid(row=0, column=1, padx=(0, 6))
-		ttk.Button(ButtonFrame, text="Down", command=self._MovePartDown).grid(row=0, column=2, padx=(0, 6))
-		ttk.Button(ButtonFrame, text="Cancel", command=self._Cancel).grid(row=0, column=3, sticky="e", padx=(20, 6))
-		ttk.Button(ButtonFrame, text="Move", command=self._Move).grid(row=0, column=4, sticky="e")
+		ttk.Button(ButtonFrame, text="Cancel", command=self._Cancel).grid(row=0, column=0, sticky="e", padx=(20, 6))
+		ttk.Button(ButtonFrame, text="Move", command=self._Move).grid(row=0, column=1, sticky="e")
 
 		self._SetExistingPath(CurrentParentPath)
-		self._SetPathParts([])
 		self.bind("<Escape>", lambda _Event: self._Cancel())
 		self.bind("<Return>", lambda _Event: self._Move())
 		self.protocol("WM_DELETE_WINDOW", self._Cancel)
-		self.PartEntry.focus_set()
+		self.NewPathEditor.FocusEntry()
 		self.wait_window(self)
 
 	def _NodeText(self, Node: XmlTree.Element) -> str:
@@ -229,78 +211,8 @@ class MoveCatalogNodeDialog(tk.Toplevel):
 	def _OnExistingSelectionChanged(self, _Event: tk.Event) -> None:
 		self._SetExistingPath(self._ExistingPathParts())
 
-	def _RawPathParts(self) -> List[str]:
-		return [self.PathList.get(Index)[2:] for Index in range(self.PathList.size())]
-
-	def _DisplayPart(self, Part: str) -> str:
-		return f"{self.FILLED_MARKER if Part else self.EMPTY_MARKER} {Part}"
-
-	def _SetPathParts(self, Parts: List[str]) -> None:
-		self.PathList.delete(0, tk.END)
-		for Part in Parts or [""]:
-			self.PathList.insert(tk.END, self._DisplayPart(Part))
-		self._SelectPathIndex(min(self._SelectedPathIndex, self.PathList.size() - 1))
-
-	def _SelectPathIndex(self, Index: int) -> None:
-		if self.PathList.size() == 0:
-			self.PathList.insert(tk.END, self._DisplayPart(""))
-		self._SelectedPathIndex = max(0, min(Index, self.PathList.size() - 1))
-		self.PathList.selection_clear(0, tk.END)
-		self.PathList.selection_set(self._SelectedPathIndex)
-		self.PathList.activate(self._SelectedPathIndex)
-		self.PathList.see(self._SelectedPathIndex)
-		self._UpdatingEntry = True
-		self.PartEntry.delete(0, tk.END)
-		self.PartEntry.insert(0, self._RawPathParts()[self._SelectedPathIndex])
-		self._UpdatingEntry = False
-
-	def _EnsurePathSelection(self) -> None:
-		self._SelectPathIndex(self._SelectedPathIndex)
-
-	def _OnPathPartSelect(self, _Event: tk.Event) -> None:
-		Selection = self.PathList.curselection()
-		if Selection:
-			self._SelectPathIndex(int(Selection[0]))
-		else:
-			self._EnsurePathSelection()
-
-	def _OnEntryChanged(self, _Event: tk.Event) -> None:
-		if self._UpdatingEntry:
-			return
-		self._EnsurePathSelection()
-		Parts = self._RawPathParts()
-		Parts[self._SelectedPathIndex] = self.PartEntry.get()
-		self.PathList.delete(self._SelectedPathIndex)
-		self.PathList.insert(self._SelectedPathIndex, self._DisplayPart(Parts[self._SelectedPathIndex]))
-		self._SelectPathIndex(self._SelectedPathIndex)
-
-	def _AddPart(self) -> None:
-		self.PathList.insert(tk.END, self._DisplayPart(""))
-		self._SelectPathIndex(self.PathList.size() - 1)
-
-	def _RemovePart(self) -> None:
-		self._EnsurePathSelection()
-		self.PathList.delete(self._SelectedPathIndex)
-		self._SelectPathIndex(min(self._SelectedPathIndex, self.PathList.size() - 1))
-
-	def _MovePartUp(self) -> None:
-		self._MoveSelectedPart(-1)
-
-	def _MovePartDown(self) -> None:
-		self._MoveSelectedPart(1)
-
-	def _MoveSelectedPart(self, Delta: int) -> None:
-		self._EnsurePathSelection()
-		NewIndex = self._SelectedPathIndex + Delta
-		if NewIndex < 0 or NewIndex >= self.PathList.size():
-			return
-		Parts = self._RawPathParts()
-		Parts[self._SelectedPathIndex], Parts[NewIndex] = Parts[NewIndex], Parts[self._SelectedPathIndex]
-		self._SelectedPathIndex = NewIndex
-		self._SetPathParts(Parts)
-
 	def _Move(self) -> None:
-		self.Result = self._ExistingPathParts() + [Part for Part in self._RawPathParts() if Part != ""]
+		self.Result = self._ExistingPathParts() + self.NewPathEditor.GetPathParts()
 		self.destroy()
 
 	def _Cancel(self) -> None:
@@ -402,22 +314,15 @@ class AddElementDialog(tk.Toplevel):
 		self.NewFrame.columnconfigure(0, weight=1)
 		self.NewFrame.rowconfigure(1, weight=1)
 		ttk.Label(self.NewFrame, text="New structured node chain (one new node per line)").grid(row=0, column=0, sticky="w", pady=(0, 4))
-		self.PathList = tk.Listbox(self.NewFrame, height=self.PATH_LIST_ROWS, exportselection=False)
-		self.PathList.grid(row=1, column=0, sticky="nsew")
-		self.PathList.bind("<<ListboxSelect>>", self._OnPathPartSelect)
-		Edit = ttk.Frame(self.NewFrame)
-		Edit.grid(row=2, column=0, sticky="ew", pady=4)
-		Edit.columnconfigure(0, weight=1)
-		self.PartEntry = ttk.Entry(Edit)
-		self.PartEntry.grid(row=0, column=0, sticky="ew", padx=(0, 6))
-		ttk.Button(Edit, text="Split by /", command=self._SplitEntry).grid(row=0, column=1, padx=(0, 6))
-		ttk.Button(Edit, text="Add", command=self._AddPart).grid(row=0, column=2, padx=(0, 6))
-		ttk.Button(Edit, text="Replace", command=self._ReplacePart).grid(row=0, column=3)
-		Controls = ttk.Frame(self.NewFrame)
-		Controls.grid(row=3, column=0, sticky="w")
-		ttk.Button(Controls, text="Remove", command=self._RemovePart).grid(row=0, column=0, padx=(0, 6))
+		self.NewPathEditor = NewNodePathEditor(
+			self.NewFrame,
+			ListRows=self.PATH_LIST_ROWS,
+			ShowSplitButton=True,
+			SplitFallbackParts=self._DefaultSplit(self.Name),
+		)
+		self.NewPathEditor.grid(row=1, column=0, sticky="nsew")
 		AddModeFrame = ttk.LabelFrame(self.NewFrame, text="New element type")
-		AddModeFrame.grid(row=4, column=0, sticky="ew", pady=(8, 0))
+		AddModeFrame.grid(row=2, column=0, sticky="ew", pady=(8, 0))
 		AddModeFrame.columnconfigure(1, weight=1)
 		self.AddMode = tk.StringVar(value="node")
 		ttk.Radiobutton(AddModeFrame, text="Exact structured node", variable=self.AddMode, value="node").grid(row=0, column=0, sticky="w", padx=(6, 12), pady=4)
@@ -544,7 +449,7 @@ class AddElementDialog(tk.Toplevel):
 	def _ApplySelectedParentToPathEditor(self) -> None:
 		Candidate = self._GetCandidate()
 		Parts = self._NewPathPartsForCandidate(Candidate)
-		self._SetPathParts(Parts)
+		self.NewPathEditor.SetPathParts(Parts)
 
 	def _NewPathPartsForCandidate(self, Candidate: Optional[dgm_database.PartialElementMatch]) -> List[str]:
 		if Candidate is None:
@@ -559,54 +464,6 @@ class AddElementDialog(tk.Toplevel):
 		if ConsumedText and Name.casefold().startswith(ConsumedText.casefold()):
 			return Name[len(ConsumedText):]
 		return Name
-
-	def _SetPathParts(self, Parts: List[str]) -> None:
-		self.PathList.delete(0, tk.END)
-		for Part in Parts:
-			if Part:
-				self.PathList.insert(tk.END, Part)
-
-	def _GetPathParts(self) -> List[str]:
-		return [self.PathList.get(Index) for Index in range(self.PathList.size())]
-
-	def _OnPathPartSelect(self, _Event: tk.Event) -> None:
-		Selection = self.PathList.curselection()
-		if not Selection:
-			return
-		self.PartEntry.delete(0, tk.END)
-		self.PartEntry.insert(0, self.PathList.get(int(Selection[0])))
-
-	def _SplitEntry(self) -> None:
-		Parts = [Part for Part in self.PartEntry.get().split("/") if Part]
-		if not Parts:
-			Parts = self._DefaultSplit(self.Name)
-		Selection = self.PathList.curselection()
-		InsertIndex = tk.END
-		if Selection:
-			InsertIndex = int(Selection[0])
-			self.PathList.delete(InsertIndex)
-		for Part in Parts:
-			self.PathList.insert(InsertIndex, Part)
-			if InsertIndex != tk.END:
-				InsertIndex += 1
-		self.PartEntry.delete(0, tk.END)
-
-	def _AddPart(self) -> None:
-		if self.PartEntry.get():
-			self.PathList.insert(tk.END, self.PartEntry.get())
-			self.PartEntry.delete(0, tk.END)
-
-	def _ReplacePart(self) -> None:
-		Selection = self.PathList.curselection()
-		if Selection and self.PartEntry.get():
-			Index = int(Selection[0])
-			self.PathList.delete(Index)
-			self.PathList.insert(Index, self.PartEntry.get())
-
-	def _RemovePart(self) -> None:
-		Selection = self.PathList.curselection()
-		if Selection:
-			self.PathList.delete(int(Selection[0]))
 
 	def _Save(self) -> None:
 		try:
@@ -626,7 +483,7 @@ class AddElementDialog(tk.Toplevel):
 				return
 			self.Result = GuiAddElementResult("existing", Values, Candidate.Record.PathParts)
 		else:
-			NewPathParts = self._GetPathParts()
+			NewPathParts = self.NewPathEditor.GetPathParts()
 			if not NewPathParts:
 				tkinter.messagebox.showerror(WINDOW_TITLE, "Enter at least one new node.", parent=self)
 				return
