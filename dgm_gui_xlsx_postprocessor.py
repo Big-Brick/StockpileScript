@@ -14,6 +14,49 @@ import dgm_xlsx_preprocessor
 from dgm_gui_common import WINDOW_TITLE, openpyxl
 
 
+class FooterPlacementDialog(tk.Toplevel):
+	def __init__(self, Parent: tk.Toplevel, FilePath: Path, ReviewRows: List[tuple[int, str]], InitialRow: int) -> None:
+		super().__init__(Parent)
+		self.Result: Optional[int] = None
+		self.title(f"Select footer start - {FilePath.name}")
+		self.geometry("900x520")
+		self.minsize(700, 360)
+		self.columnconfigure(0, weight=1)
+		self.rowconfigure(1, weight=1)
+		ttk.Label(self, text="Review rows from the first possible footer row to the end, then choose the row where the footer must start.", style="Heading.TLabel").grid(row=0, column=0, sticky="ew", padx=10, pady=(10, 4))
+		self.Tree = ttk.Treeview(self, columns=("row", "text"), show="headings", selectmode="browse")
+		self.Tree.heading("row", text="Row")
+		self.Tree.heading("text", text="Row text")
+		self.Tree.column("row", width=70, stretch=False, anchor="e")
+		self.Tree.column("text", width=760, stretch=True)
+		self.Tree.grid(row=1, column=0, sticky="nsew", padx=10, pady=6)
+		Scroll = ttk.Scrollbar(self, orient=tk.VERTICAL, command=self.Tree.yview)
+		Scroll.grid(row=1, column=1, sticky="ns", pady=6)
+		self.Tree.configure(yscrollcommand=Scroll.set)
+		for Row, Text in ReviewRows:
+			self.Tree.insert("", "end", iid=str(Row), values=(Row, Text))
+		Controls = ttk.Frame(self)
+		Controls.grid(row=2, column=0, sticky="e", padx=10, pady=(4, 10))
+		tk.Label(Controls, text="Footer starts at row:").grid(row=0, column=0, padx=(0, 6))
+		self.FooterRow = tk.IntVar(value=InitialRow)
+		ttk.Spinbox(Controls, from_=1, to=100000, textvariable=self.FooterRow, width=8).grid(row=0, column=1, padx=(0, 6))
+		tk.Button(Controls, text="Use selected row", command=self._UseSelected).grid(row=0, column=2, padx=(0, 6))
+		tk.Button(Controls, text="OK", command=self._Ok).grid(row=0, column=3, padx=(0, 6))
+		tk.Button(Controls, text="Cancel", command=self.destroy).grid(row=0, column=4)
+		self.transient(Parent)
+		self.grab_set()
+		self.wait_window(self)
+
+	def _UseSelected(self) -> None:
+		Selection = self.Tree.selection()
+		if Selection:
+			self.FooterRow.set(int(Selection[0]))
+
+	def _Ok(self) -> None:
+		self.Result = int(self.FooterRow.get())
+		self.destroy()
+
+
 class XlsxPostprocessReviewWindow(tk.Toplevel):
 	def __init__(self, Parent: tk.Toplevel, Processor: dgm_xlsx_postprocessor.XlsxPostprocessor, Result: dgm_xlsx_postprocessor.PostprocessResult) -> None:
 		super().__init__(Parent)
@@ -139,7 +182,7 @@ class XlsxPostprocessingMixin:
 		Results = []
 		for FilePath in Files:
 			try:
-				Results.append(self._BuildPostprocessor().ProcessFile(FilePath, None, True))
+				Results.append(self._PostprocessOneWithFooterPrompt(FilePath, True))
 			except Exception as Error:
 				tkinter.messagebox.showerror(WINDOW_TITLE, f"Cannot postprocess '{FilePath}': {Error}", parent=self)
 				return
@@ -166,13 +209,50 @@ class XlsxPostprocessingMixin:
 			return
 		tkinter.messagebox.showinfo(WINDOW_TITLE, f"Registry postprocessing complete. Processed {Count} file(s).", parent=self)
 
-	def _PostprocessXlsxFile(self, FilePath: Path, RenameToCanonical: bool) -> None:
+	def _PostprocessOneWithFooterPrompt(self, FilePath: Path, RenameToCanonical: bool) -> dgm_xlsx_postprocessor.PostprocessResult:
+		Processor = self._BuildPostprocessor()
 		try:
-			Result = self._BuildPostprocessor().ProcessFile(FilePath, None, RenameToCanonical)
+			return Processor.ProcessFile(FilePath, None, RenameToCanonical)
+		except dgm_xlsx_postprocessor.FooterPlacementRequired as Error:
+			FooterStart = self._AskFooterStart(FilePath, Error.ReviewStart)
+			if FooterStart is None:
+				raise RuntimeError("Footer placement was cancelled")
+			return Processor.ProcessFile(FilePath, None, RenameToCanonical, FooterStart)
+
+	def _PostprocessXlsxFile(self, FilePath: Path, RenameToCanonical: bool) -> None:
+		Processor = self._BuildPostprocessor()
+		try:
+			Result = Processor.ProcessFile(FilePath, None, RenameToCanonical)
+		except dgm_xlsx_postprocessor.FooterPlacementRequired as Error:
+			FooterStart = self._AskFooterStart(FilePath, Error.ReviewStart)
+			if FooterStart is None:
+				return
+			try:
+				Result = Processor.ProcessFile(FilePath, None, RenameToCanonical, FooterStart)
+			except Exception as InnerError:
+				tkinter.messagebox.showerror(WINDOW_TITLE, f"Cannot postprocess '{FilePath}': {InnerError}", parent=self)
+				return
 		except Exception as Error:
 			tkinter.messagebox.showerror(WINDOW_TITLE, f"Cannot postprocess '{FilePath}': {Error}", parent=self)
 			return
-		XlsxPostprocessReviewWindow(self, self._BuildPostprocessor(), Result)
+		XlsxPostprocessReviewWindow(self, Processor, Result)
+
+	def _AskFooterStart(self, FilePath: Path, ReviewStart: int) -> Optional[int]:
+		Rows = self._ReadFooterReviewRows(FilePath, ReviewStart)
+		Dialog = FooterPlacementDialog(self, FilePath, Rows, ReviewStart)
+		return Dialog.Result
+
+	def _ReadFooterReviewRows(self, FilePath: Path, ReviewStart: int) -> List[tuple[int, str]]:
+		Workbook = openpyxl.load_workbook(FilePath, data_only=False)  # type: ignore[union-attr]
+		Sheet = Workbook.active
+		Rows: List[tuple[int, str]] = []
+		for Row in range(max(1, ReviewStart), (Sheet.max_row or 1) + 1):
+			Values = []
+			for Cell in Sheet[Row]:
+				if Cell.value not in (None, ""):
+					Values.append(str(Cell.value))
+			Rows.append((Row, " | ".join(Values)))
+		return Rows
 
 	def _BuildPostprocessor(self) -> dgm_xlsx_postprocessor.XlsxPostprocessor:
 		return dgm_xlsx_postprocessor.XlsxPostprocessor(
@@ -197,7 +277,13 @@ class XlsxPostprocessingMixin:
 			FilePath = FilesByNumber.get(Number)
 			if FilePath is None:
 				continue
-			Result = Processor.ProcessFile(FilePath, None, False)
+			try:
+				Result = Processor.ProcessFile(FilePath, None, False)
+			except dgm_xlsx_postprocessor.FooterPlacementRequired as Error:
+				FooterStart = self._AskFooterStart(FilePath, Error.ReviewStart)
+				if FooterStart is None:
+					raise RuntimeError("Footer placement was cancelled")
+				Result = Processor.ProcessFile(FilePath, None, False, FooterStart)
 			Metadata = Result.Metadata
 			Metadata.FileNumber = Number
 			Sheet[f"C{Row}"].value = Metadata.CanonicalTitle()

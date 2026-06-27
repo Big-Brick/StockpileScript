@@ -82,6 +82,13 @@ class PostprocessResult:
 	Warnings: List[str]
 
 
+class FooterPlacementRequired(RuntimeError):
+	def __init__(self, FilePath: Path, ReviewStart: int) -> None:
+		super().__init__(f"Cannot detect valid footer in '{FilePath}'. Manual footer row selection is required.")
+		self.FilePath = FilePath
+		self.ReviewStart = ReviewStart
+
+
 def NormalizeSpaces(Text: object) -> str:
 	return " ".join(str(Text or "").strip().split())
 
@@ -220,7 +227,7 @@ class XlsxPostprocessor:
 		self.Preprocessor = dgm_xlsx_preprocessor.XlsxPreprocessor(Database, RulesPath)
 		self.MetadataExtractor = WorkbookMetadataExtractor(Database.Columns)
 
-	def ProcessFile(self, FilePath: Path, ForcedDocumentType: Optional[str] = None, RenameToCanonical: bool = False) -> PostprocessResult:
+	def ProcessFile(self, FilePath: Path, ForcedDocumentType: Optional[str] = None, RenameToCanonical: bool = False, FooterStartOverride: Optional[int] = None) -> PostprocessResult:
 		if openpyxl is None:
 			raise RuntimeError("Missing dependency: openpyxl")
 		Workbook = openpyxl.load_workbook(FilePath, data_only=False)
@@ -232,10 +239,12 @@ class XlsxPostprocessor:
 			Metadata.DocumentType = self._GuessDocumentType(FilePath, Sheet)
 		Issues = self.FindReviewIssues(Sheet)
 		HeaderEnd = self._FindHeaderEnd(Sheet) or 6
-		FooterStart = self._FindFooterStart(Sheet) or (Sheet.max_row or 1) + 1
+		FooterStart = FooterStartOverride or self._FindValidFooterStart(Sheet)
+		if FooterStart is None:
+			raise FooterPlacementRequired(FilePath, self._FindFooterReviewStart(Sheet))
 		self._NormalizeHeader(Sheet, Metadata, HeaderEnd)
-		FooterStart = self._EnsureFooter(Sheet, Metadata, FooterStart)
 		self._NormalizeBodyRows(Sheet, HeaderEnd + 1, FooterStart - 1)
+		FooterStart = self._RebuildFooter(Sheet, Metadata, FooterStart)
 		self._WriteFooterFormulas(Sheet, Metadata, HeaderEnd + 1, FooterStart)
 		self._NormalizeFormatting(Sheet)
 		self._FitColumnWidths(Sheet)
@@ -271,7 +280,7 @@ class XlsxPostprocessor:
 		Sheet = Workbook.active
 		for Row in sorted(set(Rows), reverse=True):
 			Sheet.delete_rows(Row, 1)
-		FooterStart = self._FindFooterStart(Sheet) or (Sheet.max_row or 1)
+		FooterStart = self._FindValidFooterStart(Sheet) or (Sheet.max_row or 1)
 		HeaderEnd = self._FindHeaderEnd(Sheet) or 6
 		Metadata = self.MetadataExtractor.Extract(FilePath, Workbook)
 		self._WriteFooterFormulas(Sheet, Metadata, HeaderEnd + 1, FooterStart)
@@ -283,7 +292,7 @@ class XlsxPostprocessor:
 		Sheet = Workbook.active
 		for Row in Rows:
 			self._ZeroFillRow(Sheet, Row)
-		self._WriteFooterFormulas(Sheet, self.MetadataExtractor.Extract(FilePath, Workbook), (self._FindHeaderEnd(Sheet) or 6) + 1, self._FindFooterStart(Sheet) or (Sheet.max_row or 1))
+		self._WriteFooterFormulas(Sheet, self.MetadataExtractor.Extract(FilePath, Workbook), (self._FindHeaderEnd(Sheet) or 6) + 1, self._FindValidFooterStart(Sheet) or (Sheet.max_row or 1))
 		self._FitColumnWidths(Sheet)
 		Workbook.save(FilePath)
 
@@ -296,7 +305,7 @@ class XlsxPostprocessor:
 				Sheet[f"{self.Database.Columns.PerElement[MetalKey]}{Row}"].value = INFORMATION_MISSING_TEXT if First else None
 				Sheet[f"{self.Database.Columns.Total[MetalKey]}{Row}"].value = None
 				First = False
-		self._WriteFooterFormulas(Sheet, self.MetadataExtractor.Extract(FilePath, Workbook), (self._FindHeaderEnd(Sheet) or 6) + 1, self._FindFooterStart(Sheet) or (Sheet.max_row or 1))
+		self._WriteFooterFormulas(Sheet, self.MetadataExtractor.Extract(FilePath, Workbook), (self._FindHeaderEnd(Sheet) or 6) + 1, self._FindValidFooterStart(Sheet) or (Sheet.max_row or 1))
 		self._FitColumnWidths(Sheet)
 		Workbook.save(FilePath)
 
@@ -305,7 +314,7 @@ class XlsxPostprocessor:
 		Sheet = Workbook.active
 		for Row in Rows:
 			self._WriteRowTotalFormulas(Sheet, Row)
-		self._WriteFooterFormulas(Sheet, self.MetadataExtractor.Extract(FilePath, Workbook), (self._FindHeaderEnd(Sheet) or 6) + 1, self._FindFooterStart(Sheet) or (Sheet.max_row or 1))
+		self._WriteFooterFormulas(Sheet, self.MetadataExtractor.Extract(FilePath, Workbook), (self._FindHeaderEnd(Sheet) or 6) + 1, self._FindValidFooterStart(Sheet) or (Sheet.max_row or 1))
 		self._FitColumnWidths(Sheet)
 		Workbook.save(FilePath)
 
@@ -323,23 +332,61 @@ class XlsxPostprocessor:
 	def _FindHeaderEnd(self, Sheet: object) -> Optional[int]:
 		return FindRowContaining(Sheet, HEADER_END_MARKER)
 
-	def _FindFooterStart(self, Sheet: object) -> Optional[int]:
+	def _FindValidFooterStart(self, Sheet: object) -> Optional[int]:
+		Labels = {TOTAL_IN_PRODUCT_LABEL, FORMULARY_LABEL, MISSING_LABEL}
+		for Row in range(1, max((Sheet.max_row or 1) - 1, 1) + 1):  # type: ignore[attr-defined]
+			Found = {self._RowFooterLabel(Sheet, Row + Offset) for Offset in range(3)}
+			if Found == Labels:
+				return Row
+		return None
+
+	def _FindFooterReviewStart(self, Sheet: object) -> int:
 		Rows = [FindLabelRow(Sheet, Label) for Label in (TOTAL_IN_PRODUCT_LABEL, FORMULARY_LABEL, MISSING_LABEL)]
 		Rows = [Row for Row in Rows if Row is not None]
-		return min(Rows) if Rows else None
+		return min(Rows) if Rows else (Sheet.max_row or 1) + 1  # type: ignore[attr-defined]
+
+	def _RowFooterLabel(self, Sheet: object, Row: int) -> Optional[str]:
+		for Cell in Sheet[Row]:  # type: ignore[index]
+			Text = NormalizeSpaces(Cell.value)
+			if Text in (TOTAL_IN_PRODUCT_LABEL, FORMULARY_LABEL, MISSING_LABEL):
+				return Text
+		return None
 
 	def _NormalizeHeader(self, Sheet: object, Metadata: DgmDocumentMetadata, HeaderEnd: int) -> None:
 		Sheet["A1"].value = f"Відомість № {Metadata.FileNumber}" if Metadata.FileNumber is not None else "Відомість №"
 		Sheet["A2"].value = Metadata.CanonicalTitle().replace("Відомість ", "", 1)
 
-	def _EnsureFooter(self, Sheet: object, Metadata: DgmDocumentMetadata, FooterStart: int) -> int:
-		Labels = [MISSING_LABEL, FORMULARY_LABEL, TOTAL_IN_PRODUCT_LABEL] if Metadata.DocumentType == DOCUMENT_TYPE_MISSING else [TOTAL_IN_PRODUCT_LABEL, FORMULARY_LABEL, MISSING_LABEL]
-		Existing = self._FindFooterStart(Sheet)
-		if Existing is not None:
-			FooterStart = Existing
-		for Offset, Label in enumerate(Labels):
-			Sheet[f"D{FooterStart + Offset}"].value = Label
+	def _RebuildFooter(self, Sheet: object, Metadata: DgmDocumentMetadata, FooterStart: int) -> int:
+		if FooterStart < 1:
+			FooterStart = 1
+		if Sheet.max_row >= FooterStart:  # type: ignore[attr-defined]
+			Sheet.delete_rows(FooterStart, (Sheet.max_row or FooterStart) - FooterStart + 1)  # type: ignore[attr-defined]
+		Rows = self._FooterRowsTemplate(Metadata.DocumentType or DOCUMENT_TYPE_PRESENT)
+		for Offset, Values in enumerate(Rows):
+			Row = FooterStart + Offset
+			for Column, Value in Values.items():
+				Sheet[f"{Column}{Row}"].value = Value
 		return FooterStart
+
+	def _FooterRowsTemplate(self, DocumentType: str) -> List[Dict[str, str]]:
+		Labels = [MISSING_LABEL, FORMULARY_LABEL, TOTAL_IN_PRODUCT_LABEL] if DocumentType == DOCUMENT_TYPE_MISSING else [TOTAL_IN_PRODUCT_LABEL, FORMULARY_LABEL, MISSING_LABEL]
+		return [
+			{"D": Labels[0]},
+			{"D": Labels[1]},
+			{"D": Labels[2]},
+			{},
+			{"B": "Голова комісії: ", "C": "підполковник", "E": "Андрій ІВАНОВ"},
+			{"B": "Члени комісії:", "C": "майор", "E": "Василій ПЕТРОВ"},
+			{"C": "лейтенант", "E": "Микола ПУПКО"},
+			{"B": "__.__.2026"},
+			{},
+			{"B": "З висновками комісії, щодо комплектності виробу погоджуюсь:"},
+			{"B": "Матеріально-відповідальна особа ", "E": "_______________________________________________________________________"},
+			{"B": "Начальник кафедри                                ", "E": "_______________________________________________________________________"},
+			{"B": "__.__.2026"},
+			{},
+			{},
+		]
 
 	def _NormalizeBodyRows(self, Sheet: object, FirstRow: int, LastRow: int) -> None:
 		for Row in range(FirstRow, LastRow + 1):
