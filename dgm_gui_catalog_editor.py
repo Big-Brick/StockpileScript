@@ -95,12 +95,13 @@ class CatalogEditorPanel(ttk.Frame):
 
 		RootNode = self.RootNode if self.RootNode is not None else self.Database.CatalogNode
 		RootText = self.RootTitle if self.RootTitle is not None else "catalog"
+		RootPathParts = self._GetCatalogPathParts(RootNode) if self.RootNode is not None else []
 		CatalogRoot = self.CatalogTree.insert("", "end", text=RootText, values=("root", "", "", "", "", "", ""), open=True)
-		self.CatalogItemPaths[CatalogRoot] = []
+		self.CatalogItemPaths[CatalogRoot] = RootPathParts
 		if self.RootNode is not None:
 			self.CatalogItems[CatalogRoot] = self.RootNode
 		for Child in list(RootNode):
-			self._InsertCatalogNode(CatalogRoot, Child, [])
+			self._InsertCatalogNode(CatalogRoot, Child, RootPathParts)
 
 		self._SortCatalogTreeChildren()
 		if PreserveState:
@@ -204,17 +205,29 @@ class CatalogEditorPanel(ttk.Frame):
 	def _GetSelectedCatalogPathParts(self) -> List[str]:
 		return self.CatalogItemPaths.get(self._GetSelectedCatalogItemId(), [])
 
+	def _GetCatalogPathNodes(self, Node: XmlTree.Element) -> List[XmlTree.Element]:
+		if Node is self.Database.CatalogNode:
+			return []
+		PathNodes = [Node]
+		Current = Node
+		while Current is not self.Database.CatalogNode:
+			Parent = self.Database.FindCatalogParentOfNode(Current)
+			if Parent is None or Parent is self.Database.CatalogNode:
+				break
+			PathNodes.append(Parent)
+			Current = Parent
+		PathNodes.reverse()
+		return PathNodes
+
+	def _GetCatalogPathParts(self, Node: XmlTree.Element) -> List[str]:
+		return [PathNode.get("text", PathNode.get("name", PathNode.tag)) for PathNode in self._GetCatalogPathNodes(Node)]
+
 	def _GetSelectedCatalogSearchResult(self) -> dgm_database.ElementSearchResult:
 		ItemId = self._GetSelectedCatalogItemId()
 		if not ItemId or ItemId not in self.CatalogItems:
 			return dgm_database.ElementSearchResult(None)
 
-		NodeChain: List[XmlTree.Element] = []
-		CurrentItem = ItemId
-		while CurrentItem in self.CatalogItems:
-			NodeChain.append(self.CatalogItems[CurrentItem])
-			CurrentItem = self.CatalogTree.parent(CurrentItem)
-		NodeChain.reverse()
+		NodeChain = self._GetCatalogPathNodes(self.CatalogItems[ItemId])
 
 		RootRecord = dgm_database.ElementRecord(
 			self.Database,
