@@ -10,7 +10,6 @@ import xml.etree.ElementTree as XmlTree
 
 import dgm_database
 from dgm_gui_common import GuiAddElementResult, WINDOW_TITLE
-from dgm_gui_dialogs import AddElementDialog, CatalogNodeEditDialog, MoveCatalogNodeDialog
 
 
 class NewNodePathEditor(ttk.Frame):
@@ -407,6 +406,8 @@ class CatalogTreeEditorWidget(ttk.Frame):
 			return
 
 		DefaultName = "New node"
+		from dgm_gui_dialogs import AddElementDialog
+
 		Dialog = AddElementDialog(
 			self,
 			DefaultName,
@@ -431,6 +432,8 @@ class CatalogTreeEditorWidget(ttk.Frame):
 		Node = self._GetSelectedCatalogNode()
 		if Node is None:
 			return
+
+		from dgm_gui_dialogs import CatalogNodeEditDialog
 
 		Dialog = CatalogNodeEditDialog(self, Node)
 		if Dialog.Result is None:
@@ -486,6 +489,8 @@ class CatalogTreeEditorWidget(ttk.Frame):
 			return
 
 		CurrentParent = self.Database.FindCatalogParentOfNode(Node) or self.Database.CatalogNode
+		from dgm_gui_dialogs import MoveCatalogNodeDialog
+
 		Dialog = MoveCatalogNodeDialog(self, self.Database, CurrentParent)
 		if Dialog.Result is None:
 			return
@@ -507,6 +512,8 @@ class CatalogTreeEditorWidget(ttk.Frame):
 			return
 
 		CurrentParent = self.Database.FindCatalogParentOfNode(Node) or self.Database.CatalogNode
+		from dgm_gui_dialogs import MoveCatalogNodeDialog
+
 		Dialog = MoveCatalogNodeDialog(self, self.Database, CurrentParent)
 		if Dialog.Result is None:
 			return
