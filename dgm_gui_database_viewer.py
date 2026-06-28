@@ -5,7 +5,7 @@ import tkinter.ttk as ttk
 
 import dgm_database
 from dgm_gui_common import WINDOW_TITLE
-from dgm_gui_widgets import CatalogTreeEditorWidget
+from dgm_gui_catalog_editor import CatalogEditorPanel
 from dgm_gui_xlsx_processor import XlsxProcessingMixin
 
 
@@ -56,7 +56,7 @@ class DgmDatabaseViewer(tk.Toplevel, XlsxProcessingMixin):
 	def _BuildCatalogPane(self, Parent: ttk.Frame) -> None:
 		Parent.columnconfigure(0, weight=1)
 		Parent.rowconfigure(0, weight=1)
-		self.CatalogWidget = CatalogTreeEditorWidget(Parent, self.Database, OnDatabaseChanged=self._PopulateIgnoredList)
+		self.CatalogWidget = CatalogEditorPanel(Parent, self.Database, OnDatabaseChanged=self._PopulateIgnoredList)
 		self.CatalogWidget.grid(row=0, column=0, sticky="nsew")
 
 	def _BuildIgnoredPane(self, Parent: ttk.Frame) -> None:

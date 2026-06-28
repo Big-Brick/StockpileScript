@@ -15,7 +15,7 @@ import dgm_xlsx_common
 import dgm_xlsx_preprocessor
 from dgm_gui_common import GuiMissingElement, WINDOW_TITLE, openpyxl
 from dgm_gui_dialogs import AddElementDialog
-from dgm_gui_widgets import CatalogTreeEditorWidget
+from dgm_gui_catalog_editor import CatalogEditorPanel
 
 
 @dataclass
@@ -133,7 +133,7 @@ class DatabaseNodeBrowserWindow(tk.Toplevel):
 		self.minsize(760, 420)
 		self.columnconfigure(0, weight=1)
 		self.rowconfigure(0, weight=1)
-		Widget = CatalogTreeEditorWidget(self, Database, RootNode=Record.Node, RootTitle=Record.DisplayName)
+		Widget = CatalogEditorPanel(self, Database, RootNode=Record.Node, RootTitle=Record.DisplayName)
 		Widget.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
 
 
