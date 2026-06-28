@@ -1160,10 +1160,13 @@
 							</node>
 						</node>
 					</node>
+					<node text=".*" name="Лінія затримки Л3.*">
+						<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
+					</node>
 				</node>
 			</node>
 		</node>
-		<node text="Конденсатор" optional="true">
+		<node text="Конденсатор" optional="true" name="Конденсатор">
 			<node text=" " optional="true">
 				<node text="МБМ" preprocess_prefix_regex="^МБМ(?:[\s\-]?[0-9]+[A-Za-zА-Яа-яІіЇїЄєҐґ0-9\-]*)\b">
 					<regex-leaf text=".*" name="МБМ-160-0,05 мкФ">
@@ -1218,19 +1221,24 @@
 							</regex-leaf>
 						</node>
 					</node>
+					<node text="-1">
+						<regex-leaf text=".*" name="Конденсатор КТ-1">
+							<dgm gold_g="0" silver_g="0.011649" platinum_g="0" mpg_g="0" />
+						</regex-leaf>
+					</node>
 				</node>
-				<node text="КТП-">
-					<node text="2Аа-Н70-6800 пФ" name="КТП-2Аа-Н70-6800 пФ">
+				<node text="КТП">
+					<node text="-2Аа-Н70-6800 пФ" name="КТП-2Аа-Н70-6800 пФ">
 						<dgm gold_g="0" silver_g="0.0583161" platinum_g="0" mpg_g="0" />
 					</node>
-					<node text="2Аа">
+					<node text="-2Аа">
 						<regex-leaf text=".*" name="КТП-2Аа-Н70">
 							<dgm gold_g="0" silver_g="0.0300976" platinum_g="0" mpg_g="0" />
 						</regex-leaf>
 					</node>
 				</node>
-				<node text="КМ-">
-					<node text="5б" name="КМ-5б">
+				<node text="КМ">
+					<node text="-5б" name="КМ-5б">
 						<node text="-Н90" name="КМ-5б-Н90">
 							<dgm gold_g="0" silver_g="0.0083" platinum_g="0" mpg_g="0" />
 							<regex-leaf text=".*" name=".*">
@@ -1334,13 +1342,13 @@
 							</regex-leaf>
 						</node>
 					</node>
-					<node text="5в">
+					<node text="-5в">
 						<regex-leaf text=".*" name="КМ-5В-М1500-2200 пФ">
 							<dgm gold_g="0" silver_g="0.0136247" platinum_g="0.054471" mpg_g="0" />
 						</regex-leaf>
 						<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
 					</node>
-					<node text="4б" name="КМ-4б-М1500-2700 пФ">
+					<node text="-4б" name="КМ-4б-М1500-2700 пФ">
 						<node text="-М75" name="КМ-4б-М75">
 							<dgm gold_g="0" silver_g="0.006" platinum_g="0" mpg_g="0.0239" />
 						</node>
@@ -1363,41 +1371,40 @@
 								<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
 							</node>
 						</node>
-					</node>
-					<node text="6">
 						<node text="-Н90">
-							<node text="-0,33 мкФ" name="КМ-6-Н90-0,33 мкФ">
-								<dgm gold_g="0" silver_g="0.0036" platinum_g="0.0085" mpg_g="0" />
-							</node>
-							<node text="-0,1 мкФ" name="КМ-6-Н90-0,1 мкФ">
-								<dgm gold_g="0" silver_g="0.0036" platinum_g="0.0085" mpg_g="0" />
-							</node>
-							<node text="-0,68 мкФ" name="КМ-6-Н90-0,68 мкФ">
-								<dgm gold_g="0" silver_g="0.0036" platinum_g="0.0085" mpg_g="0" />
-							</node>
-							<node text="-0,22 мкФ" name="Конденсатор КМ-6-Н90-0,22 мкФ">
-								<dgm gold_g="0" silver_g="0.0021" platinum_g="0" mpg_g="0.0437" />
-							</node>
-							<node text="-0,41 мкФ" name="Конденсатор КМ-6-Н90-0,41 мкФ">
-								<dgm gold_g="0" silver_g="0.0036" platinum_g="0" mpg_g="0" />
-							</node>
-							<node text="-0,47 мкФ" name="Конденсатор КМ-6-Н90-0,47 мкФ">
-								<dgm gold_g="0" silver_g="0.0036" platinum_g="0" mpg_g="0" />
-							</node>
+							<regex-leaf text=".*" name="Конденсатор КМ-4б-Н90">
+								<dgm gold_g="0" silver_g="0.0161" platinum_g="0.0012" mpg_g="0" />
+							</regex-leaf>
 						</node>
-						<node text="-Н50" name="КМ-6-Н50">
-							<dgm gold_g="0" silver_g="0.0012" platinum_g="0.0335" mpg_g="0.0184" />
+					</node>
+					<node text="-6">
+						<node text="-Н90">
+							<regex-leaf text=".*" name="КМ-6-Н90">
+								<dgm gold_g="0" silver_g="0.0036" platinum_g="0.0085" mpg_g="0" />
+							</regex-leaf>
+						</node>
+						<node text="-Н50">
+							<regex-leaf text=".*" name=".*">
+								<dgm gold_g="0" silver_g="0.0004903" platinum_g="0.0097855" mpg_g="0" />
+							</regex-leaf>
 						</node>
 						<node text="-М1500">
-							<node text="-6800 пФ" name="КМ-6-М1500-6800 пФ">
-								<dgm gold_g="0" silver_g="0.0036" platinum_g="0.0085" mpg_g="0" />
-							</node>
+							<regex-leaf text=".*">
+								<dgm gold_g="0" silver_g="0.0023" platinum_g="0" mpg_g="0" />
+							</regex-leaf>
 						</node>
-						<node text="-Н30" name="Конденсатор КМ-6-Н30">
-							<dgm gold_g="0" silver_g="0.0342" platinum_g="0" mpg_g="0" />
+						<node text="-Н30">
+							<regex-leaf text=".*" name=".*">
+								<dgm gold_g="0" silver_g="0.0342" platinum_g="0" mpg_g="0" />
+							</regex-leaf>
+						</node>
+						<node text="-П33">
+							<regex-leaf text=".*" name="Конденсатор КМ-6-П33-600 пФ">
+								<dgm gold_g="0" silver_g="0.0023" platinum_g="0" mpg_g="0" />
+							</regex-leaf>
 						</node>
 					</node>
-					<node text="5а" name="Конденсатор КМ-5а">
+					<node text="-5а" name="Конденсатор КМ-5а">
 						<node text="-Н90">
 							<node text="-0,15 мкФ" name="КМ-5а-Н90-0,15 мкФ">
 								<dgm gold_g="0" silver_g="0.0083" platinum_g="0" mpg_g="0" />
@@ -1412,50 +1419,75 @@
 							<dgm gold_g="0" silver_g="0.0136247" platinum_g="0.054471" mpg_g="0" />
 						</node>
 					</node>
-					<node text="3б">
-						<node text="-Н30К">
-							<regex-leaf text=".*" name="КМ-3б-Н30К-3300 пФ">
-								<dgm gold_g="0" silver_g="0.0048604" platinum_g="0" mpg_g="0" />
-							</regex-leaf>
-						</node>
+					<node text="-3б">
+						<regex-leaf text=".*" name="Конденсатор КМ-3б (рудий)">
+							<dgm gold_g="0" silver_g="0.025" platinum_g="0" mpg_g="0" />
+						</regex-leaf>
 					</node>
-					<node text="4а" name="Конденсатор КМ-4а">
-						<dgm gold_g="0" silver_g="0.0161" platinum_g="0.0012" mpg_g="0" />
+					<node text="-4а">
+						<regex-leaf text=".*" name="Конденсатор КМ-4а-Н90">
+							<dgm gold_g="0" silver_g="0.0161" platinum_g="0.0012" mpg_g="0" />
+						</regex-leaf>
 					</node>
-					<node text="5">
+					<node text="-5">
 						<node text="-М1500" name="Конденсатор КМ-5-М1500">
 							<dgm gold_g="0" silver_g="0.0015708" platinum_g="0" mpg_g="0.0053393" />
+							<regex-leaf text=".*" name=".*">
+								<dgm gold_g="0" silver_g="0.0015708" platinum_g="0" mpg_g="0.0053393" />
+							</regex-leaf>
 						</node>
 						<node text="-Н30" name="Конденсатор КМ-5-Н30">
 							<dgm gold_g="0" silver_g="0.0038" platinum_g="0.0141" mpg_g="0" />
+							<regex-leaf text=".*" name=".*">
+								<dgm gold_g="0" silver_g="0.0038" platinum_g="0.0141" mpg_g="0" />
+							</regex-leaf>
 						</node>
 						<node text="-Н90" name="Конденсатор КМ-5-Н90">
 							<dgm gold_g="0" silver_g="0.005" platinum_g="0" mpg_g="0.0224" />
+							<regex-leaf text=".*" name=".*">
+								<dgm gold_g="0" silver_g="0.005" platinum_g="0" mpg_g="0.0224" />
+							</regex-leaf>
 						</node>
 					</node>
-					<node text="6б">
+					<node text="-6б" name="Конденсатор КМ-6б">
 						<node text="-Н90">
-							<node text="-1 мкФ" name="Конденсатор КМ-6б-Н90-1 мкФ">
-								<dgm gold_g="0" silver_g="0.004" platinum_g="0" mpg_g="0" />
-							</node>
+							<regex-leaf text=".*">
+								<dgm gold_g="0" silver_g="0.0024" platinum_g="0" mpg_g="0" />
+							</regex-leaf>
 						</node>
+						<dgm gold_g="0" silver_g="0.0036" platinum_g="0.0086" mpg_g="0" />
+						<node text="-Н50">
+							<regex-leaf text=".*" name="Конденсатор КМ-6б-Н50-0,01 мкФ">
+								<dgm gold_g="0" silver_g="0.0013" platinum_g="0.0006" mpg_g="0" />
+							</regex-leaf>
+						</node>
+					</node>
+					<node text="-3а">
+						<regex-leaf text=".*" name="Конденсатор КМ-3а-Н90">
+							<dgm gold_g="0" silver_g="0.025" platinum_g="0" mpg_g="0" />
+						</regex-leaf>
+					</node>
+					<node text="-4">
+						<regex-leaf text="(-.*)?" name="Конденсатор КМ-4">
+							<dgm gold_g="0" silver_g="0.0034" platinum_g="0" mpg_g="0.0083" />
+						</regex-leaf>
 					</node>
 				</node>
-				<node text="КД-">
-					<node text="1">
+				<node text="КД">
+					<node text="-1">
 						<regex-leaf text=".*" name="КД-1-М750">
 							<dgm gold_g="0" silver_g="0.0042513" platinum_g="0" mpg_g="0" />
 						</regex-leaf>
 					</node>
 				</node>
-				<node text="К10-" preprocess_prefix_regex="^К10\-[0-9]+[A-Za-zА-Яа-яІіЇїЄєҐґ0-9\-]*\b">
-					<node text="7В" name="К10-7В">
+				<node text="К10" preprocess_prefix_regex="^К10\-[0-9]+[A-Za-zА-Яа-яІіЇїЄєҐґ0-9\-]*\b">
+					<node text="-7В" name="К10-7В">
 						<dgm gold_g="0" silver_g="0.013652" platinum_g="0" mpg_g="0" />
 						<regex-leaf text=".*" name="К10-7В-Н30-1 нФ">
 							<dgm gold_g="0" silver_g="0.013652" platinum_g="0" mpg_g="0" />
 						</regex-leaf>
 					</node>
-					<node text="17">
+					<node text="-17">
 						<node text="-1а">
 							<node text="-Н90">
 								<node text="-0,047 мкФ" name="К10-17-1а-Н90-0,047 мкФ">
@@ -1475,6 +1507,7 @@
 						</regex-leaf>
 						<dgm gold_g="0" silver_g="0.0075404" platinum_g="0.0008398" mpg_g="0" />
 					</node>
+					<dgm gold_g="0" silver_g="0.011" platinum_g="0" mpg_g="0" />
 				</node>
 				<node text="К40" preprocess_prefix_regex="^К40(?:[\s\-]?[0-9]+[A-Za-zА-Яа-яІіЇїЄєҐґ0-9\-]*)\b">
 					<node text="П-">
@@ -1489,73 +1522,78 @@
 						<node text="26" name="Конденсатор К40П-26">
 							<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
 						</node>
+						<regex-leaf text=".*" name="Конденсатор К40П-2">
+							<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
+						</regex-leaf>
 					</node>
 					<node text="У">
 						<node text="-9" name="Конденсатор К40У-9">
 							<dgm gold_g="0" silver_g="0.0143" platinum_g="0" mpg_g="0" />
 						</node>
 					</node>
+					<dgm gold_g="0" silver_g="0.0062" platinum_g="0" mpg_g="0" />
 				</node>
-				<node text="К42У-" preprocess_prefix_regex="^К42У\-[0-9]+[A-Za-zА-Яа-яІіЇїЄєҐґ0-9\-]*\b">
-					<node text="2">
+				<node text="К42У" preprocess_prefix_regex="^К42У\-[0-9]+[A-Za-zА-Яа-яІіЇїЄєҐґ0-9\-]*\b">
+					<node text="-2">
 						<regex-leaf text=".*" name="К42У-2-160-0,047 мкФ">
 							<dgm gold_g="0" silver_g="0.02" platinum_g="0" mpg_g="0" />
 						</regex-leaf>
 					</node>
+					<dgm gold_g="0" silver_g="0.02" platinum_g="0" mpg_g="0" />
 				</node>
-				<node text="К50-" preprocess_prefix_regex="^К50\-[0-9]+[A-Za-zА-Яа-яІіЇїЄєҐґ0-9\-]*\b">
-					<node text="3Б">
+				<node text="К50" preprocess_prefix_regex="^К50\-[0-9]+[A-Za-zА-Яа-яІіЇїЄєҐґ0-9\-]*\b">
+					<node text="-3Б">
 						<regex-leaf text=".*" name="К50-3Б-25-50">
 							<dgm gold_g="0" silver_g="0.000557" platinum_g="0" mpg_g="0" />
 						</regex-leaf>
 					</node>
-					<node text="20">
+					<node text="-20">
 						<regex-leaf text=".*" name="К50-20-50В-2000 мкФ">
 							<dgm gold_g="0" silver_g="0.0000175" platinum_g="0" mpg_g="0" />
 						</regex-leaf>
 					</node>
-					<node text="6">
+					<node text="-6">
 						<regex-leaf text=".*" name="К50-6-1-15 В-20 мкФ">
 							<dgm gold_g="0" silver_g="0.000557" platinum_g="0" mpg_g="0" />
 						</regex-leaf>
 						<dgm gold_g="0" silver_g="0.026" platinum_g="0" mpg_g="0" />
 					</node>
-					<node text="24" name="К50-24">
+					<node text="-24" name="К50-24">
 						<dgm gold_g="0" silver_g="0.0003" platinum_g="0" mpg_g="0" />
 						<node text=" 20 мкФ" name="Конденсатор К50-24 20 мкФ">
 							<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
 						</node>
 					</node>
-					<node text="27" name="К50-27">
+					<node text="-27" name="К50-27">
 						<dgm gold_g="0" silver_g="0.0003" platinum_g="0" mpg_g="0" />
 					</node>
-					<node text="35" name="К50-35">
+					<node text="-35" name="К50-35">
 						<dgm gold_g="0" silver_g="0.0003" platinum_g="0" mpg_g="0" />
 						<regex-leaf text=".*" name="К50-35-40В-100 мкФ">
 							<dgm gold_g="0" silver_g="0.0003" platinum_g="0" mpg_g="0" />
 						</regex-leaf>
 					</node>
-					<node text="31">
+					<node text="-31">
 						<regex-leaf text=".*" name="К50-31-350В-100 мкФ">
 							<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
 						</regex-leaf>
 					</node>
-					<node text="29" name="Конденсатор К50-29">
+					<node text="-29" name="Конденсатор К50-29">
 						<dgm gold_g="0" silver_g="0.0084" platinum_g="0" mpg_g="0" />
 						<node text="В" name="Конденсатор К50-29В">
 							<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
 						</node>
 					</node>
-					<node text="12" name="Конденсатор К50-12">
+					<node text="-12" name="Конденсатор К50-12">
 						<dgm gold_g="0" silver_g="0.0003" platinum_g="0" mpg_g="0" />
 						<node text="А" name="Конденсатор К50-12А">
 							<dgm gold_g="0" silver_g="0.0003" platinum_g="0" mpg_g="0" />
 						</node>
 					</node>
-					<node text="2" name="Конденсатор К50-2">
+					<node text="-2" name="Конденсатор К50-2">
 						<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
 					</node>
-					<node text="3" name="Конденсатор К50-3">
+					<node text="-3" name="Конденсатор К50-3">
 						<dgm gold_g="0" silver_g="0.0138" platinum_g="0" mpg_g="0" />
 						<node text="А" name="Конденсатор К50-3А">
 							<dgm gold_g="0" silver_g="0.0138" platinum_g="0" mpg_g="0" />
@@ -1564,108 +1602,130 @@
 							</regex-leaf>
 						</node>
 					</node>
-					<node text="8" name="Конденсатор К50-8">
+					<node text="-8" name="Конденсатор К50-8">
 						<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
 					</node>
-					<node text="16" name="Конденсатор К50-16">
+					<node text="-16" name="Конденсатор К50-16">
 						<dgm gold_g="0" silver_g="0.0007" platinum_g="0" mpg_g="0" />
 					</node>
-					<node text="4" name="Конденсатор К50-4">
+					<node text="-4" name="Конденсатор К50-4">
 						<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
 					</node>
-					<node text="51" name="Конденсатор К50-51">
+					<node text="-51" name="Конденсатор К50-51">
 						<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
 					</node>
+					<node text="-32">
+						<regex-leaf text=".*" name=".*">
+							<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
+						</regex-leaf>
+						<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
+					</node>
+					<dgm gold_g="0" silver_g="0.0003" platinum_g="0" mpg_g="0" />
 				</node>
-				<node text="К53-" preprocess_prefix_regex="^К53\-[0-9]+[A-Za-zА-Яа-яІіЇїЄєҐґ0-9\-]*\b">
-					<node text="14" name="К53-14">
+				<node text="К53" preprocess_prefix_regex="^К53\-[0-9]+[A-Za-zА-Яа-яІіЇїЄєҐґ0-9\-]*\b">
+					<node text="-14" name="К53-14">
 						<regex-leaf text=".*" name="К53-14В">
 							<dgm gold_g="0" silver_g="0.0086" platinum_g="0" mpg_g="0" />
 						</regex-leaf>
 						<dgm gold_g="0" silver_g="0.0086" platinum_g="0" mpg_g="0" />
 					</node>
-					<node text="1" name="Конденсатор К53-1">
+					<node text="-1" name="Конденсатор К53-1">
 						<dgm gold_g="0" silver_g="0.0086" platinum_g="0" mpg_g="0" />
 						<node text="А" name="Конденсатор К53-1А">
 							<dgm gold_g="0" silver_g="0.0009279" platinum_g="0" mpg_g="0" />
 						</node>
 					</node>
-					<node text="4" name="Конденсатор К53-4">
+					<node text="-4" name="Конденсатор К53-4">
 						<dgm gold_g="0" silver_g="0.0038" platinum_g="0" mpg_g="0" />
 						<regex-leaf text=".*" name="Конденсатор К53-4-15-68 мкФ">
 							<dgm gold_g="0" silver_g="0.0038" platinum_g="0" mpg_g="0" />
 						</regex-leaf>
 					</node>
+					<dgm gold_g="0" silver_g="0.0086" platinum_g="0" mpg_g="0" />
 				</node>
-				<node text="К71-" preprocess_prefix_regex="^К71\-[0-9]+[A-Za-zА-Яа-яІіЇїЄєҐґ0-9\-]*\b">
-					<node text="5">
+				<node text="К71" preprocess_prefix_regex="^К71\-[0-9]+[A-Za-zА-Яа-яІіЇїЄєҐґ0-9\-]*\b">
+					<node text="-5">
 						<regex-leaf text=".*" name="К71-5-10 Нф">
 							<dgm gold_g="0" silver_g="0.004652" platinum_g="0" mpg_g="0" />
 						</regex-leaf>
 					</node>
-					<node text="7" name="Конденсатор К71-7">
+					<node text="-7" name="Конденсатор К71-7">
 						<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
 					</node>
+					<dgm gold_g="0" silver_g="0.004652" platinum_g="0" mpg_g="0" />
 				</node>
-				<node text="К73-">
-					<node text="П">
+				<node text="К73">
+					<node text="-П">
 						<regex-leaf text=".*" name="К73-П-3-0,1">
 							<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
 						</regex-leaf>
 					</node>
-					<node text="16" name="К73-16">
+					<node text="-16" name="К73-16">
 						<dgm gold_g="0" silver_g="0.0444" platinum_g="0" mpg_g="0" />
 						<node text="В" name="Конденсатор К73-16В">
 							<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
 						</node>
 					</node>
-					<node text="17" name="К73-17">
+					<node text="-17" name="К73-17">
 						<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
 						<node text="В" name="Конденсатор К73-17В">
 							<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
 						</node>
 					</node>
-					<node text="9">
+					<node text="-9">
 						<regex-leaf text=".*" name="К73-9-100в-0,01 мкФ">
 							<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
 						</regex-leaf>
 						<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
 					</node>
-					<node text="15" name="Конденсатор К73-15">
+					<node text="-15" name="Конденсатор К73-15">
 						<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
 					</node>
-					<node text="10" name="Конденсатор К73-10">
+					<node text="-10" name="Конденсатор К73-10">
 						<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
 					</node>
-					<node text="14" name="Конденсатор К73-14">
+					<node text="-14" name="Конденсатор К73-14">
 						<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
 					</node>
-					<node text="4" name="Конденсатор К73-4">
+					<node text="-4" name="Конденсатор К73-4">
 						<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
+					</node>
+					<node text="-2">
+						<regex-leaf text=".*" name="Конденсатор К73-2 10 мкФ">
+							<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
+						</regex-leaf>
 					</node>
 				</node>
-				<node text="К73П-" preprocess_prefix_regex="^К73П\-[0-9]+[A-Za-zА-Яа-яІіЇїЄєҐґ0-9\-]*\b">
-					<regex-leaf text=".*" name="К73П-3-0,25">
+				<node text="К73П" preprocess_prefix_regex="^К73П\-[0-9]+[A-Za-zА-Яа-яІіЇїЄєҐґ0-9\-]*\b">
+					<regex-leaf text="-.*" name="К73П-3-0,25">
 						<dgm gold_g="0" silver_g="0.0008657" platinum_g="0" mpg_g="0" />
 					</regex-leaf>
-				</node>
-				<node text="К78-" preprocess_prefix_regex="^К78\-[0-9]+[A-Za-zА-Яа-яІіЇїЄєҐґ0-9\-]*\b">
-					<node text="2" name="К78-2">
-						<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
+					<dgm gold_g="0" silver_g="0.0008722" platinum_g="0" mpg_g="0" />
+					<node text="3">
+						<regex-leaf text=".*" name="Конденсатор К73П3В">
+							<dgm gold_g="0" silver_g="0.0008657" platinum_g="0" mpg_g="0" />
+						</regex-leaf>
 					</node>
 				</node>
-				<node text="К57-">
-					<node text="10" name="Конденсатор К57-10">
+				<node text="К78" preprocess_prefix_regex="^К78\-[0-9]+[A-Za-zА-Яа-яІіЇїЄєҐґ0-9\-]*\b">
+					<regex-leaf text=".*">
 						<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
-					</node>
+					</regex-leaf>
+					<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
 				</node>
-				<node text="КСОТ-" preprocess_prefix_regex="^КСОТ\-[0-9]+[A-Za-zА-Яа-яІіЇїЄєҐґ0-9\-]*\b">
-					<node text="2">
+				<node text="К57">
+					<regex-leaf text="-.*" name="Конденсатор К57-10">
+						<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
+					</regex-leaf>
+					<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
+				</node>
+				<node text="КСОТ" preprocess_prefix_regex="^КСОТ\-[0-9]+[A-Za-zА-Яа-яІіЇїЄєҐґ0-9\-]*\b">
+					<node text="-2">
 						<regex-leaf text=".*" name="КСОТ-2-500-Г-1200">
 							<dgm gold_g="0" silver_g="0.006898" platinum_g="0" mpg_g="0" />
 						</regex-leaf>
 					</node>
-					<node text="5">
+					<node text="-5">
 						<regex-leaf text=".*" name="КСОТ-5-500-Г-4700">
 							<dgm gold_g="0" silver_g="0.040237" platinum_g="0" mpg_g="0" />
 						</regex-leaf>
@@ -1689,31 +1749,36 @@
 						<dgm gold_g="0" silver_g="0.0108" platinum_g="0" mpg_g="0" />
 					</node>
 				</node>
-				<node text="К15-" preprocess_prefix_regex="^К15\-[0-9]+[A-Za-zА-Яа-яІіЇїЄєҐґ0-9\-]*\b">
-					<node text="5" name="Конденсатор К15-5">
+				<node text="К15" preprocess_prefix_regex="^К15\-[0-9]+[A-Za-zА-Яа-яІіЇїЄєҐґ0-9\-]*\b">
+					<node text="-5" name="Конденсатор К15-5">
 						<dgm gold_g="0" silver_g="0.0312641" platinum_g="0" mpg_g="0" />
 					</node>
+					<dgm gold_g="0" silver_g="0.009" platinum_g="0" mpg_g="0" />
 				</node>
 				<node text="1КПВМ-">
 					<node text="2" name="Конденсатор 1КПВМ-2">
 						<dgm gold_g="0" silver_g="0.02" platinum_g="0" mpg_g="0" />
 					</node>
 				</node>
-				<node text="К4-" preprocess_prefix_regex="^К4\-[0-9]+[A-Za-zА-Яа-яІіЇїЄєҐґ0-9\-]*\b">
-					<node text="3" name="Конденсатор К4-3">
+				<node text="К4" preprocess_prefix_regex="^К4\-[0-9]+[A-Za-zА-Яа-яІіЇїЄєҐґ0-9\-]*\b">
+					<node text="-3" name="Конденсатор К4-3">
 						<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
 					</node>
+					<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
 				</node>
-				<node text="К50" name="Конденсатор К50">
-					<dgm gold_g="0" silver_g="0.0003" platinum_g="0" mpg_g="0" />
-				</node>
-				<node text="К75-" preprocess_prefix_regex="^К75\-[0-9]+[A-Za-zА-Яа-яІіЇїЄєҐґ0-9\-]*\b">
-					<node text="10" name="Конденсатор К75-10">
+				<node text="К75" preprocess_prefix_regex="^К75\-[0-9]+[A-Za-zА-Яа-яІіЇїЄєҐґ0-9\-]*\b">
+					<node text="-10" name="Конденсатор К75-10">
 						<dgm gold_g="0" silver_g="0.0150705" platinum_g="0" mpg_g="0" />
 					</node>
+					<dgm gold_g="0" silver_g="0.006226" platinum_g="0" mpg_g="0" />
+					<node text="П">
+						<regex-leaf text=".*" name="Конденсатор К75П-4ИХ">
+							<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
+						</regex-leaf>
+					</node>
 				</node>
-				<node text="СГМ-" preprocess_prefix_regex="^СГМ\-[0-9]+[A-Za-zА-Яа-яІіЇїЄєҐґ0-9\-]*\b">
-					<node text="3">
+				<node text="СГМ" preprocess_prefix_regex="^СГМ\-[0-9]+[A-Za-zА-Яа-яІіЇїЄєҐґ0-9\-]*\b">
+					<node text="-3">
 						<node text="А" name="Конденсатор СГМ-3А">
 							<dgm gold_g="0" silver_g="0.009582" platinum_g="0" mpg_g="0" />
 						</node>
@@ -1724,11 +1789,129 @@
 							</node>
 						</node>
 					</node>
-					<node text="4" name="Конденсатор СГМ-4">
+					<node text="-4" name="Конденсатор СГМ-4">
 						<dgm gold_g="0" silver_g="0.050048" platinum_g="0" mpg_g="0" />
 					</node>
 				</node>
+				<node text="К20">
+					<regex-leaf text=".*" name="Конденсатор К20-6">
+						<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
+					</regex-leaf>
+					<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
+				</node>
+				<node text="К35">
+					<regex-leaf text=".*" name="Конденсатор К35-4">
+						<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
+					</regex-leaf>
+					<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
+				</node>
+				<node text="К51">
+					<regex-leaf text=".*" name="Конденсатор К51-1">
+						<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
+					</regex-leaf>
+				</node>
+				<node text="К52">
+					<node text="-2" name="Конденсатор К52-2">
+						<dgm gold_g="0" silver_g="0.497" platinum_g="0" mpg_g="0" />
+					</node>
+				</node>
+				<node text="К76">
+					<node text="П">
+						<node text="1">
+							<regex-leaf text=".*" name="Конденсатор К76П1">
+								<dgm gold_g="0" silver_g="0.004376" platinum_g="0" mpg_g="0" />
+							</regex-leaf>
+						</node>
+					</node>
+				</node>
+				<node text="К77">
+					<node text="-2Б" name="Конденсатор К77-2Б">
+						<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
+					</node>
+				</node>
+				<node text="К87">
+					<regex-leaf text=".*" name="Конденсатор К87-2">
+						<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
+					</regex-leaf>
+				</node>
+				<node text="К85" name="Конденсатор К85">
+					<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
+				</node>
+				<node text="МБГ">
+					<node text="-2">
+						<regex-leaf text=".*" name="Конденсатор МБГ-2">
+							<dgm gold_g="0" silver_g="0.0368" platinum_g="0" mpg_g="0" />
+						</regex-leaf>
+					</node>
+					<node text="4">
+						<regex-leaf text="-[12].*" name="Конденсатор МБГ4-1 0,25 мкФ">
+							<dgm gold_g="0" silver_g="0.036856" platinum_g="0" mpg_g="0" />
+						</regex-leaf>
+					</node>
+					<node text="О">
+						<node text="-2">
+							<regex-leaf text=".*" name="Конденсатор МБГО-2">
+								<dgm gold_g="0" silver_g="0.0201" platinum_g="0" mpg_g="0" />
+							</regex-leaf>
+						</node>
+					</node>
+					<node text="П">
+						<regex-leaf text=".*" name="Конденсатор МБГП-2">
+							<dgm gold_g="0" silver_g="0.0201" platinum_g="0" mpg_g="0" />
+						</regex-leaf>
+					</node>
+					<node text="Ч">
+						<node text="-1" name="Конденсатор МБГЧ-1">
+							<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
+						</node>
+					</node>
+				</node>
+				<node text="МБК">
+					<regex-leaf text=".*" name="Конденсатор МБК">
+						<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
+					</regex-leaf>
+				</node>
+				<node text="МГП">
+					<regex-leaf text=".*" name="Конденсатор МГП-0,5">
+						<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
+					</regex-leaf>
+				</node>
+				<node text="МПГО">
+					<regex-leaf text=".*" name="Конденсатор МПГО-М 1мкФ">
+						<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
+					</regex-leaf>
+				</node>
+				<node text="ОМБГ">
+					<regex-leaf text=".*" name="Конденсатор ОМБГ-2 400В">
+						<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
+					</regex-leaf>
+				</node>
+				<node text="КБП">
+					<regex-leaf text=".*" name="Конденсатор КБП-Ф">
+						<dgm gold_g="0" silver_g="0.1831" platinum_g="0" mpg_g="0" />
+					</regex-leaf>
+				</node>
+				<node text="КБГ">
+					<node text="-МН">
+						<regex-leaf text=".*" name="Конденсатор КБГ-МН 1мкФ">
+							<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
+						</regex-leaf>
+					</node>
+				</node>
+				<node text="КЕВ">
+					<regex-leaf text=".*" name="Конденсатор КЭВ 0,5">
+						<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
+					</regex-leaf>
+				</node>
+				<node text="КПВМ">
+					<node text="-3">
+						<regex-leaf text=".*" name=".*">
+							<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
+						</regex-leaf>
+					</node>
+				</node>
 			</node>
+			<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
 		</node>
 		<node text="Транзистор" optional="true">
 			<node text=" " optional="true">
@@ -3557,20 +3740,34 @@
 						</node>
 					</node>
 					<node text="213">
-						<node text="А" name="КД213А">
-							<dgm gold_g="0.00152" silver_g="0" platinum_g="0" mpg_g="0" />
-						</node>
+						<regex-leaf text=".*" name="Діод КД213Г">
+							<dgm gold_g="0.009387" silver_g="0" platinum_g="0" mpg_g="0" />
+						</regex-leaf>
 					</node>
 					<node text="103" name="КД103">
 						<dgm gold_g="0.0000325" silver_g="0.004181" platinum_g="0" mpg_g="0" />
+					</node>
+					<node text="202" name="Діод КД202">
+						<dgm gold_g="0.0009406" silver_g="0" platinum_g="0" mpg_g="0" />
+						<regex-leaf text=".*" name="Діод КД202М">
+							<dgm gold_g="0.0008251" silver_g="0" platinum_g="0" mpg_g="0" />
+						</regex-leaf>
+					</node>
+					<node text="521" name="Діод КД521">
+						<dgm gold_g="0.00013" silver_g="0.0276" platinum_g="0" mpg_g="0" />
+					</node>
+					<node text="522">
+						<regex-leaf text=".*" name="Діод КД522">
+							<dgm gold_g="0.0000001" silver_g="0.0000277" platinum_g="0" mpg_g="0" />
+						</regex-leaf>
 					</node>
 				</node>
 				<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
 				<node text="Д">
 					<node text="220" name="Д220">
-						<node text="Б" name="Д220Б">
-							<dgm gold_g="0.0007296" silver_g="0" platinum_g="0" mpg_g="0" />
-						</node>
+						<regex-leaf text=".*" name="Д220">
+							<dgm gold_g="0.0005" silver_g="0" platinum_g="0" mpg_g="0" />
+						</regex-leaf>
 						<dgm gold_g="0.0007296" silver_g="0" platinum_g="0" mpg_g="0" />
 					</node>
 					<node text="818" name="Д818">
@@ -3609,12 +3806,9 @@
 						<dgm gold_g="0" silver_g="0.0012803" platinum_g="0" mpg_g="0" />
 					</node>
 					<node text="237" name="Діод Д237">
-						<node text="А" name="Д237А">
-							<dgm gold_g="0.00034" silver_g="0.000607" platinum_g="0" mpg_g="0" />
-						</node>
-						<node text="Б" name="Д237Б">
-							<dgm gold_g="0.00034" silver_g="0.000607" platinum_g="0" mpg_g="0" />
-						</node>
+						<regex-leaf text=".*" name="Д237А">
+							<dgm gold_g="0.0063779" silver_g="0.0011472" platinum_g="0" mpg_g="0" />
+						</regex-leaf>
 						<dgm gold_g="0.0063779" silver_g="0.0011472" platinum_g="0" mpg_g="0" />
 					</node>
 					<node text="817">
@@ -3625,6 +3819,89 @@
 					<node text="297">
 						<regex-leaf text=".*" name="Д297А">
 							<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
+						</regex-leaf>
+					</node>
+					<node text="106">
+						<regex-leaf text="[А]?" name="Діод Д106А">
+							<dgm gold_g="0.0004902" silver_g="0" platinum_g="0" mpg_g="0" />
+						</regex-leaf>
+					</node>
+					<node text="151">
+						<regex-leaf text=".*" name="Діод Д151-160">
+							<dgm gold_g="0.24" silver_g="0" platinum_g="0" mpg_g="0" />
+						</regex-leaf>
+					</node>
+					<node text="202">
+						<regex-leaf text=".*" name="Діод Д202А">
+							<dgm gold_g="0.003067" silver_g="0" platinum_g="0" mpg_g="0" />
+						</regex-leaf>
+					</node>
+					<node text="203">
+						<regex-leaf text=".*" name="Діод Д203">
+							<dgm gold_g="0.0182" silver_g="0" platinum_g="0" mpg_g="0" />
+						</regex-leaf>
+					</node>
+					<node text="218">
+						<regex-leaf text=".*" name="Діод Д218">
+							<dgm gold_g="0.0006" silver_g="0" platinum_g="0.0112" mpg_g="0" />
+						</regex-leaf>
+					</node>
+					<node text="219" name="Діод Д219">
+						<dgm gold_g="0.0005833" silver_g="0" platinum_g="0" mpg_g="0" />
+						<node text="А" name="Діод Д219А">
+							<dgm gold_g="0.0005833" silver_g="0" platinum_g="0" mpg_g="0" />
+						</node>
+					</node>
+					<node text="226">
+						<regex-leaf text=".*" name="Діод Д226">
+							<dgm gold_g="0.001" silver_g="0" platinum_g="0" mpg_g="0" />
+						</regex-leaf>
+					</node>
+					<node text="229">
+						<regex-leaf text=".*" name="Діод Д229НВ">
+							<dgm gold_g="0.0003301" silver_g="0.0026535" platinum_g="0" mpg_g="0" />
+						</regex-leaf>
+					</node>
+					<node text="231">
+						<regex-leaf text=".*" name="Діод Д231Б">
+							<dgm gold_g="0.001539" silver_g="0" platinum_g="0" mpg_g="0" />
+						</regex-leaf>
+					</node>
+					<node text="232">
+						<regex-leaf text=".*" name="Діод Д232А">
+							<dgm gold_g="0.001539" silver_g="0" platinum_g="0" mpg_g="0" />
+						</regex-leaf>
+					</node>
+					<node text="238">
+						<regex-leaf text=".*" name="Діод Д238А">
+							<dgm gold_g="0.0087058" silver_g="0.0217369" platinum_g="0" mpg_g="0" />
+						</regex-leaf>
+					</node>
+					<node text="242">
+						<regex-leaf text=".*" name="Діод Д242Б">
+							<dgm gold_g="0.002" silver_g="0" platinum_g="0" mpg_g="0" />
+						</regex-leaf>
+					</node>
+					<node text="310">
+						<regex-leaf text=".*" name="Діод Д310">
+							<dgm gold_g="0" silver_g="0.0015584" platinum_g="0" mpg_g="0" />
+						</regex-leaf>
+					</node>
+					<node text="809">
+						<regex-leaf text=".*" name="Діод Д809Б">
+							<dgm gold_g="0.00164" silver_g="0" platinum_g="0" mpg_g="0" />
+						</regex-leaf>
+					</node>
+					<node text="815" name="Діод Д815">
+						<dgm gold_g="0.0005713" silver_g="0" platinum_g="0" mpg_g="0" />
+						<regex-leaf text="[А-Ж]" name="Діод Д815А">
+							<dgm gold_g="0.000386" silver_g="0" platinum_g="0" mpg_g="0" />
+						</regex-leaf>
+					</node>
+					<node text="816" name="Діод Д816">
+						<dgm gold_g="0.0005713" silver_g="0" platinum_g="0" mpg_g="0" />
+						<regex-leaf text=".*" name="Діод Д816Б">
+							<dgm gold_g="0.000386" silver_g="0" platinum_g="0" mpg_g="0" />
 						</regex-leaf>
 					</node>
 				</node>
@@ -3681,6 +3958,21 @@
 					<node text="107">
 						<node text="А" name="Діод 2С107А">
 							<dgm gold_g="0.0008126" silver_g="0" platinum_g="0" mpg_g="0" />
+						</node>
+					</node>
+					<node text="119">
+						<node text="А" name="Діод 2С119А">
+							<dgm gold_g="0.0008555" silver_g="0" platinum_g="0" mpg_g="0" />
+						</node>
+					</node>
+					<node text="512">
+						<node text="А" name="Діод 2С512А">
+							<dgm gold_g="0.0000792" silver_g="0.0000119" platinum_g="0" mpg_g="0" />
+						</node>
+					</node>
+					<node text="524">
+						<node text="А" name="Діод 2С524А">
+							<dgm gold_g="0.0000792" silver_g="0.0000119" platinum_g="0" mpg_g="0" />
 						</node>
 					</node>
 				</node>
@@ -3785,6 +4077,44 @@
 						<node text="А" name="Діод 2В110А">
 							<dgm gold_g="0.0003479" silver_g="0" platinum_g="0" mpg_g="0" />
 						</node>
+					</node>
+				</node>
+				<node text="2Н">
+					<node text="102">
+						<regex-leaf text="[А-М]" name="Діод 2Н102Ж">
+							<dgm gold_g="0.0008545" silver_g="0" platinum_g="0" mpg_g="0" />
+						</regex-leaf>
+					</node>
+				</node>
+				<node text="2Ц">
+					<node text="103">
+						<node text="А" name="Діод 2Ц103А">
+							<dgm gold_g="0.001702" silver_g="0" platinum_g="0" mpg_g="0" />
+						</node>
+					</node>
+				</node>
+				<node text="АЛ">
+					<node text="102">
+						<regex-leaf text="[А-Д]" name="Діод АЛ102А">
+							<dgm gold_g="0.0000568" silver_g="0.0000586" platinum_g="0" mpg_g="0" />
+						</regex-leaf>
+					</node>
+					<node text="106">
+						<regex-leaf text="[АБВ]?" name="Діод АЛ106А">
+							<dgm gold_g="0" silver_g="0.0028751" platinum_g="0" mpg_g="0" />
+						</regex-leaf>
+					</node>
+					<node text="307">
+						<regex-leaf text="[А-Е]М" name="Діод АЛ307Бм">
+							<dgm gold_g="0.000742" silver_g="0.0000948" platinum_g="0" mpg_g="0" />
+						</regex-leaf>
+					</node>
+				</node>
+				<node text="МД">
+					<node text="218">
+						<regex-leaf text="[А]?" name="Діод МД218">
+							<dgm gold_g="0.00068" silver_g="0.00604" platinum_g="0" mpg_g="0" />
+						</regex-leaf>
 					</node>
 				</node>
 			</node>
