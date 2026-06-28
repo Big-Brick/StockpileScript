@@ -15,6 +15,7 @@ import dgm_xlsx_common
 import dgm_xlsx_preprocessor
 from dgm_gui_common import GuiMissingElement, WINDOW_TITLE, openpyxl
 from dgm_gui_dialogs import AddElementDialog
+from dgm_gui_widgets import CatalogTreeEditorWidget
 
 
 @dataclass
@@ -45,6 +46,95 @@ def PartialMatchGroupTitle(Match: dgm_database.PartialElementMatch, MaxNodes: in
 
 def CountGroupOccurrences(Group: MissingElementGroup) -> int:
 	return sum(len(Item.Occurrences) for Item in Group.ItemsByName.values())
+
+
+class BrowseDatabaseSelectionDialog(tk.Toplevel):
+	def __init__(self, Parent: tk.Misc, Database: dgm_database.DgmDatabase, ElementName: str) -> None:
+		super().__init__(Parent)
+		self.Database = Database
+		self.ElementName = ElementName
+		self.Result: Optional[dgm_database.ElementRecord] = None
+		self.Matches: List[dgm_database.PartialElementMatch] = self._BuildMatches()
+		self.MatchRecords: List[List[dgm_database.ElementRecord]] = []
+
+		self.title("Browse database")
+		self.transient(Parent)
+		self.grab_set()
+		self.geometry("760x420")
+		self.columnconfigure(0, weight=1)
+		self.columnconfigure(1, weight=1)
+		self.rowconfigure(2, weight=1)
+
+		ttk.Label(self, text=f"Select partial match and database node for: {ElementName}", style="Heading.TLabel").grid(row=0, column=0, columnspan=2, sticky="ew", padx=10, pady=(10, 6))
+		ttk.Label(self, text="Partial matches").grid(row=1, column=0, sticky="nw", padx=(10, 4))
+		ttk.Label(self, text="Nodes in selected match").grid(row=1, column=1, sticky="nw", padx=(4, 10))
+
+		self.MatchList = tk.Listbox(self, exportselection=False)
+		self.MatchList.grid(row=2, column=0, sticky="nsew", padx=(10, 4), pady=(0, 6))
+		self.NodeList = tk.Listbox(self, exportselection=False)
+		self.NodeList.grid(row=2, column=1, sticky="nsew", padx=(4, 10), pady=(0, 6))
+		self.MatchList.bind("<<ListboxSelect>>", lambda _Event: self._PopulateNodeList())
+		self.NodeList.bind("<Double-Button-1>", lambda _Event: self._Accept())
+
+		Buttons = ttk.Frame(self)
+		Buttons.grid(row=3, column=0, columnspan=2, sticky="e", padx=10, pady=(0, 10))
+		ttk.Button(Buttons, text="Open", command=self._Accept).grid(row=0, column=0, padx=(0, 6))
+		ttk.Button(Buttons, text="Cancel", command=self.destroy).grid(row=0, column=1)
+
+		for Match in self.Matches:
+			self.MatchList.insert(tk.END, Match.DisplayName)
+		if self.Matches:
+			self.MatchList.selection_set(0)
+			self._PopulateNodeList()
+		else:
+			self.MatchList.insert(tk.END, "No partial matches")
+			self.MatchList.configure(state=tk.DISABLED)
+			self.NodeList.configure(state=tk.DISABLED)
+
+		self.wait_window(self)
+
+	def _BuildMatches(self) -> List[dgm_database.PartialElementMatch]:
+		SearchResult = self.Database.FindElement(self.ElementName)
+		Matches = list(SearchResult.PartialMatches)
+		if SearchResult.Record is not None and SearchResult.Record.Node.tag == "node":
+			Matches.insert(0, dgm_database.PartialElementMatch(Record=SearchResult.Record))
+		return [Match for Match in Matches if not MatchUsesUnconsumedOptionalNode(Match)]
+
+	def _PopulateNodeList(self) -> None:
+		self.NodeList.delete(0, tk.END)
+		Selection = self.MatchList.curselection()
+		if not Selection or int(Selection[0]) >= len(self.Matches):
+			return
+		Records = [Record for Record in self.Matches[int(Selection[0])].Record.IterPath() if Record.Node is not self.Database.CatalogNode]
+		self.MatchRecords = [Records]
+		for Record in Records:
+			self.NodeList.insert(tk.END, Record.DisplayName)
+		if Records:
+			self.NodeList.selection_set(len(Records) - 1)
+
+	def _Accept(self) -> None:
+		MatchSelection = self.MatchList.curselection()
+		NodeSelection = self.NodeList.curselection()
+		if not MatchSelection or not NodeSelection or int(MatchSelection[0]) >= len(self.Matches):
+			return
+		Records = [Record for Record in self.Matches[int(MatchSelection[0])].Record.IterPath() if Record.Node is not self.Database.CatalogNode]
+		NodeIndex = int(NodeSelection[0])
+		if NodeIndex >= len(Records):
+			return
+		self.Result = Records[NodeIndex]
+		self.destroy()
+
+
+class DatabaseNodeBrowserWindow(tk.Toplevel):
+	def __init__(self, Parent: tk.Misc, Database: dgm_database.DgmDatabase, Record: dgm_database.ElementRecord) -> None:
+		super().__init__(Parent)
+		self.title(f"{WINDOW_TITLE} - {Record.DisplayName}")
+		self.geometry("1000x650")
+		self.minsize(760, 420)
+		self.columnconfigure(0, weight=1)
+		self.rowconfigure(0, weight=1)
+		Widget = CatalogTreeEditorWidget(self, Database, RootNode=Record.Node, RootTitle=Record.DisplayName)
+		Widget.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
 
 
 class MissingElementsWindow(tk.Toplevel):
@@ -89,11 +179,12 @@ class MissingElementsWindow(tk.Toplevel):
 
 		Buttons = ttk.Frame(self)
 		Buttons.grid(row=2, column=0, sticky="e", padx=10, pady=(4, 10))
-		ttk.Button(Buttons, text="Add selected to database...", command=self._AddSelectedToDatabase).grid(row=0, column=0, padx=(0, 6))
-		ttk.Button(Buttons, text="Add selected to ignore list", command=self._IgnoreSelected).grid(row=0, column=1, padx=(0, 6))
-		ttk.Button(Buttons, text="Edit selected in XLSX", command=self._EditSelectedInXlsx).grid(row=0, column=2, padx=(0, 6))
-		ttk.Button(Buttons, text="Dump no-partial originals", command=self._DumpNoPartialOriginals).grid(row=0, column=3, padx=(0, 6))
-		ttk.Button(Buttons, text="Close", command=self.destroy).grid(row=0, column=4)
+		ttk.Button(Buttons, text="Browse database...", command=self._BrowseDatabase).grid(row=0, column=0, padx=(0, 6))
+		ttk.Button(Buttons, text="Add selected to database...", command=self._AddSelectedToDatabase).grid(row=0, column=1, padx=(0, 6))
+		ttk.Button(Buttons, text="Add selected to ignore list", command=self._IgnoreSelected).grid(row=0, column=2, padx=(0, 6))
+		ttk.Button(Buttons, text="Edit selected in XLSX", command=self._EditSelectedInXlsx).grid(row=0, column=3, padx=(0, 6))
+		ttk.Button(Buttons, text="Dump no-partial originals", command=self._DumpNoPartialOriginals).grid(row=0, column=4, padx=(0, 6))
+		ttk.Button(Buttons, text="Close", command=self.destroy).grid(row=0, column=5)
 
 	def _UpdateSummaryLabel(self) -> None:
 		MissingCount = sum(len(Group.ItemsByName) for Group in self.Groups)
@@ -200,6 +291,15 @@ class MissingElementsWindow(tk.Toplevel):
 		while ItemId and ItemId not in self.TreeItems:
 			ItemId = self.Tree.parent(ItemId)
 		return self.TreeItems.get(ItemId, (None, None))[1]  # type: ignore[return-value]
+
+	def _BrowseDatabase(self) -> None:
+		Item = self._SelectedItem()
+		if Item is None:
+			tkinter.messagebox.showinfo(WINDOW_TITLE, "Select a missing element row to browse its database partial matches.", parent=self)
+			return
+		Dialog = BrowseDatabaseSelectionDialog(self, self.ParentViewer.Database, Item.Name)
+		if Dialog.Result is not None:
+			DatabaseNodeBrowserWindow(self, self.ParentViewer.Database, Dialog.Result)
 
 	def _AddSelectedToDatabase(self) -> None:
 		Item = self._SelectedItem()
