@@ -16,12 +16,17 @@ from dgm_gui_common import GuiConflictRow, WINDOW_TITLE, openpyxl
 from dgm_gui_dialogs import AddElementDialog, RenameElementDialog
 
 
+def XlsxConflictSortKey(Item: GuiConflictRow) -> tuple[int, str, str, int]:
+	ConflictType = 0 if Item.Record is not None and Item.Record.HasDgm else 1
+	return (ConflictType, Item.Name.casefold(), str(Item.FilePath).casefold(), Item.Row)
+
+
 class XlsxConflictReviewWindow(tk.Toplevel):
 	def __init__(self, Parent: tk.Toplevel, Files: List[Path], Conflicts: List[GuiConflictRow], IgnoredRows: int) -> None:
 		super().__init__(Parent)
 		self.ParentViewer = Parent
 		self.Files = Files
-		self.Conflicts = sorted(Conflicts, key=lambda Item: (Item.Name.casefold(), str(Item.FilePath).casefold(), Item.Row))
+		self.Conflicts = sorted(Conflicts, key=XlsxConflictSortKey)
 		self.IgnoredRows = IgnoredRows
 
 		FileLabel = Files[0].name if len(Files) == 1 else f"{len(Files)} files"
@@ -175,7 +180,7 @@ class XlsxConflictReviewWindow(tk.Toplevel):
 			self._RemoveConflict(Item)
 		for Replacement in Replacements:
 			self.Conflicts.append(Replacement)
-		self.Conflicts.sort(key=lambda Conflict: (Conflict.Name.casefold(), str(Conflict.FilePath).casefold(), Conflict.Row))
+		self.Conflicts.sort(key=XlsxConflictSortKey)
 		for Replacement in Replacements:
 			self._InsertTreeItem(Replacement)
 		ReplacementIds = [self._TreeItemId(Replacement) for Replacement in Replacements]
@@ -243,7 +248,7 @@ class XlsxConflictsMixin:
 				if ConsecutiveIgnoredRows >= dgm_xlsx_common.STOP_AFTER_CONSECUTIVE_IGNORED_ROWS:
 					break
 				Row += 1
-		return sorted(Conflicts, key=lambda Item: (Item.Name.casefold(), str(Item.FilePath).casefold(), Item.Row)), IgnoredRows
+		return sorted(Conflicts, key=XlsxConflictSortKey), IgnoredRows
 
 	def _BuildXlsxConflict(self, FilePath: Path, SheetName: str, Row: int, Name: str, Sheet: object) -> Optional[GuiConflictRow]:
 		SheetValues = self._ReadXlsxRowDgmValues(Sheet, Row)
