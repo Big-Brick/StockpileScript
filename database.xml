@@ -751,60 +751,58 @@
 				<node text="ГРПМ">
 					<node text="2">
 						<node text="-122">
-							<node text="ГО">
-								<node text="02">
-									<node text="-В" name="Роз'єм ГРПМ2-122ГО02-В">
-										<dgm gold_g="0.04148" silver_g="1.891" platinum_g="0" mpg_g="0" />
-									</node>
-								</node>
-								<node text="2">
-									<regex-leaf text=".*" name="Роз'єм ГРПМ2-122ГО2-В">
-										<dgm gold_g="0.04142" silver_g="1.891" platinum_g="0" mpg_g="0" />
-									</regex-leaf>
-								</node>
-							</node>
-							<node text="Ш">
-								<node text="О2">
-									<node text="-В" name="Роз'єм ГРПМ2-122ШО2-В">
-										<dgm gold_g="0" silver_g="1.014" platinum_g="0" mpg_g="0" />
-									</node>
-									<regex-leaf text=".*" name="Роз'єм ГРПМ2-122ШО2-Б">
-										<dgm gold_g="0" silver_g="1.014" platinum_g="0" mpg_g="0" />
-									</regex-leaf>
-								</node>
-							</node>
+							<regex-leaf text="Г.*" name="Роз'єм ГРПМ2-122ГО02-В">
+								<dgm gold_g="0.04148" silver_g="1.891" platinum_g="0" mpg_g="0" />
+							</regex-leaf>
+							<regex-leaf text="Ш.*" name="Роз'єм ГРПМ2-122ШО2-Б">
+								<dgm gold_g="0" silver_g="1.014" platinum_g="0" mpg_g="0" />
+							</regex-leaf>
 						</node>
 						<node text="-62">
-							<node text="ШП">
-								<node text="л">
-									<node text="-2" name="Роз'єм ГРПМ2-62ШПл-2">
-										<dgm gold_g="0" silver_g="0.5153" platinum_g="0" mpg_g="0" />
-									</node>
-								</node>
-							</node>
-							<node text="ГПЛ">
-								<node text="-2В" name="Роз'єм ГРПМ2-62ГПЛ-2В">
-									<dgm gold_g="0.02108" silver_g="0.9615" platinum_g="0" mpg_g="0" />
-								</node>
-							</node>
+							<regex-leaf text="Ш.*" name="Роз'єм ГРПМ2-62ШПЛ-2">
+								<dgm gold_g="0" silver_g="0.5153" platinum_g="0" mpg_g="0" />
+							</regex-leaf>
+							<regex-leaf text="Г.*" name="Роз'єм ГРПМ2-62ГПЛ-2В">
+								<dgm gold_g="0.02108" silver_g="0.9615" platinum_g="0" mpg_g="0" />
+							</regex-leaf>
+						</node>
+						<node text="-90">
+							<regex-leaf text="Г.*" name="Роз'єм ГРПМ2-90ГПЛ2-В">
+								<dgm gold_g="0.0306" silver_g="1.395" platinum_g="0" mpg_g="0" />
+							</regex-leaf>
+							<regex-leaf text="Ш.*" name="Роз'єм ГРПМ2-90ШПЛ2-В">
+								<dgm gold_g="0" silver_g="0.748" platinum_g="0" mpg_g="0" />
+							</regex-leaf>
 						</node>
 					</node>
 					<node text="1">
 						<node text="-31">
-							<node text="ШУ2" name="Вилка ГРПМ1-31ШУ2">
+							<regex-leaf text="Ш.*" name="Вилка ГРПМ1-31ШУ2">
 								<dgm gold_g="0" silver_g="0.192799" platinum_g="0" mpg_g="0" />
-								<node text="-В" name="Вилка ГРПМ1-31ШУ2-В">
-									<dgm gold_g="0" silver_g="0.192799" platinum_g="0" mpg_g="0" />
-								</node>
-							</node>
-							<node text="ГШ02" name="Розетка ГРПМ1-31ГШ02">
+							</regex-leaf>
+							<regex-leaf text="Г.*" name="Розетка ГРПМ1-31ГШ02">
 								<dgm gold_g="0" silver_g="0.192799" platinum_g="0" mpg_g="0" />
-							</node>
+							</regex-leaf>
 						</node>
 						<node text="-61">
-							<node text="ШУ2" name="Роз'єм ГРПМ1-61ШУ2">
+							<regex-leaf text="(Ш|Г).*" name="Роз'єм ГРПМ1-61ШУ2">
 								<dgm gold_g="0" silver_g="0.0397849" platinum_g="0" mpg_g="0" />
-							</node>
+							</regex-leaf>
+						</node>
+						<node text="-90">
+							<regex-leaf text=".*" name="Роз'єм ГРПМ1-90ШУ2-В">
+								<dgm gold_g="0" silver_g="0.6633" platinum_g="0" mpg_g="0" />
+							</regex-leaf>
+						</node>
+					</node>
+					<node text="9">
+						<node text="-62">
+							<regex-leaf text="Г.*" name="Роз'єм ГРПМ9-62ГС2">
+								<dgm gold_g="0" silver_g="1.1207" platinum_g="0" mpg_g="0" />
+							</regex-leaf>
+							<regex-leaf text="Ш.*" name="Роз'єм ГРПМ9-62ШУ2">
+								<dgm gold_g="0" silver_g="0.3915" platinum_g="0" mpg_g="0" />
+							</regex-leaf>
 						</node>
 					</node>
 				</node>
@@ -982,6 +980,31 @@
 								<node text="Г" name="Роз'єм 2РМД27Б24Г">
 									</node>
 							</node>
+							<node text="7">
+								<node text="Г5">
+									<node text="В1">
+										<regex-leaf text=".*" name="Роз'єм 2РМД27Б7Г5В1">
+											<dgm gold_g="0" silver_g="0.148438" platinum_g="0" mpg_g="0" />
+										</regex-leaf>
+									</node>
+								</node>
+							</node>
+							<node text="19">
+								<node text="Г5">
+									<node text="А1">
+										<regex-leaf text=".*" name="Роз'єм 2РМД27Б19Г5А1">
+											<dgm gold_g="0.212952" silver_g="0.421002" platinum_g="0" mpg_g="0" />
+										</regex-leaf>
+									</node>
+								</node>
+								<node text="Ш5">
+									<node text="В1">
+										<regex-leaf text=".*" name="Роз'єм 2РМД27Б19Ш5В1">
+											<dgm gold_g="0" silver_g="0.256904" platinum_g="0" mpg_g="0" />
+										</regex-leaf>
+									</node>
+								</node>
+							</node>
 						</node>
 					</node>
 					<node text="30">
@@ -990,6 +1013,18 @@
 								<node text="Ш5">
 									<node text="В1" name="Роз'єм 2РМД30Б24Ш5В1">
 										<dgm gold_g="0" silver_g="0.32457" platinum_g="0" mpg_g="0" />
+									</node>
+								</node>
+								<node text="Г5">
+									<node text="А1">
+										<regex-leaf text=".*" name="Роз'єм 2РМД30Б24Г5А1">
+											<dgm gold_g="0.268992" silver_g="0.5317992" platinum_g="0" mpg_g="0" />
+										</regex-leaf>
+									</node>
+									<node text="В1">
+										<regex-leaf text=".*" name="Роз'єм 2РМД30Б24Г5В1">
+											<dgm gold_g="0" silver_g="0.50893" platinum_g="0" mpg_g="0" />
+										</regex-leaf>
 									</node>
 								</node>
 							</node>
@@ -1027,12 +1062,128 @@
 							</node>
 						</node>
 					</node>
+					<node text="24">
+						<node text="Б10">
+							<node text="Г5">
+								<node text="В1">
+									<regex-leaf text=".*" name="Роз'єм 2РМД24Б10Г5В1">
+										<dgm gold_g="0" silver_g="0.212054" platinum_g="0" mpg_g="0" />
+									</regex-leaf>
+								</node>
+							</node>
+							<node text="Ш5">
+								<node text="В1">
+									<regex-leaf text=".*" name="Роз'єм 2РМД24Б10Ш5В1">
+										<dgm gold_g="0" silver_g="0.135213" platinum_g="0" mpg_g="0" />
+									</regex-leaf>
+								</node>
+							</node>
+						</node>
+					</node>
 				</node>
 				<node text="2РМ">
 					<node text="27">
 						<node text="Б24">
 							<node text="Г" name="Роз'єм 2РМ27Б24Г">
 								<dgm gold_g="0" silver_g="0.75283" platinum_g="0" mpg_g="0" />
+								<node text="1">
+									<node text="В1">
+										<regex-leaf text=".*" name="Роз'єм 2РМ27Б24Г1В1">
+											<dgm gold_g="0" silver_g="0.561885" platinum_g="0" mpg_g="0" />
+										</regex-leaf>
+									</node>
+								</node>
+							</node>
+							<node text="Ш1">
+								<node text="В1">
+									<regex-leaf text=".*" name="Роз'єм 2РМ27Б24Ш1В1">
+										<dgm gold_g="0" silver_g="0.228703" platinum_g="0" mpg_g="0" />
+									</regex-leaf>
+								</node>
+							</node>
+						</node>
+					</node>
+					<node text="14">
+						<node text="Б">
+							<node text="4">
+								<node text="Г1">
+									<node text="В1" name="Роз'єм 2РМ14Б4Г1В1">
+										<dgm gold_g="0" silver_g="0.093648" platinum_g="0" mpg_g="0" />
+									</node>
+								</node>
+								<node text="Ш1">
+									<regex-leaf text="В1.*" name="Роз'єм 2РМ14Б4Ш1В1">
+										<dgm gold_g="0" silver_g="0.038117" platinum_g="0" mpg_g="0" />
+									</regex-leaf>
+								</node>
+							</node>
+						</node>
+					</node>
+					<node text="18">
+						<node text="Б">
+							<node text="7">
+								<node text="Ш1">
+									<node text="В1">
+										<regex-leaf text=".*" name="Роз'єм 2РМ18Б7Ш1В1Б">
+											<dgm gold_g="0" silver_g="0.066705" platinum_g="0" mpg_g="0" />
+										</regex-leaf>
+									</node>
+								</node>
+							</node>
+						</node>
+					</node>
+					<node text="22">
+						<node text="Б">
+							<node text="10">
+								<node text="Ш1">
+									<node text="В1">
+										<regex-leaf text=".*" name="Роз'єм 2РМ22Б10Ш1В1">
+											<dgm gold_g="0" silver_g="0.095293" platinum_g="0" mpg_g="0" />
+										</regex-leaf>
+									</node>
+								</node>
+								<node text="Г1">
+									<node text="В1">
+										<regex-leaf text=".*" name="Роз'єм 2РМ22Б10Г1В1">
+											<dgm gold_g="0" silver_g="0.234119" platinum_g="0" mpg_g="0" />
+										</regex-leaf>
+									</node>
+								</node>
+							</node>
+						</node>
+					</node>
+					<node text="24">
+						<node text="Б">
+							<node text="19">
+								<node text="Ш1">
+									<node text="В1">
+										<regex-leaf text=".*" name="Роз'єм 2РМ24Б19Ш1В1">
+											<dgm gold_g="0" silver_g="0.181056" platinum_g="0" mpg_g="0" />
+										</regex-leaf>
+									</node>
+								</node>
+							</node>
+						</node>
+					</node>
+					<node text="33">
+						<node text="Б20">
+							<node text="Ш1">
+								<node text="В1">
+									<regex-leaf text=".*" name="Роз'єм 2РМ33Б20Ш1В1">
+										<dgm gold_g="0" silver_g="0.190586" platinum_g="0" mpg_g="0" />
+									</regex-leaf>
+								</node>
+							</node>
+						</node>
+					</node>
+					<node text="42">
+						<node text="Б30">
+							<node text="Г2">
+								<node text="В1">
+									<regex-leaf text=".*" name="Роз'єм 2РМ42Б30Г2В1">
+										<dgm gold_g="0" silver_g="0.66926" platinum_g="0" mpg_g="0" />
+									</regex-leaf>
+								</node>
 							</node>
 						</node>
 					</node>
@@ -1040,7 +1191,32 @@
 				<node text="2РМДТ">
 					</node>
 				<node text="МРН">
+					<node text="4">
+						<node text="-1">
+							<node text="-1" name="Роз'єм МРН4-1-1">
+								<dgm gold_g="0" silver_g="0.018787" platinum_g="0" mpg_g="0" />
+							</node>
+						</node>
 					</node>
+					<node text="14">
+						<node text="-1">
+							<node text=" Вилка" name="Роз'єм МРН14-1 Вилка">
+								<dgm gold_g="0" silver_g="0.065758" platinum_g="0" mpg_g="0" />
+							</node>
+							<node text=" Гніздо" name="Роз'єм МРН14-1 Гніздо">
+								<dgm gold_g="0" silver_g="0.108192" platinum_g="0" mpg_g="0" />
+							</node>
+						</node>
+						<node text="-3" name="Роз'єм МРН14-3">
+							<dgm gold_g="0" silver_g="0.108192" platinum_g="0" mpg_g="0" />
+						</node>
+					</node>
+					<node text="22">
+						<node text="-3" name="Роз'єм МРН22-3">
+							<dgm gold_g="0" silver_g="0.170016" platinum_g="0" mpg_g="0" />
+						</node>
+					</node>
+				</node>
 				<node text="РП">
 					<node text="10">
 						<node text="-15" name="Роз'єм РП10-15">
@@ -1098,6 +1274,31 @@
 									<dgm gold_g="0" silver_g="0.4108" platinum_g="0" mpg_g="0" />
 								</node>
 							</node>
+						</node>
+					</node>
+					<node text="15">
+						<node text="-15" name="Роз'єм РП15-15">
+							<dgm gold_g="0" silver_g="0.139" platinum_g="0" mpg_g="0" />
+							<node text="Г">
+								<regex-leaf text=".*" name="Роз'єм РП15-15ГВФВ">
+									<dgm gold_g="0" silver_g="0.2333" platinum_g="0" mpg_g="0" />
+								</regex-leaf>
+							</node>
+						</node>
+						<node text="-23">
+							<regex-leaf text="Г.*" name="Роз'єм РП15-23ГВФВ">
+								<dgm gold_g="0" silver_g="0.3577" platinum_g="0" mpg_g="0" />
+							</regex-leaf>
+						</node>
+						<node text="-32">
+							<regex-leaf text="Г.*" name="Роз'єм РП15-32ГВФВ">
+								<dgm gold_g="0" silver_g="0.4977" platinum_g="0" mpg_g="0" />
+							</regex-leaf>
+						</node>
+						<node text="-50">
+							<regex-leaf text="Г.*" name="Роз'єм РП15-50ГВФВ">
+								<dgm gold_g="0" silver_g="0.7777" platinum_g="0" mpg_g="0" />
+							</regex-leaf>
 						</node>
 					</node>
 				</node>
@@ -1169,6 +1370,13 @@
 								<dgm gold_g="0" silver_g="0.0239" platinum_g="0" mpg_g="0" />
 							</regex-leaf>
 						</node>
+						<node text="-3">
+							<node text="-1">
+								<node text="К" name="Роз'єм РПМ РГ1Н-3-1К">
+									<dgm gold_g="0" silver_g="0.1198" platinum_g="0" mpg_g="0" />
+								</node>
+							</node>
+						</node>
 					</node>
 					<node text=" РШ2Н">
 						<node text="-1">
@@ -1185,6 +1393,20 @@
 				<node text="РС">
 					</node>
 				<node text="СКП" />
+				<node text="РПКМ">
+					<node text="17">
+						<node text="-48">
+							<node text="-3" name="Роз'єм РПКМ17-48-3">
+								<dgm gold_g="0.2" silver_g="0.604" platinum_g="0" mpg_g="0" />
+							</node>
+						</node>
+						<node text="-52">
+							<node text="-3" name="Роз'єм РПКМ17-52-3">
+								<dgm gold_g="0.216" silver_g="0.6542" platinum_g="0" mpg_g="0" />
+							</node>
+						</node>
+					</node>
+				</node>
 			</node>
 		</node>
 		<node text="Розрядник">
@@ -2083,15 +2305,17 @@
 							<dgm gold_g="0.0279083" silver_g="0" platinum_g="0" mpg_g="0" />
 						</regex-leaf>
 					</node>
-					<node text="326">
+					<node text="326" name="Транзистор 2Т326">
 						<regex-leaf text="[АБВ]" name="2Т326В">
 							<dgm gold_g="0.01328" silver_g="0" platinum_g="0" mpg_g="0" />
 						</regex-leaf>
+						<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
 					</node>
-					<node text="203">
+					<node text="203" name="Транзистор 2Т203">
 						<regex-leaf text="[АБВГД]" name="2Т203В">
 							<dgm gold_g="0.01116" silver_g="0" platinum_g="0" mpg_g="0" />
 						</regex-leaf>
+						<dgm gold_g="0.0079739" silver_g="0" platinum_g="0" mpg_g="0" />
 					</node>
 					<node text="602">
 						<regex-leaf text=".*" name="2Т602Б">
@@ -2144,9 +2368,6 @@
 							<dgm gold_g="0.00885" silver_g="0" platinum_g="0" mpg_g="0" />
 						</regex-leaf>
 					</node>
-					<regex-leaf text="[АБВ]?" name="Транзистор 2Т312">
-						<dgm gold_g="0.0143886" silver_g="0" platinum_g="0" mpg_g="0" />
-					</regex-leaf>
 					<node text="301">
 						<regex-leaf text="[ГДЕЖ]" name="Транзистор 2Т301Г">
 							<dgm gold_g="0.005072" silver_g="0" platinum_g="0" mpg_g="0" />
@@ -2174,7 +2395,7 @@
 						</regex-leaf>
 					</node>
 					<node text="208">
-						<regex-leaf text="[АБВГДЕЖЗИКЛ]" name="Транзистор 2Т208В">
+						<regex-leaf text="[АБВГДЕЖЗИКЛМ]" name="Транзистор 2Т208В">
 							<dgm gold_g="0.0091963" silver_g="0" platinum_g="0" mpg_g="0" />
 						</regex-leaf>
 					</node>
@@ -2202,6 +2423,105 @@
 					<node text="812">
 						<node text="А" name="Транзистор 2Т812А">
 							<dgm gold_g="0.0170125" silver_g="0" platinum_g="0" mpg_g="0" />
+						</node>
+					</node>
+					<node text="202">
+						<node text="Б" name="Транзистор 2Т202Б">
+							<dgm gold_g="0.01263" silver_g="0" platinum_g="0" mpg_g="0" />
+						</node>
+					</node>
+					<node text="223">
+						<node text="Б" name="Транзистор 2Т223Б">
+							<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
+						</node>
+					</node>
+					<node text="305" name="Транзистор 2Т305">
+						<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
+						<node text="В" name="Транзистор 2Т305В">
+							<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
+						</node>
+					</node>
+					<node text="315">
+						<node text="В" name="Транзистор 2Т315В">
+							<dgm gold_g="0.000971" silver_g="0" platinum_g="0" mpg_g="0" />
+						</node>
+					</node>
+					<node text="363">
+						<regex-leaf text="[АБ]?" name="Транзистор 2Т363Б">
+							<dgm gold_g="0.0138941" silver_g="0" platinum_g="0" mpg_g="0" />
+						</regex-leaf>
+					</node>
+					<node text="501">
+						<node text="М" name="Транзистор 2Т501М">
+							<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
+						</node>
+					</node>
+					<node text="504">
+						<node text="В" name="Транзистор 2Т504В">
+							<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
+						</node>
+					</node>
+					<node text="601">
+						<node text="Б" name="Транзистор 2Т601Б">
+							<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
+						</node>
+					</node>
+					<node text="630" name="Транзистор 2Т630">
+						<dgm gold_g="0.0241385" silver_g="0" platinum_g="0" mpg_g="0" />
+						<node text="Б" name="Транзистор 2Т630Б">
+							<dgm gold_g="0.0241385" silver_g="0" platinum_g="0" mpg_g="0" />
+						</node>
+					</node>
+					<node text="819">
+						<node text="В" name="Транзистор 2Т819В">
+							<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
+						</node>
+					</node>
+					<node text="825">
+						<node text="В" name="Транзистор 2Т825В">
+							<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
+						</node>
+					</node>
+					<node text="828">
+						<node text="Б" name="Транзистор 2Т828Б">
+							<dgm gold_g="0.001206" silver_g="0.1245984" platinum_g="0" mpg_g="0" />
+						</node>
+					</node>
+					<node text="830">
+						<node text="Б" name="Транзистор 2Т830Б">
+							<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
+						</node>
+						<node text="В" name="Транзистор 2Т830В">
+							<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
+						</node>
+					</node>
+					<node text="831" name="Транзистор 2Т831">
+						<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
+						<node text="Б" name="Транзистор 2Т831Б">
+							<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
+						</node>
+						<node text="Г" name="Транзистор 2Т831Г">
+							<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
+						</node>
+					</node>
+					<node text="908">
+						<node text="А" name="Транзистор 2Т908А">
+							<dgm gold_g="0.0323859" silver_g="0.099548" platinum_g="0" mpg_g="0" />
+						</node>
+					</node>
+					<node text="933">
+						<regex-leaf text=".*" name="Транзистор 2Т933Б">
+							<dgm gold_g="0.0054303" silver_g="0.0001953" platinum_g="0" mpg_g="0" />
+						</regex-leaf>
+					</node>
+					<node text="939">
+						<node text="А" name="Транзистор 2Т939А">
+							<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
+						</node>
+					</node>
+					<node text="136">
+						<node text="Б" name="Транзистор 2Т136Б">
+							<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
 						</node>
 					</node>
 				</node>
@@ -2292,6 +2612,7 @@
 						</node>
 					</node>
 				</node>
+				<node text="2ТС" />
 			</node>
 		</node>
 		<node text="Мікросхема" optional="true">
