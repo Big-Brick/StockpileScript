@@ -30,6 +30,7 @@ CANONICAL_FILENAME_RE = re.compile(r"^\s*(?:(?P<number>\d+)\.\s*)?Відоміс
 YEAR_RE = re.compile(r"(?P<year>\b(?:19|20)\d{2}\b)\s*(?:року|рік|р\.)?\s*$", re.IGNORECASE)
 SERIAL_RE = re.compile(r"(?:№|N\.?)\s*(?P<serial>.*?)\s*$", re.IGNORECASE)
 FILE_NUMBER_RE = re.compile(r"^\s*(?P<number>\d+)\.\s+")
+INVALID_FILENAME_CHAR_RE = re.compile(r"[<>:\"/\\|?*\x00-\x1f]")
 VALID_COMMA_NUMBER_RE = re.compile(r"^\d+(?:,\d+)?$")
 DGM_NUMBER_FORMAT = "0.############################"
 MIN_COLUMN_WIDTH = 4.0
@@ -62,7 +63,7 @@ class DgmDocumentMetadata:
 
 	def CanonicalFilename(self) -> str:
 		Prefix = f"{self.FileNumber}. " if self.FileNumber is not None else ""
-		return f"{Prefix}{self.CanonicalTitle()}.xlsx"
+		return f"{Prefix}{SanitizeFilenameText(self.CanonicalTitle())}.xlsx"
 
 
 @dataclasses.dataclass
@@ -92,6 +93,24 @@ class FooterPlacementRequired(RuntimeError):
 def NormalizeSpaces(Text: object) -> str:
 	return " ".join(str(Text or "").strip().split())
 
+
+def SanitizeFilenameText(Text: object) -> str:
+	Value = INVALID_FILENAME_CHAR_RE.sub("", NormalizeSpaces(Text))
+	Value = re.sub(r"\s+", " ", Value).strip(" .")
+	return Value or "document"
+
+
+def FilenameCompatibleText(ExpectedText: object, FilenameText: object) -> bool:
+	Expected = NormalizeSpaces(ExpectedText)
+	Filename = NormalizeSpaces(FilenameText)
+	PatternParts = []
+	for Character in Expected:
+		if INVALID_FILENAME_CHAR_RE.fullmatch(Character):
+			PatternParts.append(".?")
+		else:
+			PatternParts.append(re.escape(Character))
+	Pattern = "".join(PatternParts)
+	return re.fullmatch(Pattern, Filename, flags=re.IGNORECASE) is not None
 
 def CanonicalSerial(Text: object) -> str:
 	Value = NormalizeSpaces(Text)
@@ -187,20 +206,34 @@ class WorkbookMetadataExtractor:
 	def _Resolve(self, Metadata: DgmDocumentMetadata) -> None:
 		Fields = ("FileNumber", "DocumentType", "EquipmentName", "SerialNumber", "ManufactureYear")
 		for Field in Fields:
-			Seen: Dict[object, List[str]] = {}
+			Seen: List[Tuple[object, str]] = []
 			for Source, Values in Metadata.Sources.items():
 				Value = Values.get(Field)
 				if Value in (None, ""):
 					continue
 				if Field == "SerialNumber":
 					Value = CanonicalSerial(Value)
-				Seen.setdefault(Value, []).append(Source)
+				Seen.append((Value, Source))
 			if not Seen:
 				continue
-			Chosen = next(iter(Seen.keys()))
+			Chosen, ChosenSource = next(((Value, Source) for Value, Source in Seen if Source != "filename"), Seen[0])
 			setattr(Metadata, Field, Chosen)
-			if len(Seen) > 1:
-				Metadata.Conflicts.append(f"{Field} differs between sources: " + "; ".join(f"{Value} ({', '.join(Sources)})" for Value, Sources in Seen.items()))
+			Conflicting = [(Value, Source) for Value, Source in Seen if not self._MetadataValuesCompatible(Field, Chosen, ChosenSource, Value, Source)]
+			if Conflicting:
+				AllValues: Dict[object, List[str]] = {}
+				for Value, Source in Seen:
+					AllValues.setdefault(Value, []).append(Source)
+				Metadata.Conflicts.append(f"{Field} differs between sources: " + "; ".join(f"{Value} ({', '.join(Sources)})" for Value, Sources in AllValues.items()))
+
+	def _MetadataValuesCompatible(self, Field: str, LeftValue: object, LeftSource: str, RightValue: object, RightSource: str) -> bool:
+		if LeftValue == RightValue:
+			return True
+		if Field in ("EquipmentName", "SerialNumber"):
+			if LeftSource == "filename":
+				return FilenameCompatibleText(RightValue, LeftValue)
+			if RightSource == "filename":
+				return FilenameCompatibleText(LeftValue, RightValue)
+		return False
 
 	def _FindPeople(self, Sheet: object) -> str:
 		for Row in range(1, (Sheet.max_row or 1) + 1):  # type: ignore[attr-defined]
