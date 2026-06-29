@@ -26,6 +26,16 @@ FORMULARY_LABEL = "Вміст ДГМ згідно Формуляру:"
 MISSING_LABEL = "Вміст ДГМ, яких не вистачає:"
 TOTAL_IN_PRODUCT_LABEL = "Всього у виробі:"
 HEADER_END_MARKER = "Підрахунок здійснили"
+CIVILIAN_RANK = "працівник ЗСУ"
+RANK_ALIASES = {
+	"п/п-к": "підполковник",
+	"п/пк": "підполковник",
+	"пп-к": "підполковник",
+	"м-р": "майор",
+	"мр": "майор",
+	"л-нт": "лейтенант",
+	"лнт": "лейтенант",
+}
 CANONICAL_FILENAME_RE = re.compile(r"^\s*(?:(?P<number>\d+)\.\s*)?Відомість\s+(?P<kind>не?комплектності|комплектності)\s+(?P<rest>.+?)\s*$", re.IGNORECASE)
 YEAR_RE = re.compile(r"(?P<year>\b(?:19|20)\d{2}\b)\s*(?:року|рік|р\.)?\s*$", re.IGNORECASE)
 SERIAL_RE = re.compile(r"(?:№|N\.?)\s*(?P<serial>.*?)\s*$", re.IGNORECASE)
@@ -40,6 +50,12 @@ WIDTH_PADDING = 2.0
 
 
 @dataclasses.dataclass
+class FooterPerson:
+	Rank: str
+	Name: str
+
+
+@dataclasses.dataclass
 class DgmDocumentMetadata:
 	FileNumber: Optional[int] = None
 	DocumentType: Optional[str] = None
@@ -47,6 +63,7 @@ class DgmDocumentMetadata:
 	SerialNumber: str = "№б/н"
 	ManufactureYear: str = ""
 	People: str = ""
+	FooterPeople: List[FooterPerson] = dataclasses.field(default_factory=list)
 	FormularyValues: Optional[dgm_database.DgmValues] = None
 	Sources: Dict[str, Dict[str, object]] = dataclasses.field(default_factory=dict)
 	Conflicts: List[str] = dataclasses.field(default_factory=list)
@@ -93,6 +110,34 @@ class FooterPlacementRequired(RuntimeError):
 def NormalizeSpaces(Text: object) -> str:
 	return " ".join(str(Text or "").strip().split())
 
+
+def ExpandRank(Text: object) -> str:
+	Rank = NormalizeSpaces(Text).casefold().replace("–", "-").replace("—", "-")
+	return RANK_ALIASES.get(Rank, CIVILIAN_RANK)
+
+
+def ParseFooterPeople(Text: object) -> List[FooterPerson]:
+	Raw = NormalizeSpaces(Text)
+	if HEADER_END_MARKER in Raw:
+		Raw = Raw.split(HEADER_END_MARKER, 1)[1]
+	Raw = Raw.strip(" :-–—")
+	if not Raw:
+		return []
+	Raw = re.sub(r"\s+(?:та|і)\s+(?=(?:п/п-к|п/пк|пп-к|м-р|мр|л-нт|лнт)\b)", "; ", Raw, flags=re.IGNORECASE)
+	Parts = [Part.strip(" .") for Part in re.split(r"[;,]", Raw) if Part.strip(" .")]
+	People: List[FooterPerson] = []
+	RankPattern = re.compile(r"^(?P<rank>п/п-к|п/пк|пп-к|м-р|мр|л-нт|лнт)\s+(?P<name>.+)$", re.IGNORECASE)
+	for Part in Parts:
+		Match = RankPattern.match(Part)
+		if Match:
+			Rank = ExpandRank(Match.group("rank"))
+			Name = NormalizeSpaces(Match.group("name"))
+		else:
+			Rank = CIVILIAN_RANK
+			Name = NormalizeSpaces(Part)
+		if Name:
+			People.append(FooterPerson(Rank, Name))
+	return People
 
 def SanitizeFilenameText(Text: object) -> str:
 	Value = INVALID_FILENAME_CHAR_RE.sub("", NormalizeSpaces(Text))
@@ -196,6 +241,7 @@ class WorkbookMetadataExtractor:
 		self._AddSource(Metadata, "row1", {"FileNumber": Row1Number} if Row1Number is not None else {})
 		self._AddSource(Metadata, "row2", ParseDocumentText(f"Відомість {NormalizeSpaces(Row2)}"))
 		Metadata.People = self._FindPeople(Sheet)
+		Metadata.FooterPeople = ParseFooterPeople(Metadata.People)
 		Metadata.FormularyValues = self._FindFormularyValues(Sheet)
 		self._Resolve(Metadata)
 		return Metadata
@@ -356,6 +402,9 @@ class XlsxPostprocessor:
 		Sheet = Workbook.active
 		if Metadata.DocumentType is None:
 			Metadata.DocumentType = self._GuessDocumentType(FilePath, Sheet)
+		if not Metadata.FooterPeople:
+			Metadata.People = self.MetadataExtractor._FindPeople(Sheet)
+			Metadata.FooterPeople = ParseFooterPeople(Metadata.People)
 		HeaderEnd = self._FindHeaderEnd(Sheet) or 6
 		FooterStart = self._FindValidFooterStart(Sheet)
 		if FooterStart is None:
@@ -441,23 +490,31 @@ class XlsxPostprocessor:
 			FooterStart = 1
 		if Sheet.max_row >= FooterStart:  # type: ignore[attr-defined]
 			Sheet.delete_rows(FooterStart, (Sheet.max_row or FooterStart) - FooterStart + 1)  # type: ignore[attr-defined]
-		Rows = self._FooterRowsTemplate(Metadata.DocumentType or DOCUMENT_TYPE_PRESENT)
+		Rows = self._FooterRowsTemplate(Metadata)
 		for Offset, Values in enumerate(Rows):
 			Row = FooterStart + Offset
 			for Column, Value in Values.items():
 				Sheet[f"{Column}{Row}"].value = Value
 		return FooterStart
 
-	def _FooterRowsTemplate(self, DocumentType: str) -> List[Dict[str, str]]:
+	def _FooterRowsTemplate(self, Metadata: DgmDocumentMetadata) -> List[Dict[str, str]]:
+		DocumentType = Metadata.DocumentType or DOCUMENT_TYPE_PRESENT
 		Labels = [MISSING_LABEL, FORMULARY_LABEL, TOTAL_IN_PRODUCT_LABEL] if DocumentType == DOCUMENT_TYPE_MISSING else [TOTAL_IN_PRODUCT_LABEL, FORMULARY_LABEL, MISSING_LABEL]
-		return [
+		Rows = [
 			{"D": Labels[0]},
 			{"D": Labels[1]},
 			{"D": Labels[2]},
 			{},
-			{"B": "Голова комісії: ", "C": "підполковник", "E": "Андрій ІВАНОВ"},
-			{"B": "Члени комісії:", "C": "майор", "E": "Василій ПЕТРОВ"},
-			{"C": "лейтенант", "E": "Микола ПУПКО"},
+		]
+		People = Metadata.FooterPeople or [FooterPerson(CIVILIAN_RANK, "")]
+		for Index, Person in enumerate(People):
+			Row = {"C": Person.Rank, "E": Person.Name}
+			if Index == 0:
+				Row["B"] = "Голова комісії: "
+			elif Index == 1:
+				Row["B"] = "Члени комісії:"
+			Rows.append(Row)
+		Rows.extend([
 			{"B": "__.__.2026"},
 			{},
 			{"B": "З висновками комісії, щодо комплектності виробу погоджуюсь:"},
@@ -466,7 +523,8 @@ class XlsxPostprocessor:
 			{"B": "__.__.2026"},
 			{},
 			{},
-		]
+		])
+		return Rows
 
 	def _NormalizeBodyRows(self, Sheet: object, FirstRow: int, LastRow: int) -> None:
 		for Row in range(FirstRow, LastRow + 1):
