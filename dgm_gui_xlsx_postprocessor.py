@@ -25,7 +25,7 @@ class FooterPlacementDialog(tk.Toplevel):
 		self.minsize(700, 360)
 		self.columnconfigure(0, weight=1)
 		self.rowconfigure(1, weight=1)
-		ttk.Label(self, text="Review rows from the first possible footer row to the end, then choose the row where the footer must start.", style="Heading.TLabel").grid(row=0, column=0, sticky="ew", padx=10, pady=(10, 4))
+		ttk.Label(self, text="Review workbook rows, then choose the row where the footer must start. Changing the row number selects and scrolls to that row.", style="Heading.TLabel").grid(row=0, column=0, sticky="ew", padx=10, pady=(10, 4))
 		self.Tree = ttk.Treeview(self, columns=("row", "text"), show="headings", selectmode="browse")
 		self.Tree.heading("row", text="Row")
 		self.Tree.heading("text", text="Row text")
@@ -37,6 +37,7 @@ class FooterPlacementDialog(tk.Toplevel):
 		self.Tree.configure(yscrollcommand=Scroll.set)
 		for Row, Text in ReviewRows:
 			self.Tree.insert("", "end", iid=str(Row), values=(Row, Text))
+		self._UpdatingSelection = False
 		Controls = ttk.Frame(self)
 		Controls.grid(row=2, column=0, sticky="e", padx=10, pady=(4, 10))
 		tk.Label(Controls, text="Footer starts at row:").grid(row=0, column=0, padx=(0, 6))
@@ -45,6 +46,9 @@ class FooterPlacementDialog(tk.Toplevel):
 		tk.Button(Controls, text="Use selected row", command=self._UseSelected).grid(row=0, column=2, padx=(0, 6))
 		tk.Button(Controls, text="OK", command=self._Ok).grid(row=0, column=3, padx=(0, 6))
 		tk.Button(Controls, text="Cancel", command=self.destroy).grid(row=0, column=4)
+		self.FooterRow.trace_add("write", self._FooterRowChanged)
+		self.Tree.bind("<<TreeviewSelect>>", self._TreeSelectionChanged)
+		self._SelectFooterRow(InitialRow)
 		self.transient(Parent)
 		self.grab_set()
 		self.wait_window(self)
@@ -53,6 +57,33 @@ class FooterPlacementDialog(tk.Toplevel):
 		Selection = self.Tree.selection()
 		if Selection:
 			self.FooterRow.set(int(Selection[0]))
+
+	def _FooterRowChanged(self, *_Args: object) -> None:
+		if self._UpdatingSelection:
+			return
+		try:
+			Row = int(self.FooterRow.get())
+		except (tk.TclError, ValueError):
+			return
+		self._SelectFooterRow(Row)
+
+	def _TreeSelectionChanged(self, _Event: object) -> None:
+		Selection = self.Tree.selection()
+		if not Selection:
+			return
+		self._UpdatingSelection = True
+		try:
+			self.FooterRow.set(int(Selection[0]))
+		finally:
+			self._UpdatingSelection = False
+
+	def _SelectFooterRow(self, Row: int) -> None:
+		ItemId = str(Row)
+		if not self.Tree.exists(ItemId):
+			return
+		self.Tree.selection_set(ItemId)
+		self.Tree.focus(ItemId)
+		self.Tree.see(ItemId)
 
 	def _Ok(self) -> None:
 		self.Result = int(self.FooterRow.get())
@@ -248,7 +279,7 @@ class XlsxPostprocessingMixin:
 		Workbook = openpyxl.load_workbook(FilePath, data_only=False)  # type: ignore[union-attr]
 		Sheet = Workbook.active
 		Rows: List[tuple[int, str]] = []
-		for Row in range(max(1, ReviewStart), (Sheet.max_row or 1) + 1):
+		for Row in range(1, (Sheet.max_row or 1) + 1):
 			Values = []
 			for Cell in Sheet[Row]:
 				if Cell.value not in (None, ""):
