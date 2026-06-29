@@ -296,7 +296,7 @@ class XlsxPostprocessingMixin:
 				FilePath.rename(Target)
 				FilePath = Target
 			FormularyValues = self._ReadRegistryDgmValues(Sheet, Row, 4)
-			if not Metadata.Conflicts and not RegistryConflicts and FormularyValues is not None:
+			if not Metadata.Conflicts and not RegistryConflicts:
 				Processor.ApplyFormularyValues(FilePath, FormularyValues)
 				Totals = Processor.CalculateTotalInProduct(FilePath)
 				self._WriteRegistryDgmValues(Sheet, Row, 8, Totals)
@@ -332,11 +332,12 @@ class XlsxPostprocessingMixin:
 				Conflicts.append(f"{Field}: file has {FileValue}, registry has {RegistryValue}")
 		return Conflicts
 
-	def _ReadRegistryDgmValues(self, Sheet: object, Row: int, FirstColumn: int) -> Optional[dgm_database.DgmValues]:
+	def _ReadRegistryDgmValues(self, Sheet: object, Row: int, FirstColumn: int) -> dgm_database.DgmValues:
 		Values = []
 		for Offset, _Metal in enumerate(dgm_database.METALS):
-			Value = dgm_xlsx_postprocessor.ValueToDecimal(Sheet.cell(Row, FirstColumn + Offset).value)
-			Values.append(Value or decimal.Decimal("0"))
+			CellValue = Sheet.cell(Row, FirstColumn + Offset).value
+			Value = dgm_xlsx_postprocessor.ValueToDecimal(CellValue)
+			Values.append(Value if Value is not None else decimal.Decimal("0"))
 		return dgm_database.DgmValues(*Values)
 
 	def _WriteRegistryDgmValues(self, Sheet: object, Row: int, FirstColumn: int, Values: dgm_database.DgmValues) -> None:
