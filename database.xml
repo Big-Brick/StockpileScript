@@ -30,15 +30,6 @@
 			<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
 			<node text=" ">
 				<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
-				<node text="П2К" name="Перемикач П2К">
-					<dgm gold_g="0" silver_g="0.9648" platinum_g="0" mpg_g="0" />
-				</node>
-				<node text="МТД3" name="Перемикач МТД3">
-					<dgm gold_g="0" silver_g="0.214382" platinum_g="0" mpg_g="0" />
-				</node>
-				<node text="МТ3" name="Перемикач МТ3">
-					<dgm gold_g="0" silver_g="0.2078" platinum_g="0" mpg_g="0" />
-				</node>
 				<node text="б/н" name="Перемикач б/н">
 					<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
 				</node>
@@ -53,6 +44,11 @@
 							<node text="-1" name="Перемикач КМД1-1">
 								<dgm gold_g="0" silver_g="0.107191" platinum_g="0" mpg_g="0" />
 							</node>
+						</node>
+					</node>
+					<node text="2">
+						<node text="-1" name="Перемикач КМ2-1">
+							<dgm gold_g="0" silver_g="0.214382" platinum_g="0" mpg_g="0" />
 						</node>
 					</node>
 				</node>
@@ -74,6 +70,9 @@
 							</node>
 						</node>
 					</node>
+					<node text="-2" name="Перемикач ПК-2">
+						<dgm gold_g="0" silver_g="0.51312" platinum_g="0" mpg_g="0" />
+					</node>
 				</node>
 				<node text="ПТ">
 					<node text="2">
@@ -82,6 +81,15 @@
 								<dgm gold_g="0" silver_g="0.70594" platinum_g="0" mpg_g="0" />
 							</node>
 						</node>
+					</node>
+					<node text="1" name="Перемикач ПТ1">
+						<dgm gold_g="0" silver_g="1.3566" platinum_g="0" mpg_g="0" />
+					</node>
+					<node text="3" name="Перемикач ПТ3">
+						<dgm gold_g="0" silver_g="3.9339" platinum_g="0" mpg_g="0" />
+					</node>
+					<node text="24" name="Перемикач ПТ24">
+						<dgm gold_g="0" silver_g="0.36015" platinum_g="0" mpg_g="0" />
 					</node>
 				</node>
 				<node text="КП">
@@ -92,6 +100,12 @@
 				<node text="МТ">
 					<node text="1" name="Перемикач МТ1">
 						<dgm gold_g="0" silver_g="0.107191" platinum_g="0" mpg_g="0" />
+					</node>
+					<node text="Д3" name="Перемикач МТД3">
+						<dgm gold_g="0" silver_g="0.214382" platinum_g="0" mpg_g="0" />
+					</node>
+					<node text="3" name="Перемикач МТ3">
+						<dgm gold_g="0" silver_g="0.2078" platinum_g="0" mpg_g="0" />
 					</node>
 				</node>
 				<node text="П1">
@@ -113,15 +127,48 @@
 							</node>
 						</node>
 					</node>
+					<node text="К" name="Перемикач П2К">
+						<dgm gold_g="0" silver_g="0.9648" platinum_g="0" mpg_g="0" />
+					</node>
+					<node text="Т">
+						<node text="-1" name="Перемикач П2Т-1">
+							<dgm gold_g="0" silver_g="0.567304" platinum_g="0" mpg_g="0" />
+						</node>
+					</node>
 				</node>
 				<node text="КН">
 					<node text="-1" name="Перемикач КН-1">
 						<dgm gold_g="0" silver_g="0.52802" platinum_g="0" mpg_g="0" />
 					</node>
 				</node>
-				<node text="Т-">
-					<node text="3" name="Мікротумблер Т-3">
+				<node text="Т">
+					<node text="-3" name="Мікротумблер Т-3">
 						<dgm gold_g="0" silver_g="0.233454" platinum_g="0" mpg_g="0" />
+					</node>
+					<node text="-1" name="Перемикач Т-1">
+						<dgm gold_g="0" silver_g="0.07591" platinum_g="0" mpg_g="0" />
+					</node>
+					<node text="-2" name="Перемикач Т-2">
+						<dgm gold_g="0" silver_g="0.13214" platinum_g="0" mpg_g="0" />
+					</node>
+				</node>
+				<node text="ТВ">
+					<node text="2">
+						<node text="-1" name="Перемикач ТВ2-1">
+							<dgm gold_g="0" silver_g="0.0992" platinum_g="0" mpg_g="0" />
+						</node>
+					</node>
+					<node text="1">
+						<node text="-4" name="Перемикач ТВ1-4">
+							<dgm gold_g="0" silver_g="4.893939" platinum_g="0" mpg_g="0" />
+						</node>
+					</node>
+				</node>
+				<node text="ТП">
+					<node text="1">
+						<node text="-2" name="Перемикач ТП1-2">
+							<dgm gold_g="0" silver_g="0.21968" platinum_g="0" mpg_g="0" />
+						</node>
 					</node>
 				</node>
 			</node>
@@ -2296,6 +2343,18 @@
 								<dgm gold_g="0.0015975" silver_g="0" platinum_g="0" mpg_g="0" />
 							</node>
 						</node>
+						<node text="ТМ">
+							<node text="7" name="Мікросхема КМ155ТМ7">
+								<dgm gold_g="0.001693" silver_g="0" platinum_g="0" mpg_g="0" />
+							</node>
+						</node>
+					</node>
+					<node text="133">
+						<node text="ЛА">
+							<node text="7" name="Мікросхема КМ133ЛА7">
+								<dgm gold_g="0.0014784" silver_g="0" platinum_g="0" mpg_g="0" />
+							</node>
+						</node>
 					</node>
 				</node>
 				<node text="КР" preprocess_prefix_regex="^КР(?:[\s\-]?[0-9]+[A-Za-zА-Яа-яІіЇїЄєҐґ0-9\-]*)\b">
@@ -2303,6 +2362,9 @@
 						<node text="ВА">
 							<node text="86" name="КР580ВА86">
 								<dgm gold_g="0.0237277" silver_g="0.0544897" platinum_g="0" mpg_g="0" />
+							</node>
+							<node text="87" name="Мікросхема КР580ВА87">
+								<dgm gold_g="0.0006545" silver_g="0" platinum_g="0" mpg_g="0" />
 							</node>
 						</node>
 						<node text="ВВ">
@@ -2320,6 +2382,7 @@
 								<node text="А" name="КР580ВН59А">
 									<dgm gold_g="0.003013" silver_g="0" platinum_g="0" mpg_g="0" />
 								</node>
+								<dgm gold_g="0.003013" silver_g="0" platinum_g="0" mpg_g="0" />
 							</node>
 						</node>
 						<node text="ВИ">
@@ -2330,6 +2393,26 @@
 						<node text="ИР">
 							<node text="82" name="КР580ИР82">
 								<dgm gold_g="0.0006477" silver_g="0" platinum_g="0" mpg_g="0" />
+							</node>
+							<node text="83" name="Мікросхема КР580ИР83">
+								<dgm gold_g="0.0006477" silver_g="0" platinum_g="0" mpg_g="0" />
+							</node>
+						</node>
+						<node text="ВК">
+							<node text="38" name="Мікросхема КР580ВК38">
+								<dgm gold_g="0.0337035" silver_g="0.0735333" platinum_g="0" mpg_g="0" />
+							</node>
+						</node>
+						<node text="ВМ">
+							<node text="80">
+								<node text="А" name="Мікросхема КР580ВМ80А">
+									<dgm gold_g="0.0021525" silver_g="0" platinum_g="0" mpg_g="0" />
+								</node>
+							</node>
+						</node>
+						<node text="ГФ">
+							<node text="24" name="Мікросхема КР580ГФ24">
+								<dgm gold_g="0.0003845" silver_g="0" platinum_g="0" mpg_g="0" />
 							</node>
 						</node>
 					</node>
@@ -2347,6 +2430,23 @@
 						<node text="ГФ">
 							<node text="84" name="КР1810ГФ84">
 								<dgm gold_g="0.0005728" silver_g="0" platinum_g="0" mpg_g="0" />
+							</node>
+						</node>
+						<node text="ВБ">
+							<node text="89" name="Мікросхема КР1810ВБ89">
+								<dgm gold_g="0.0054852" silver_g="0" platinum_g="0" mpg_g="0" />
+							</node>
+						</node>
+						<node text="ВМ">
+							<node text="86" name="Мікросхема КР1810ВМ86">
+								<dgm gold_g="0.0032846" silver_g="0" platinum_g="0" mpg_g="0" />
+							</node>
+						</node>
+						<node text="ВН">
+							<node text="59">
+								<node text="А" name="Мікросхема КР1810ВН59А">
+									<dgm gold_g="0.0019944" silver_g="0" platinum_g="0" mpg_g="0" />
+								</node>
 							</node>
 						</node>
 					</node>
@@ -2375,6 +2475,9 @@
 							<node text="3" name="КР531ЛА3">
 								<dgm gold_g="0.0004568" silver_g="0" platinum_g="0" mpg_g="0" />
 							</node>
+							<node text="4" name="Мікросхема КР531ЛА4">
+								<dgm gold_g="0.0004362" silver_g="0" platinum_g="0" mpg_g="0" />
+							</node>
 						</node>
 						<node text="ТВ">
 							<node text="9" name="КР531ТВ9">
@@ -2384,6 +2487,27 @@
 						<node text="ТМ">
 							<node text="8" name="КР531ТМ8">
 								<dgm gold_g="0.0004" silver_g="0" platinum_g="0" mpg_g="0" />
+							</node>
+							<node text="2" name="Мікросхема КР531ТМ2">
+								<dgm gold_g="0.0004" silver_g="0" platinum_g="0" mpg_g="0" />
+							</node>
+						</node>
+						<node text="КП">
+							<node text="11" name="Мікросхема КР531КП11">
+								<dgm gold_g="0.0005661" silver_g="0" platinum_g="0" mpg_g="0" />
+							</node>
+							<node text="7" name="Мікросхема КР531КП7">
+								<dgm gold_g="0.0005" silver_g="0" platinum_g="0" mpg_g="0" />
+							</node>
+						</node>
+						<node text="ИЕ">
+							<node text="17" name="Мікросхема КР531ИЕ17">
+								<dgm gold_g="0.0004978" silver_g="0" platinum_g="0" mpg_g="0" />
+							</node>
+						</node>
+						<node text="ЛЛ">
+							<node text="1" name="Мікросхема КР531ЛЛ1">
+								<dgm gold_g="0.0004567" silver_g="0" platinum_g="0" mpg_g="0" />
 							</node>
 						</node>
 					</node>
@@ -2398,9 +2522,12 @@
 						<node text="РУ">
 							<node text="5" name="КР565РУ5">
 								<dgm gold_g="0.0048126" silver_g="0" platinum_g="0" mpg_g="0" />
-								<node text="Г" name="КР565РУ5Г">
-									<dgm gold_g="0.01222" silver_g="0" platinum_g="0" mpg_g="0" />
-								</node>
+								<regex-leaf text=".*" name="Мікросхема КР565РУ5В">
+									<dgm gold_g="0.0048126" silver_g="0" platinum_g="0" mpg_g="0" />
+								</regex-leaf>
+							</node>
+							<node text="6" name="Мікросхема КР565РУ6">
+								<dgm gold_g="0.0081788" silver_g="0" platinum_g="0" mpg_g="0" />
 							</node>
 						</node>
 					</node>
@@ -2409,12 +2536,105 @@
 							<node text="5" name="КР1533АП5">
 								<dgm gold_g="0.0060514" silver_g="0" platinum_g="0" mpg_g="0" />
 							</node>
+							<node text="6" name="Мікросхема КР1533АП6">
+								<dgm gold_g="0.0047966" silver_g="0" platinum_g="0" mpg_g="0" />
+							</node>
+						</node>
+						<node text="ИД">
+							<node text="4" name="Мікросхема КР1533ИД4">
+								<dgm gold_g="0.0017006" silver_g="0" platinum_g="0" mpg_g="0" />
+							</node>
+							<node text="7" name="Мікросхема КР1533ИД7">
+								<dgm gold_g="0.0017188" silver_g="0" platinum_g="0" mpg_g="0" />
+							</node>
+						</node>
+						<node text="ИР">
+							<node text="23" name="Мікросхема КР1533ИР23">
+								<dgm gold_g="0.0059725" silver_g="0" platinum_g="0" mpg_g="0" />
+							</node>
+							<node text="10" name="Мікросхема КР1533ИР10">
+								<dgm gold_g="0.0021" silver_g="0" platinum_g="0" mpg_g="0" />
+							</node>
+							<node text="22" name="Мікросхема КР1533ИР22">
+								<dgm gold_g="0.00174" silver_g="0" platinum_g="0" mpg_g="0" />
+							</node>
+						</node>
+						<node text="КП">
+							<node text="11">
+								<node text="А" name="Мікросхема КР1533КП11А">
+									<dgm gold_g="0.001733" silver_g="0" platinum_g="0" mpg_g="0" />
+								</node>
+							</node>
+							<node text="12" name="Мікросхема КР1533КП12">
+								<dgm gold_g="0.0017555" silver_g="0" platinum_g="0" mpg_g="0" />
+							</node>
+							<node text="14">
+								<node text="А" name="Мікросхема КР1533КП14А">
+									<dgm gold_g="0.001733" silver_g="0" platinum_g="0" mpg_g="0" />
+								</node>
+							</node>
+						</node>
+						<node text="ЛА">
+							<node text="1" name="Мікросхема КР1533ЛА1">
+								<dgm gold_g="0.0013" silver_g="0" platinum_g="0" mpg_g="0" />
+							</node>
+							<node text="2" name="Мікросхема КР1533ЛА2">
+								<dgm gold_g="0.0012197" silver_g="0" platinum_g="0" mpg_g="0" />
+							</node>
+							<node text="3" name="Мікросхема КР1533ЛА3">
+								<dgm gold_g="0.0011835" silver_g="0" platinum_g="0" mpg_g="0" />
+							</node>
+							<node text="4" name="Мікросхема КР1533ЛА4">
+								<dgm gold_g="0.0011" silver_g="0" platinum_g="0" mpg_g="0" />
+							</node>
+						</node>
+						<node text="ЛЕ">
+							<node text="1" name="Мікросхема КР1533ЛЕ1">
+								<dgm gold_g="0.00250664" silver_g="0" platinum_g="0" mpg_g="0" />
+							</node>
+						</node>
+						<node text="ЛИ">
+							<node text="1" name="Мікросхема КР1533ЛИ1">
+								<dgm gold_g="0.0012673" silver_g="0" platinum_g="0" mpg_g="0" />
+							</node>
+						</node>
+						<node text="ЛН">
+							<node text="1" name="Мікросхема КР1533ЛН1">
+								<dgm gold_g="0.0012584" silver_g="0" platinum_g="0" mpg_g="0" />
+							</node>
+						</node>
+						<node text="ЛП">
+							<node text="5" name="Мікросхема КР1533ЛП5">
+								<dgm gold_g="0.0012684" silver_g="0" platinum_g="0" mpg_g="0" />
+							</node>
+						</node>
+						<node text="ТМ">
+							<node text="2" name="Мікросхема КР1533ТМ2">
+								<dgm gold_g="0.001256" silver_g="0" platinum_g="0" mpg_g="0" />
+							</node>
+							<node text="8" name="Мікросхема КР1533ТМ8">
+								<dgm gold_g="0.0017045" silver_g="0" platinum_g="0" mpg_g="0" />
+							</node>
+							<node text="9" name="Мікросхема КР1533ТМ9">
+								<dgm gold_g="0.0017045" silver_g="0" platinum_g="0" mpg_g="0" />
+							</node>
+						</node>
+						<node text="ЛР">
+							<node text="11" name="Мікросхема КР1533ЛР11">
+								<dgm gold_g="0.00127" silver_g="0" platinum_g="0" mpg_g="0" />
+							</node>
 						</node>
 					</node>
 					<node text="559">
 						<node text="ИП">
 							<node text="4" name="Мікросхема КР559ИП4">
 								<dgm gold_g="0" silver_g="0" platinum_g="0" mpg_g="0" />
+							</node>
+							<node text="11" name="Мікросхема КР559ИП11">
+								<dgm gold_g="0" silver_g="0" platinum_g="0.0000005" mpg_g="0" />
+							</node>
+							<node text="2" name="Мікросхема КР559ИП2">
+								<dgm gold_g="0.0083" silver_g="0" platinum_g="0" mpg_g="0" />
 							</node>
 						</node>
 					</node>
@@ -2442,6 +2662,57 @@
 								<regex-leaf text="[АБ]" name="Мікросхема КР198НТ1Б">
 									<dgm gold_g="0.0004745" silver_g="0" platinum_g="0" mpg_g="0" />
 								</regex-leaf>
+							</node>
+							<node text="5">
+								<node text="Б" name="Мікросхема КР198НТ5Б">
+									<dgm gold_g="0.0004554" silver_g="0" platinum_g="0" mpg_g="0" />
+								</node>
+							</node>
+						</node>
+					</node>
+					<node text="556">
+						<node text="РТ">
+							<node text="4">
+								<regex-leaf text=".*" name="Мікросхема КР556РТ4">
+									<dgm gold_g="0.008061" silver_g="0" platinum_g="0" mpg_g="0" />
+								</regex-leaf>
+							</node>
+						</node>
+					</node>
+					<node text="573">
+						<node text="РФ">
+							<node text="5" name="Мікросхема КР573РФ5">
+								<dgm gold_g="0.0014696" silver_g="0" platinum_g="0" mpg_g="0" />
+							</node>
+						</node>
+					</node>
+					<node text="1006">
+						<node text="ВИ">
+							<node text="1" name="Мікросхема КР1006ВИ1">
+								<dgm gold_g="0.0004506" silver_g="0" platinum_g="0" mpg_g="0" />
+							</node>
+						</node>
+					</node>
+					<node text="1023">
+						<node text="ХА">
+							<node text="1">
+								<node text="А" name="Мікросхема КР1023ХА1А">
+									<dgm gold_g="0.0067599" silver_g="0.009112" platinum_g="0" mpg_g="0" />
+								</node>
+							</node>
+						</node>
+					</node>
+					<node text="1027">
+						<node text="ХА">
+							<node text="1" name="Мікросхема КР1027ХА1">
+								<dgm gold_g="0.0004526" silver_g="0" platinum_g="0" mpg_g="0" />
+							</node>
+						</node>
+					</node>
+					<node text="541">
+						<node text="РУ">
+							<node text="2" name="Мікросхема КР541РУ2">
+								<dgm gold_g="0.009" silver_g="0" platinum_g="0" mpg_g="0" />
 							</node>
 						</node>
 					</node>
@@ -2958,6 +3229,12 @@
 							<regex-leaf text="1[01]" name="Мікросхема К155ЛП11">
 								<dgm gold_g="0.0005349" silver_g="0" platinum_g="0" mpg_g="0" />
 							</regex-leaf>
+							<node text="5" name="Мікросхема К155ЛП5">
+								<dgm gold_g="0.0014893" silver_g="0" platinum_g="0" mpg_g="0" />
+							</node>
+							<node text="8" name="Мікросхема К155ЛП8">
+								<dgm gold_g="0.0003" silver_g="0" platinum_g="0" mpg_g="0" />
+							</node>
 						</node>
 						<node text="ЛР">
 							<node text="1" name="Мікросхема К155ЛР1">
@@ -2970,6 +3247,9 @@
 							</node>
 							<node text="2" name="Мікросхема К155ТМ2">
 								<dgm gold_g="0.001" silver_g="0" platinum_g="0" mpg_g="0" />
+							</node>
+							<node text="7" name="Мікросхема К155ТМ7">
+								<dgm gold_g="0.00348" silver_g="0" platinum_g="0" mpg_g="0" />
 							</node>
 						</node>
 						<node text="РЕ">
@@ -3077,6 +3357,15 @@
 							<node text="23" name="К555ИР23">
 								<dgm gold_g="0.0005863" silver_g="0" platinum_g="0.0000007" mpg_g="0" />
 							</node>
+							<node text="22" name="Мікросхема К555ИР22">
+								<dgm gold_g="0.0005" silver_g="0" platinum_g="0" mpg_g="0" />
+							</node>
+							<node text="27" name="Мікросхема К555ИР27">
+								<dgm gold_g="0.0005" silver_g="0" platinum_g="0" mpg_g="0" />
+							</node>
+							<node text="35" name="Мікросхема К555ИР35">
+								<dgm gold_g="0.00079" silver_g="0" platinum_g="0" mpg_g="0" />
+							</node>
 						</node>
 						<node text="ИП">
 							<node text="5" name="К555ИП5">
@@ -3089,6 +3378,9 @@
 							</node>
 							<node text="2" name="К555ИЕ2">
 								<dgm gold_g="0.00038" silver_g="0" platinum_g="0" mpg_g="0" />
+							</node>
+							<node text="5" name="Мікросхема К555ИЕ5">
+								<dgm gold_g="0.00031" silver_g="0" platinum_g="0" mpg_g="0" />
 							</node>
 						</node>
 						<node text="ИД">
@@ -3123,6 +3415,11 @@
 							</node>
 							<node text="26" name="Мікросхема К589АП26">
 								<dgm gold_g="0.004" silver_g="0" platinum_g="0" mpg_g="0" />
+							</node>
+						</node>
+						<node text="ИР">
+							<node text="12" name="Мікросхема К589ИР12">
+								<dgm gold_g="0.00076" silver_g="0" platinum_g="0" mpg_g="0" />
 							</node>
 						</node>
 					</node>
@@ -3235,6 +3532,18 @@
 								<dgm gold_g="0.0007001" silver_g="0" platinum_g="0" mpg_g="0" />
 							</node>
 						</node>
+						<node text="ИД">
+							<node text="7" name="Мікросхема К531ИД7">
+								<dgm gold_g="0.0004" silver_g="0" platinum_g="0" mpg_g="0" />
+							</node>
+						</node>
+						<node text="ЛА">
+							<node text="3">
+								<node text="П" name="Мікросхема К531ЛА3П">
+									<dgm gold_g="0.0005" silver_g="0" platinum_g="0" mpg_g="0" />
+								</node>
+							</node>
+						</node>
 					</node>
 					<node text="554">
 						<node text="СА">
@@ -3278,6 +3587,13 @@
 						<node text="РУ">
 							<node text="13" name="Мікросхема К537РУ13">
 								<dgm gold_g="0.0137" silver_g="0" platinum_g="0" mpg_g="0" />
+							</node>
+						</node>
+					</node>
+					<node text="551">
+						<node text="ТВ">
+							<node text="1" name="Мікросхема К551ТВ1">
+								<dgm gold_g="0.00037" silver_g="0" platinum_g="0" mpg_g="0" />
 							</node>
 						</node>
 					</node>
@@ -3713,6 +4029,22 @@
 						<node text="1">
 							<node text="Б" name="Мікросхема 217ТР1Б">
 								<dgm gold_g="0.00122" silver_g="0.00007" platinum_g="0" mpg_g="0.00003" />
+							</node>
+						</node>
+					</node>
+				</node>
+				<node text="КС">
+					<node text="531">
+						<node text="ЛИ">
+							<node text="1" name="Мікросхема КС531ЛИ1">
+								<dgm gold_g="0.0005" silver_g="0" platinum_g="0" mpg_g="0" />
+							</node>
+						</node>
+					</node>
+					<node text="573">
+						<node text="РФ">
+							<node text="5" name="Мікросхема КС573РФ5">
+								<dgm gold_g="0.039" silver_g="0.049" platinum_g="0" mpg_g="0" />
 							</node>
 						</node>
 					</node>
