@@ -90,6 +90,53 @@ class FooterPlacementDialog(tk.Toplevel):
 		self.destroy()
 
 
+class PostprocessLogWindow(tk.Toplevel):
+	def __init__(self, Parent: tk.Toplevel) -> None:
+		super().__init__(Parent)
+		self.title("XLSX postprocess log")
+		self.geometry("760x320")
+		self.minsize(520, 220)
+		self.Lines: List[str] = []
+		self.columnconfigure(0, weight=1)
+		self.rowconfigure(0, weight=1)
+		self.Text = tk.Text(self, wrap="word", state="disabled", height=10)
+		self.Text.grid(row=0, column=0, sticky="nsew", padx=(10, 0), pady=10)
+		Scroll = ttk.Scrollbar(self, orient=tk.VERTICAL, command=self.Text.yview)
+		Scroll.grid(row=0, column=1, sticky="ns", padx=(0, 10), pady=10)
+		self.Text.configure(yscrollcommand=Scroll.set)
+		Buttons = ttk.Frame(self)
+		Buttons.grid(row=1, column=0, sticky="e", padx=10, pady=(0, 10))
+		tk.Button(Buttons, text="Save log...", command=self.SaveLog).grid(row=0, column=0, padx=(0, 6))
+		tk.Button(Buttons, text="Close", command=self.destroy).grid(row=0, column=1)
+
+	def IsUsable(self) -> bool:
+		try:
+			return bool(self.winfo_exists()) and bool(self.Text.winfo_exists())
+		except tkinter.TclError:
+			return False
+
+	def Append(self, Message: str) -> None:
+		if not self.IsUsable():
+			return
+		self.Lines.append(Message)
+		self.Text.configure(state="normal")
+		self.Text.insert("end", Message + "\n")
+		self.Text.see("end")
+		self.Text.configure(state="disabled")
+		self.update_idletasks()
+
+	def SaveLog(self) -> None:
+		SelectedFile = tkinter.filedialog.asksaveasfilename(
+			title="Save postprocess log",
+			defaultextension=".txt",
+			filetypes=(("Text file", "*.txt"), ("All files", "*.*")),
+			parent=self,
+		)
+		if not SelectedFile:
+			return
+		Path(SelectedFile).write_text("\n".join(self.Lines) + ("\n" if self.Lines else ""), encoding="utf-8")
+
+
 class XlsxPostprocessReviewWindow(tk.Toplevel):
 	def __init__(self, Parent: tk.Toplevel, Processor: dgm_xlsx_postprocessor.XlsxPostprocessor, Result: dgm_xlsx_postprocessor.PostprocessResult) -> None:
 		super().__init__(Parent)
@@ -199,7 +246,8 @@ class XlsxPostprocessingMixin:
 		)
 		if not SelectedFile:
 			return
-		self._PostprocessXlsxFile(Path(SelectedFile).expanduser().resolve(), RenameToCanonical=True)
+		LogWindow = PostprocessLogWindow(self)
+		self._PostprocessXlsxFile(Path(SelectedFile).expanduser().resolve(), RenameToCanonical=True, LogWindow=LogWindow)
 
 	def _SelectAndPostprocessXlsxFolder(self) -> None:
 		if openpyxl is None:
@@ -212,13 +260,20 @@ class XlsxPostprocessingMixin:
 		if not Files:
 			tkinter.messagebox.showinfo(WINDOW_TITLE, "No .xlsx files found in the selected folder.", parent=self)
 			return
+		LogWindow = PostprocessLogWindow(self)
+		LogWindow.Append(f"Found {len(Files)} XLSX file(s) to postprocess in {SelectedFolder}.")
 		Results = []
-		for FilePath in Files:
+		for Index, FilePath in enumerate(Files, start=1):
 			try:
-				Results.append(self._PostprocessOneWithFooterPrompt(FilePath, True))
+				LogWindow.Append(f"[{Index}/{len(Files)}] Processing {FilePath.name}...")
+				Result = self._PostprocessOneWithFooterPrompt(FilePath, True, LogWindow)
+				Results.append(Result)
+				LogWindow.Append(f"[{Index}/{len(Files)}] Saved {Result.SavedPath.name}; review issues: {len(Result.Issues)}; warnings: {len(Result.Warnings)}.")
 			except Exception as Error:
+				LogWindow.Append(f"ERROR processing {FilePath.name}: {Error}")
 				tkinter.messagebox.showerror(WINDOW_TITLE, f"Cannot postprocess '{FilePath}': {Error}", parent=self)
 				return
+		LogWindow.Append(f"Finished postprocessing {len(Results)} file(s).")
 		tkinter.messagebox.showinfo(WINDOW_TITLE, f"Postprocessed {len(Results)} file(s).", parent=self)
 
 	def _SelectAndPostprocessRegistry(self) -> None:
@@ -235,39 +290,60 @@ class XlsxPostprocessingMixin:
 		Folder = tkinter.filedialog.askdirectory(title="Select folder with numbered XLSX files", parent=self)
 		if not Folder:
 			return
+		LogWindow = PostprocessLogWindow(self)
 		try:
-			Count = self._PostprocessRegistry(Path(RegistryFile).expanduser().resolve(), Path(Folder).expanduser().resolve())
+			Count = self._PostprocessRegistry(Path(RegistryFile).expanduser().resolve(), Path(Folder).expanduser().resolve(), LogWindow)
 		except Exception as Error:
+			LogWindow.Append(f"ERROR: {Error}")
 			tkinter.messagebox.showerror(WINDOW_TITLE, str(Error), parent=self)
 			return
+		LogWindow.Append(f"Registry postprocessing complete. Processed {Count} file(s).")
 		tkinter.messagebox.showinfo(WINDOW_TITLE, f"Registry postprocessing complete. Processed {Count} file(s).", parent=self)
 
-	def _PostprocessOneWithFooterPrompt(self, FilePath: Path, RenameToCanonical: bool) -> dgm_xlsx_postprocessor.PostprocessResult:
+	def _PostprocessOneWithFooterPrompt(self, FilePath: Path, RenameToCanonical: bool, LogWindow: Optional[PostprocessLogWindow] = None) -> dgm_xlsx_postprocessor.PostprocessResult:
 		Processor = self._BuildPostprocessor()
 		try:
 			return Processor.ProcessFile(FilePath, None, RenameToCanonical)
 		except dgm_xlsx_postprocessor.FooterPlacementRequired as Error:
+			if LogWindow is not None:
+				LogWindow.Append(f"Footer row needs manual selection for {FilePath.name}; suggested row {Error.ReviewStart}.")
 			FooterStart = self._AskFooterStart(FilePath, Error.ReviewStart)
 			if FooterStart is None:
 				raise RuntimeError("Footer placement was cancelled")
+			if LogWindow is not None:
+				LogWindow.Append(f"Using footer start row {FooterStart} for {FilePath.name}.")
 			return Processor.ProcessFile(FilePath, None, RenameToCanonical, FooterStart)
 
-	def _PostprocessXlsxFile(self, FilePath: Path, RenameToCanonical: bool) -> None:
+	def _PostprocessXlsxFile(self, FilePath: Path, RenameToCanonical: bool, LogWindow: Optional[PostprocessLogWindow] = None) -> None:
 		Processor = self._BuildPostprocessor()
+		if LogWindow is not None:
+			LogWindow.Append(f"Processing {FilePath}...")
 		try:
 			Result = Processor.ProcessFile(FilePath, None, RenameToCanonical)
 		except dgm_xlsx_postprocessor.FooterPlacementRequired as Error:
+			if LogWindow is not None:
+				LogWindow.Append(f"Footer row needs manual selection for {FilePath.name}; suggested row {Error.ReviewStart}.")
 			FooterStart = self._AskFooterStart(FilePath, Error.ReviewStart)
 			if FooterStart is None:
+				if LogWindow is not None:
+					LogWindow.Append(f"Cancelled footer selection for {FilePath.name}.")
 				return
+			if LogWindow is not None:
+				LogWindow.Append(f"Using footer start row {FooterStart} for {FilePath.name}.")
 			try:
 				Result = Processor.ProcessFile(FilePath, None, RenameToCanonical, FooterStart)
 			except Exception as InnerError:
+				if LogWindow is not None:
+					LogWindow.Append(f"ERROR processing {FilePath.name}: {InnerError}")
 				tkinter.messagebox.showerror(WINDOW_TITLE, f"Cannot postprocess '{FilePath}': {InnerError}", parent=self)
 				return
 		except Exception as Error:
+			if LogWindow is not None:
+				LogWindow.Append(f"ERROR processing {FilePath.name}: {Error}")
 			tkinter.messagebox.showerror(WINDOW_TITLE, f"Cannot postprocess '{FilePath}': {Error}", parent=self)
 			return
+		if LogWindow is not None:
+			LogWindow.Append(f"Saved {Result.SavedPath.name}; review issues: {len(Result.Issues)}; warnings: {len(Result.Warnings)}.")
 		XlsxPostprocessReviewWindow(self, Processor, Result)
 
 	def _AskFooterStart(self, FilePath: Path, ReviewStart: int) -> Optional[int]:
@@ -293,11 +369,15 @@ class XlsxPostprocessingMixin:
 			self.DatabasePath.with_name(dgm_xlsx_preprocessor.DEFAULT_RULES_FILENAME),  # type: ignore[name-defined]
 		)
 
-	def _PostprocessRegistry(self, RegistryPath: Path, Folder: Path) -> int:
+	def _PostprocessRegistry(self, RegistryPath: Path, Folder: Path, LogWindow: Optional[PostprocessLogWindow] = None) -> int:
+		if LogWindow is not None:
+			LogWindow.Append(f"Opening registry {RegistryPath}.")
 		Workbook = openpyxl.load_workbook(RegistryPath, data_only=False)  # type: ignore[union-attr]
 		Sheet = Workbook.active
 		Processor = self._BuildPostprocessor()
 		FilesByNumber = self._NumberedFiles(Folder)
+		if LogWindow is not None:
+			LogWindow.Append(f"Found {len(FilesByNumber)} numbered XLSX file(s) in {Folder}.")
 		Processed = 0
 		NextNumber = 1
 		for Row in range(3, (Sheet.max_row or 1) + 1):
@@ -309,13 +389,21 @@ class XlsxPostprocessingMixin:
 			NextNumber = max(NextNumber, Number + 1)
 			FilePath = FilesByNumber.get(Number)
 			if FilePath is None:
+				if LogWindow is not None:
+					LogWindow.Append(f"Registry row {Row}, number {Number}: no matching numbered XLSX file found.")
 				continue
+			if LogWindow is not None:
+				LogWindow.Append(f"Registry row {Row}, number {Number}: processing {FilePath.name}...")
 			try:
 				Result = Processor.ProcessFile(FilePath, None, False)
 			except dgm_xlsx_postprocessor.FooterPlacementRequired as Error:
+				if LogWindow is not None:
+					LogWindow.Append(f"Footer row needs manual selection for {FilePath.name}; suggested row {Error.ReviewStart}.")
 				FooterStart = self._AskFooterStart(FilePath, Error.ReviewStart)
 				if FooterStart is None:
 					raise RuntimeError("Footer placement was cancelled")
+				if LogWindow is not None:
+					LogWindow.Append(f"Using footer start row {FooterStart} for {FilePath.name}.")
 				Result = Processor.ProcessFile(FilePath, None, False, FooterStart)
 			Metadata = Result.Metadata
 			Metadata.FileNumber = Number
@@ -325,6 +413,8 @@ class XlsxPostprocessingMixin:
 			Target = FilePath.with_name(Metadata.CanonicalFilename())
 			if Target != FilePath:
 				FilePath.rename(Target)
+				if LogWindow is not None:
+					LogWindow.Append(f"Renamed file to {Target.name}.")
 				FilePath = Target
 			FormularyValues = self._ReadRegistryDgmValues(Sheet, Row, 4)
 			if not Metadata.Conflicts and not RegistryConflicts:
@@ -332,7 +422,17 @@ class XlsxPostprocessingMixin:
 				Totals = Processor.CalculateTotalInProduct(FilePath)
 				self._WriteRegistryDgmValues(Sheet, Row, 8, Totals)
 				self._WriteRegistryMissingFormulas(Sheet, Row)
+				if LogWindow is not None:
+					LogWindow.Append(f"Registry row {Row}: applied formulary values, copied totals, and wrote missing-DGM formulas.")
+			else:
+				if LogWindow is not None:
+					ConflictText = "; ".join(Metadata.Conflicts + RegistryConflicts)
+					LogWindow.Append(f"Registry row {Row}: skipped DGM sync because metadata conflicts remain: {ConflictText}")
 			Processed += 1
+			if LogWindow is not None:
+				LogWindow.Append(f"Registry row {Row}: finished {FilePath.name}.")
+		if LogWindow is not None:
+			LogWindow.Append(f"Saving registry {RegistryPath.name}.")
 		Workbook.save(RegistryPath)
 		return Processed
 
