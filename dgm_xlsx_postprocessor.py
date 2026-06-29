@@ -318,6 +318,32 @@ class XlsxPostprocessor:
 		self._FitColumnWidths(Sheet)
 		Workbook.save(FilePath)
 
+	def ApplyFormularyValues(self, FilePath: Path, Values: dgm_database.DgmValues) -> None:
+		Workbook = openpyxl.load_workbook(FilePath, data_only=False)  # type: ignore[union-attr]
+		Sheet = Workbook.active
+		Metadata = self.MetadataExtractor.Extract(FilePath, Workbook)
+		Metadata.FormularyValues = Values
+		HeaderEnd = self._FindHeaderEnd(Sheet) or 6
+		FooterStart = self._FindValidFooterStart(Sheet)
+		if FooterStart is None:
+			raise FooterPlacementRequired(FilePath, self._FindFooterReviewStart(Sheet))
+		self._WriteFooterFormularyValues(Sheet, Values)
+		self._WriteFooterFormulas(Sheet, Metadata, HeaderEnd + 1, FooterStart)
+		self._FitColumnWidths(Sheet)
+		Workbook.save(FilePath)
+
+	def CalculateTotalInProduct(self, FilePath: Path) -> dgm_database.DgmValues:
+		Workbook = openpyxl.load_workbook(FilePath, data_only=False)  # type: ignore[union-attr]
+		Sheet = Workbook.active
+		Metadata = self.MetadataExtractor.Extract(FilePath, Workbook)
+		HeaderEnd = self._FindHeaderEnd(Sheet) or 6
+		FooterStart = self._FindValidFooterStart(Sheet) or (Sheet.max_row or 1)
+		BodyTotals = self._CalculateBodyTotals(Sheet, HeaderEnd + 1, FooterStart - 1)
+		if Metadata.DocumentType == DOCUMENT_TYPE_MISSING:
+			Formulary = Metadata.FormularyValues or dgm_database.DgmValues(decimal.Decimal("0"), decimal.Decimal("0"), decimal.Decimal("0"), decimal.Decimal("0"))
+			return dgm_database.DgmValues(*(Formulary.GetMetalValue(MetalKey) - BodyTotals.GetMetalValue(MetalKey) for MetalKey, _ in dgm_database.METALS))
+		return BodyTotals
+
 	def _GuessDocumentType(self, FilePath: Path, Sheet: object) -> str:
 		TextParts = [FilePath.name]
 		for Row in range(1, min(Sheet.max_row or 1, 20) + 1):  # type: ignore[attr-defined]
@@ -426,15 +452,21 @@ class XlsxPostprocessor:
 	def _RowUsesInformationMissing(self, Sheet: object, Row: int) -> bool:
 		return any(NormalizeSpaces(Sheet[f"{self.Database.Columns.PerElement[MetalKey]}{Row}"].value) == INFORMATION_MISSING_TEXT for MetalKey, _ in dgm_database.METALS)
 
+	def _WriteFooterFormularyValues(self, Sheet: object, Values: dgm_database.DgmValues, Overwrite: bool = True) -> None:
+		FooterRows = self._FooterRows(Sheet)
+		if FORMULARY_LABEL not in FooterRows:
+			return
+		Row = FooterRows[FORMULARY_LABEL]
+		for MetalKey, _ in dgm_database.METALS:
+			Cell = Sheet[f"{self.Database.Columns.Total[MetalKey]}{Row}"]
+			if Overwrite or Cell.value in (None, ""):
+				Cell.value = DecimalToWorkbookNumber(Values.GetMetalValue(MetalKey))
+			Cell.number_format = DGM_NUMBER_FORMAT
+
 	def _WriteFooterFormulas(self, Sheet: object, Metadata: DgmDocumentMetadata, BodyStart: int, FooterStart: int) -> None:
 		FooterRows = self._FooterRows(Sheet)
-		if FORMULARY_LABEL in FooterRows and Metadata.FormularyValues is not None:
-			Row = FooterRows[FORMULARY_LABEL]
-			for MetalKey, _ in dgm_database.METALS:
-				Cell = Sheet[f"{self.Database.Columns.Total[MetalKey]}{Row}"]
-				if Cell.value in (None, ""):
-					Cell.value = DecimalToWorkbookNumber(Metadata.FormularyValues.GetMetalValue(MetalKey))
-				Cell.number_format = DGM_NUMBER_FORMAT
+		if Metadata.FormularyValues is not None:
+			self._WriteFooterFormularyValues(Sheet, Metadata.FormularyValues, False)
 		BodyEnd = FooterStart - 1
 		if BodyEnd < BodyStart:
 			BodyEnd = BodyStart

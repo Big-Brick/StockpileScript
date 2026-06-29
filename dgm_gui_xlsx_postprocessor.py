@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import decimal
 from typing import List, Optional
 
 import tkinter as tk
@@ -8,6 +9,7 @@ import tkinter.filedialog
 import tkinter.messagebox
 import tkinter.ttk as ttk
 
+import dgm_database
 import dgm_xlsx_common
 import dgm_xlsx_postprocessor
 import dgm_xlsx_preprocessor
@@ -286,13 +288,70 @@ class XlsxPostprocessingMixin:
 				Result = Processor.ProcessFile(FilePath, None, False, FooterStart)
 			Metadata = Result.Metadata
 			Metadata.FileNumber = Number
+			RegistryMetadata = self._RegistryRowMetadata(Sheet, Row)
+			RegistryConflicts = self._RegistryMetadataConflicts(Metadata, RegistryMetadata)
 			Sheet[f"C{Row}"].value = Metadata.CanonicalTitle()
 			Target = FilePath.with_name(Metadata.CanonicalFilename())
 			if Target != FilePath:
 				FilePath.rename(Target)
+				FilePath = Target
+			FormularyValues = self._ReadRegistryDgmValues(Sheet, Row, 4)
+			if not Metadata.Conflicts and not RegistryConflicts and FormularyValues is not None:
+				Processor.ApplyFormularyValues(FilePath, FormularyValues)
+				Totals = Processor.CalculateTotalInProduct(FilePath)
+				self._WriteRegistryDgmValues(Sheet, Row, 8, Totals)
+				self._WriteRegistryMissingFormulas(Sheet, Row)
 			Processed += 1
 		Workbook.save(RegistryPath)
 		return Processed
+
+	def _RegistryRowMetadata(self, Sheet: object, Row: int) -> dgm_xlsx_postprocessor.DgmDocumentMetadata:
+		Metadata = dgm_xlsx_postprocessor.DgmDocumentMetadata()
+		try:
+			Metadata.FileNumber = int(Sheet[f"A{Row}"].value)
+		except (TypeError, ValueError):
+			Metadata.FileNumber = None
+		Values = dgm_xlsx_postprocessor.ParseDocumentText(str(Sheet[f"C{Row}"].value or ""))
+		for Field, Value in Values.items():
+			setattr(Metadata, Field, Value)
+		if Metadata.FileNumber is None and Values.get("FileNumber") is not None:
+			Metadata.FileNumber = Values.get("FileNumber")  # type: ignore[assignment]
+		return Metadata
+
+	def _RegistryMetadataConflicts(self, FileMetadata: dgm_xlsx_postprocessor.DgmDocumentMetadata, RegistryMetadata: dgm_xlsx_postprocessor.DgmDocumentMetadata) -> List[str]:
+		Conflicts: List[str] = []
+		for Field in ("FileNumber", "DocumentType", "EquipmentName", "SerialNumber", "ManufactureYear"):
+			FileValue = getattr(FileMetadata, Field)
+			RegistryValue = getattr(RegistryMetadata, Field)
+			if RegistryValue in (None, "") or FileValue in (None, ""):
+				continue
+			if Field == "SerialNumber":
+				FileValue = dgm_xlsx_postprocessor.CanonicalSerial(FileValue)
+				RegistryValue = dgm_xlsx_postprocessor.CanonicalSerial(RegistryValue)
+			if FileValue != RegistryValue:
+				Conflicts.append(f"{Field}: file has {FileValue}, registry has {RegistryValue}")
+		return Conflicts
+
+	def _ReadRegistryDgmValues(self, Sheet: object, Row: int, FirstColumn: int) -> Optional[dgm_database.DgmValues]:
+		Values = []
+		for Offset, _Metal in enumerate(dgm_database.METALS):
+			Value = dgm_xlsx_postprocessor.ValueToDecimal(Sheet.cell(Row, FirstColumn + Offset).value)
+			Values.append(Value or decimal.Decimal("0"))
+		return dgm_database.DgmValues(*Values)
+
+	def _WriteRegistryDgmValues(self, Sheet: object, Row: int, FirstColumn: int, Values: dgm_database.DgmValues) -> None:
+		for Offset, (MetalKey, _MetalName) in enumerate(dgm_database.METALS):
+			Cell = Sheet.cell(Row, FirstColumn + Offset)
+			Cell.value = dgm_xlsx_postprocessor.DecimalToWorkbookNumber(Values.GetMetalValue(MetalKey))
+			Cell.number_format = dgm_xlsx_postprocessor.DGM_NUMBER_FORMAT
+
+	def _WriteRegistryMissingFormulas(self, Sheet: object, Row: int) -> None:
+		for Offset, _Metal in enumerate(dgm_database.METALS):
+			FormularyCell = Sheet.cell(Row, 4 + Offset).coordinate
+			TotalCell = Sheet.cell(Row, 8 + Offset).coordinate
+			MissingCell = Sheet.cell(Row, 12 + Offset)
+			MissingCell.value = f"={FormularyCell}-{TotalCell}"
+			MissingCell.number_format = dgm_xlsx_postprocessor.DGM_NUMBER_FORMAT
 
 	def _NumberedFiles(self, Folder: Path) -> dict[int, Path]:
 		Files: dict[int, Path] = {}
