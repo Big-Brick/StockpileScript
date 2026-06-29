@@ -351,6 +351,27 @@ class XlsxPostprocessor:
 		self._FitColumnWidths(Sheet)
 		Workbook.save(FilePath)
 
+	def ApplyApprovedMetadata(self, FilePath: Path, Metadata: DgmDocumentMetadata) -> Path:
+		Workbook = openpyxl.load_workbook(FilePath, data_only=False)  # type: ignore[union-attr]
+		Sheet = Workbook.active
+		if Metadata.DocumentType is None:
+			Metadata.DocumentType = self._GuessDocumentType(FilePath, Sheet)
+		HeaderEnd = self._FindHeaderEnd(Sheet) or 6
+		FooterStart = self._FindValidFooterStart(Sheet)
+		if FooterStart is None:
+			raise FooterPlacementRequired(FilePath, self._FindFooterReviewStart(Sheet))
+		self._NormalizeHeader(Sheet, Metadata, HeaderEnd)
+		FooterStart = self._RebuildFooter(Sheet, Metadata, FooterStart)
+		self._WriteFooterFormulas(Sheet, Metadata, HeaderEnd + 1, FooterStart)
+		self._NormalizeFormatting(Sheet)
+		self._FitColumnWidths(Sheet)
+		Workbook.save(FilePath)
+		Target = FilePath.with_name(Metadata.CanonicalFilename())
+		if Target != FilePath:
+			FilePath.rename(Target)
+			return Target
+		return FilePath
+
 	def ApplyFormularyValues(self, FilePath: Path, Values: dgm_database.DgmValues) -> None:
 		Workbook = openpyxl.load_workbook(FilePath, data_only=False)  # type: ignore[union-attr]
 		Sheet = Workbook.active

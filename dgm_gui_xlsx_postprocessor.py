@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from pathlib import Path
+import dataclasses
 import decimal
-from typing import List, Optional
+from typing import List, Optional, Set
 
 import tkinter as tk
 import tkinter.filedialog
@@ -234,6 +235,148 @@ class XlsxPostprocessReviewWindow(tk.Toplevel):
 		self._Refresh()
 
 
+@dataclasses.dataclass
+class RegistryResolutionItem:
+	Row: int
+	Number: int
+	RegistryTitle: str
+	Reason: str
+	SuggestedMetadata: dgm_xlsx_postprocessor.DgmDocumentMetadata
+
+
+class RegistryResolutionWindow(tk.Toplevel):
+	def __init__(self, Parent: tk.Toplevel, RegistryPath: Path, Folder: Path, Items: List[RegistryResolutionItem], Files: List[Path], LogWindow: Optional[PostprocessLogWindow]) -> None:
+		super().__init__(Parent)
+		self.ParentViewer = Parent
+		self.RegistryPath = RegistryPath
+		self.Folder = Folder
+		self.Items = Items
+		self.Files = Files
+		self.LogWindow = LogWindow
+		self.Processor = Parent._BuildPostprocessor()  # type: ignore[attr-defined]
+		self.title("Resolve registry postprocessing conflicts")
+		self.geometry("1180x640")
+		self.minsize(900, 460)
+		self.columnconfigure(0, weight=1)
+		self.columnconfigure(1, weight=1)
+		self.rowconfigure(1, weight=1)
+		ttk.Label(self, text="Select a registry entry and an unprocessed file, approve metadata, then apply it to the registry and workbook.", style="Heading.TLabel").grid(row=0, column=0, columnspan=2, sticky="ew", padx=10, pady=(10, 4))
+		self.EntryTree = ttk.Treeview(self, columns=("row", "number", "title", "reason"), show="headings", selectmode="browse")
+		for Column, Label, Width in (("row", "Row", 60), ("number", "№", 60), ("title", "Registry entry", 360), ("reason", "Reason", 300)):
+			self.EntryTree.heading(Column, text=Label)
+			self.EntryTree.column(Column, width=Width, stretch=Column in ("title", "reason"))
+		self.EntryTree.grid(row=1, column=0, sticky="nsew", padx=(10, 5), pady=6)
+		self.FileTree = ttk.Treeview(self, columns=("file",), show="headings", selectmode="browse")
+		self.FileTree.heading("file", text="Unprocessed file")
+		self.FileTree.column("file", width=420, stretch=True)
+		self.FileTree.grid(row=1, column=1, sticky="nsew", padx=(5, 10), pady=6)
+		Form = ttk.Frame(self)
+		Form.grid(row=2, column=0, columnspan=2, sticky="ew", padx=10, pady=6)
+		for Column in range(10):
+			Form.columnconfigure(Column, weight=1)
+		self.FileNumberVar = tk.StringVar()
+		self.DocTypeVar = tk.StringVar(value=dgm_xlsx_postprocessor.DOCUMENT_TYPE_PRESENT)
+		self.EquipmentVar = tk.StringVar()
+		self.SerialVar = tk.StringVar()
+		self.YearVar = tk.StringVar()
+		Fields = (("Number", self.FileNumberVar), ("Type", self.DocTypeVar), ("Equipment", self.EquipmentVar), ("Serial", self.SerialVar), ("Year", self.YearVar))
+		for Index, (Label, Variable) in enumerate(Fields):
+			tk.Label(Form, text=Label).grid(row=0, column=Index * 2, sticky="w")
+			if Label == "Type":
+				ttk.Combobox(Form, textvariable=Variable, values=(dgm_xlsx_postprocessor.DOCUMENT_TYPE_PRESENT, dgm_xlsx_postprocessor.DOCUMENT_TYPE_MISSING), width=14, state="readonly").grid(row=0, column=Index * 2 + 1, sticky="ew", padx=(0, 6))
+			else:
+				ttk.Entry(Form, textvariable=Variable).grid(row=0, column=Index * 2 + 1, sticky="ew", padx=(0, 6))
+		Buttons = ttk.Frame(self)
+		Buttons.grid(row=3, column=0, columnspan=2, sticky="e", padx=10, pady=(4, 10))
+		tk.Button(Buttons, text="Apply approved metadata", command=self._Apply).grid(row=0, column=0, padx=(0, 6))
+		tk.Button(Buttons, text="Close", command=self.destroy).grid(row=0, column=1)
+		self.EntryTree.bind("<<TreeviewSelect>>", lambda _Event: self._Prefill())
+		self.FileTree.bind("<<TreeviewSelect>>", lambda _Event: self._Prefill())
+		self._Populate()
+
+	def _Populate(self) -> None:
+		for Item in self.EntryTree.get_children(""):
+			self.EntryTree.delete(Item)
+		for Index, Item in enumerate(self.Items):
+			self.EntryTree.insert("", "end", iid=str(Index), values=(Item.Row, Item.Number, Item.RegistryTitle, Item.Reason))
+		for Item in self.FileTree.get_children(""):
+			self.FileTree.delete(Item)
+		for Index, FilePath in enumerate(self.Files):
+			self.FileTree.insert("", "end", iid=str(Index), values=(FilePath.name,))
+
+	def _SelectedItem(self) -> Optional[RegistryResolutionItem]:
+		Selection = self.EntryTree.selection()
+		return self.Items[int(Selection[0])] if Selection else None
+
+	def _SelectedFile(self) -> Optional[Path]:
+		Selection = self.FileTree.selection()
+		return self.Files[int(Selection[0])] if Selection else None
+
+	def _Prefill(self) -> None:
+		Item = self._SelectedItem()
+		FilePath = self._SelectedFile()
+		Metadata = dgm_xlsx_postprocessor.DgmDocumentMetadata()
+		if Item is not None:
+			Metadata = dataclasses.replace(Item.SuggestedMetadata)
+		if FilePath is not None:
+			for Field, Value in dgm_xlsx_postprocessor.ParseDocumentText(FilePath.name).items():
+				if getattr(Metadata, Field) in (None, ""):
+					setattr(Metadata, Field, Value)
+		if Item is not None:
+			Metadata.FileNumber = Item.Number
+		self.FileNumberVar.set("" if Metadata.FileNumber is None else str(Metadata.FileNumber))
+		self.DocTypeVar.set(Metadata.DocumentType or dgm_xlsx_postprocessor.DOCUMENT_TYPE_PRESENT)
+		self.EquipmentVar.set(Metadata.EquipmentName)
+		self.SerialVar.set(Metadata.SerialNumber)
+		self.YearVar.set(Metadata.ManufactureYear)
+
+	def _ApprovedMetadata(self) -> dgm_xlsx_postprocessor.DgmDocumentMetadata:
+		try:
+			Number = int(self.FileNumberVar.get())
+		except ValueError as Error:
+			raise RuntimeError("File number must be an integer") from Error
+		return dgm_xlsx_postprocessor.DgmDocumentMetadata(
+			FileNumber=Number,
+			DocumentType=self.DocTypeVar.get(),
+			EquipmentName=" ".join(self.EquipmentVar.get().split()),
+			SerialNumber=dgm_xlsx_postprocessor.CanonicalSerial(self.SerialVar.get()),
+			ManufactureYear=" ".join(self.YearVar.get().split()),
+		)
+
+	def _Apply(self) -> None:
+		Item = self._SelectedItem()
+		FilePath = self._SelectedFile()
+		if Item is None or FilePath is None:
+			tkinter.messagebox.showinfo(WINDOW_TITLE, "Select both a registry entry and a file.", parent=self)
+			return
+		try:
+			Metadata = self._ApprovedMetadata()
+			Workbook = openpyxl.load_workbook(self.RegistryPath, data_only=False)  # type: ignore[union-attr]
+			Sheet = Workbook.active
+			FormularyValues = self.ParentViewer._ReadRegistryDgmValues(Sheet, Item.Row, 4)  # type: ignore[attr-defined]
+			Metadata.FormularyValues = FormularyValues
+			NewPath = self.Processor.ApplyApprovedMetadata(FilePath, Metadata)
+			self.Processor.ApplyFormularyValues(NewPath, FormularyValues)
+			Totals = self.Processor.CalculateTotalInProduct(NewPath)
+			Sheet[f"A{Item.Row}"].value = Metadata.FileNumber
+			Sheet[f"C{Item.Row}"].value = Metadata.CanonicalTitle()
+			self.ParentViewer._WriteRegistryDgmValues(Sheet, Item.Row, 8, Totals)  # type: ignore[attr-defined]
+			self.ParentViewer._WriteRegistryMissingFormulas(Sheet, Item.Row)  # type: ignore[attr-defined]
+			Workbook.save(self.RegistryPath)
+		except Exception as Error:
+			if self.LogWindow is not None:
+				self.LogWindow.Append(f"ERROR resolving registry row {Item.Row}: {Error}")
+			tkinter.messagebox.showerror(WINDOW_TITLE, str(Error), parent=self)
+			return
+		if self.LogWindow is not None:
+			self.LogWindow.Append(f"Resolved registry row {Item.Row} with file {NewPath.name}.")
+		ItemIndex = self.Items.index(Item)
+		FileIndex = self.Files.index(FilePath)
+		del self.Items[ItemIndex]
+		del self.Files[FileIndex]
+		self._Populate()
+
+
 class XlsxPostprocessingMixin:
 	def _SelectAndPostprocessXlsxFile(self) -> None:
 		if openpyxl is None:
@@ -291,13 +434,18 @@ class XlsxPostprocessingMixin:
 		if not Folder:
 			return
 		LogWindow = PostprocessLogWindow(self)
+		RegistryPath = Path(RegistryFile).expanduser().resolve()
+		FolderPath = Path(Folder).expanduser().resolve()
 		try:
-			Count = self._PostprocessRegistry(Path(RegistryFile).expanduser().resolve(), Path(Folder).expanduser().resolve(), LogWindow)
+			Count, ResolutionItems, UnprocessedFiles = self._PostprocessRegistry(RegistryPath, FolderPath, LogWindow)
 		except Exception as Error:
 			LogWindow.Append(f"ERROR: {Error}")
 			tkinter.messagebox.showerror(WINDOW_TITLE, str(Error), parent=self)
 			return
 		LogWindow.Append(f"Registry postprocessing complete. Processed {Count} file(s).")
+		if ResolutionItems and UnprocessedFiles:
+			LogWindow.Append(f"Opening resolver for {len(ResolutionItems)} registry entr(y/ies) and {len(UnprocessedFiles)} unprocessed file(s).")
+			RegistryResolutionWindow(self, RegistryPath, FolderPath, ResolutionItems, UnprocessedFiles, LogWindow)
 		tkinter.messagebox.showinfo(WINDOW_TITLE, f"Registry postprocessing complete. Processed {Count} file(s).", parent=self)
 
 	def _PostprocessOneWithFooterPrompt(self, FilePath: Path, RenameToCanonical: bool, LogWindow: Optional[PostprocessLogWindow] = None) -> dgm_xlsx_postprocessor.PostprocessResult:
@@ -369,7 +517,7 @@ class XlsxPostprocessingMixin:
 			self.DatabasePath.with_name(dgm_xlsx_preprocessor.DEFAULT_RULES_FILENAME),  # type: ignore[name-defined]
 		)
 
-	def _PostprocessRegistry(self, RegistryPath: Path, Folder: Path, LogWindow: Optional[PostprocessLogWindow] = None) -> int:
+	def _PostprocessRegistry(self, RegistryPath: Path, Folder: Path, LogWindow: Optional[PostprocessLogWindow] = None) -> tuple[int, List[RegistryResolutionItem], List[Path]]:
 		if LogWindow is not None:
 			LogWindow.Append(f"Opening registry {RegistryPath}.")
 		Workbook = openpyxl.load_workbook(RegistryPath, data_only=False)  # type: ignore[union-attr]
@@ -379,6 +527,8 @@ class XlsxPostprocessingMixin:
 		if LogWindow is not None:
 			LogWindow.Append(f"Found {len(FilesByNumber)} numbered XLSX file(s) in {Folder}.")
 		Processed = 0
+		ProcessedFiles: Set[Path] = set()
+		ResolutionItems: List[RegistryResolutionItem] = []
 		NextNumber = 1
 		for Row in range(3, (Sheet.max_row or 1) + 1):
 			NumberValue = Sheet[f"A{Row}"].value
@@ -389,6 +539,8 @@ class XlsxPostprocessingMixin:
 			NextNumber = max(NextNumber, Number + 1)
 			FilePath = FilesByNumber.get(Number)
 			if FilePath is None:
+				RegistryMetadata = self._RegistryRowMetadata(Sheet, Row)
+				ResolutionItems.append(RegistryResolutionItem(Row, Number, str(Sheet[f"C{Row}"].value or ""), "No matching numbered XLSX file", RegistryMetadata))
 				if LogWindow is not None:
 					LogWindow.Append(f"Registry row {Row}, number {Number}: no matching numbered XLSX file found.")
 				continue
@@ -409,6 +561,10 @@ class XlsxPostprocessingMixin:
 			Metadata.FileNumber = Number
 			RegistryMetadata = self._RegistryRowMetadata(Sheet, Row)
 			RegistryConflicts = self._RegistryMetadataConflicts(Metadata, RegistryMetadata)
+			HasMetadataConflict = bool(Metadata.Conflicts or RegistryConflicts)
+			if HasMetadataConflict:
+				Reason = "; ".join(Metadata.Conflicts + RegistryConflicts)
+				ResolutionItems.append(RegistryResolutionItem(Row, Number, str(Sheet[f"C{Row}"].value or ""), Reason, Metadata))
 			Sheet[f"C{Row}"].value = Metadata.CanonicalTitle()
 			Target = FilePath.with_name(Metadata.CanonicalFilename())
 			if Target != FilePath:
@@ -429,12 +585,15 @@ class XlsxPostprocessingMixin:
 					ConflictText = "; ".join(Metadata.Conflicts + RegistryConflicts)
 					LogWindow.Append(f"Registry row {Row}: skipped DGM sync because metadata conflicts remain: {ConflictText}")
 			Processed += 1
+			if not HasMetadataConflict:
+				ProcessedFiles.add(FilePath)
 			if LogWindow is not None:
 				LogWindow.Append(f"Registry row {Row}: finished {FilePath.name}.")
 		if LogWindow is not None:
 			LogWindow.Append(f"Saving registry {RegistryPath.name}.")
 		Workbook.save(RegistryPath)
-		return Processed
+		UnprocessedFiles = [FilePath for FilePath in dgm_xlsx_common.FindXlsxFiles(Folder, False) if FilePath not in ProcessedFiles]
+		return Processed, ResolutionItems, UnprocessedFiles
 
 	def _RegistryRowMetadata(self, Sheet: object, Row: int) -> dgm_xlsx_postprocessor.DgmDocumentMetadata:
 		Metadata = dgm_xlsx_postprocessor.DgmDocumentMetadata()
