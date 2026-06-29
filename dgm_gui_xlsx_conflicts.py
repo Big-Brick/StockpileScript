@@ -35,7 +35,7 @@ class XlsxConflictReviewWindow(tk.Toplevel):
 		self.SummaryLabel.grid(row=0, column=0, sticky="ew", padx=10, pady=(10, 4))
 
 		Columns = ("name", "file", "sheet", "row", "details")
-		self.Tree = ttk.Treeview(self, columns=Columns, show="headings", selectmode="browse")
+		self.Tree = ttk.Treeview(self, columns=Columns, show="headings", selectmode="extended")
 		for Column, Label, Width, Stretch in (
 			("name", "Element text", 280, True),
 			("file", "File", 220, True),
@@ -52,9 +52,9 @@ class XlsxConflictReviewWindow(tk.Toplevel):
 
 		Buttons = ttk.Frame(self)
 		Buttons.grid(row=2, column=0, sticky="e", padx=10, pady=(4, 10))
-		ttk.Button(Buttons, text="Clean XLSX row DGM", command=self._CleanSelectedRow).grid(row=0, column=0, padx=(0, 6))
-		ttk.Button(Buttons, text="Update database from row...", command=self._UpdateDatabaseFromSelected).grid(row=0, column=1, padx=(0, 6))
-		ttk.Button(Buttons, text="Rename element in XLSX...", command=self._RenameSelectedInXlsx).grid(row=0, column=2, padx=(0, 6))
+		ttk.Button(Buttons, text="Clean selected XLSX row DGM", command=self._CleanSelectedRow).grid(row=0, column=0, padx=(0, 6))
+		ttk.Button(Buttons, text="Update database from selected...", command=self._UpdateDatabaseFromSelected).grid(row=0, column=1, padx=(0, 6))
+		ttk.Button(Buttons, text="Rename selected in XLSX...", command=self._RenameSelectedInXlsx).grid(row=0, column=2, padx=(0, 6))
 		ttk.Button(Buttons, text="Close", command=self.destroy).grid(row=0, column=3)
 		self._PopulateTree()
 
@@ -74,15 +74,15 @@ class XlsxConflictReviewWindow(tk.Toplevel):
 		Index = self.Conflicts.index(Item)
 		self.Tree.insert("", Index, iid=self._TreeItemId(Item), values=(Item.Name, Item.FilePath.name, Item.SheetName, Item.Row, Item.Details))
 
-	def _SelectedConflict(self) -> Optional[GuiConflictRow]:
-		Selection = self.Tree.selection()
+	def _SelectedConflicts(self) -> List[GuiConflictRow]:
+		Selection = set(self.Tree.selection())
 		if not Selection:
-			return None
-		ItemId = Selection[0]
-		for Item in self.Conflicts:
-			if self._TreeItemId(Item) == ItemId:
-				return Item
-		return None
+			return []
+		return [Item for Item in self.Conflicts if self._TreeItemId(Item) in Selection]
+
+	def _SelectedConflict(self) -> Optional[GuiConflictRow]:
+		Items = self._SelectedConflicts()
+		return Items[0] if Items else None
 
 	def _RemoveConflict(self, Item: GuiConflictRow) -> None:
 		if Item in self.Conflicts:
@@ -93,73 +93,95 @@ class XlsxConflictReviewWindow(tk.Toplevel):
 		self._UpdateSummaryLabel()
 
 	def _CleanSelectedRow(self) -> None:
-		Item = self._SelectedConflict()
-		if Item is None:
+		Items = self._SelectedConflicts()
+		if not Items:
 			return
 		try:
-			Workbook = openpyxl.load_workbook(Item.FilePath, data_only=False)  # type: ignore[union-attr]
-			Sheet = Workbook[Item.SheetName]
-			dgm_xlsx_common.ClearDgmCells(Sheet, Item.Row, self.ParentViewer.Database.Columns)
-			Workbook.save(Item.FilePath)
+			for FilePath in sorted({Item.FilePath for Item in Items}, key=str):
+				Workbook = openpyxl.load_workbook(FilePath, data_only=False)  # type: ignore[union-attr]
+				for Item in [Conflict for Conflict in Items if Conflict.FilePath == FilePath]:
+					Sheet = Workbook[Item.SheetName]
+					dgm_xlsx_common.ClearDgmCells(Sheet, Item.Row, self.ParentViewer.Database.Columns)
+				Workbook.save(FilePath)
 		except Exception as Error:
 			tkinter.messagebox.showerror(WINDOW_TITLE, f"Cannot clean XLSX row: {Error}", parent=self)
 			return
-		self._RemoveConflict(Item)
+		for Item in Items:
+			self._RemoveConflict(Item)
 
 	def _UpdateDatabaseFromSelected(self) -> None:
-		Item = self._SelectedConflict()
-		if Item is None:
+		Items = self._SelectedConflicts()
+		if not Items:
 			return
+		UpdatedItems: List[GuiConflictRow] = []
 		try:
-			if Item.Record is not None and Item.Record.HasDgm:
-				Item.Record.SetValues(Item.SheetValues)
-			elif Item.Record is not None:
-				self.ParentViewer.Database.AddDgmToExistingPath(Item.Name, Item.SheetValues, Item.Record.PathParts)
-			else:
-				StructuredResult = self.ParentViewer.Database.FindStructuredElement(dgm_database.NormalizeText(Item.Name), Item.Name)
-				if StructuredResult.IsEmpty:
-					StructuredResult = self.ParentViewer.Database.FindOptionalOnlyPaths()
-				Dialog = AddElementDialog(self, Item.Name, StructuredResult, InitialValues=Item.SheetValues)
-				if Dialog.Result is None:
-					return
-				Result = Dialog.Result
-				if Result.Mode == "existing":
-					self.ParentViewer.Database.AddDgmToExistingPath(Item.Name, Result.Values, Result.PathParts)
-				elif Result.Mode == "regex":
-					self.ParentViewer.Database.AddRegexElement(Item.Name, Result.Values, Result.PathParts, Result.RegexText)
-				else:
-					self.ParentViewer.Database.AddElement(Item.Name, Result.Values, Result.PathParts)
-			self.ParentViewer.Database.Save()
-			self.ParentViewer._PopulateDatabaseViews()
+			for Item in Items:
+				if not self._UpdateDatabaseFromConflict(Item):
+					break
+				UpdatedItems.append(Item)
+			if UpdatedItems:
+				self.ParentViewer.Database.Save()
+				self.ParentViewer._PopulateDatabaseViews()
 		except Exception as Error:
 			tkinter.messagebox.showerror(WINDOW_TITLE, f"Cannot update database: {Error}", parent=self)
 			return
-		self._RemoveConflict(Item)
+		for Item in UpdatedItems:
+			self._RemoveConflict(Item)
+
+	def _UpdateDatabaseFromConflict(self, Item: GuiConflictRow) -> bool:
+		if Item.Record is not None and Item.Record.HasDgm:
+			Item.Record.SetValues(Item.SheetValues)
+		elif Item.Record is not None:
+			self.ParentViewer.Database.AddDgmToExistingPath(Item.Name, Item.SheetValues, Item.Record.PathParts)
+		else:
+			StructuredResult = self.ParentViewer.Database.FindStructuredElement(dgm_database.NormalizeText(Item.Name), Item.Name)
+			if StructuredResult.IsEmpty:
+				StructuredResult = self.ParentViewer.Database.FindOptionalOnlyPaths()
+			Dialog = AddElementDialog(self, Item.Name, StructuredResult, InitialValues=Item.SheetValues)
+			if Dialog.Result is None:
+				return False
+			Result = Dialog.Result
+			if Result.Mode == "existing":
+				self.ParentViewer.Database.AddDgmToExistingPath(Item.Name, Result.Values, Result.PathParts)
+			elif Result.Mode == "regex":
+				self.ParentViewer.Database.AddRegexElement(Item.Name, Result.Values, Result.PathParts, Result.RegexText)
+			else:
+				self.ParentViewer.Database.AddElement(Item.Name, Result.Values, Result.PathParts)
+		return True
 
 	def _RenameSelectedInXlsx(self) -> None:
-		Item = self._SelectedConflict()
-		if Item is None:
+		Items = self._SelectedConflicts()
+		if not Items:
 			return
-		Dialog = RenameElementDialog(self, Item.Name)
+		Dialog = RenameElementDialog(self, Items[0].Name)
 		if Dialog.Result is None:
 			return
 		NewName = " ".join(Dialog.Result.strip().split())
+		Replacements: List[GuiConflictRow] = []
 		try:
-			Workbook = openpyxl.load_workbook(Item.FilePath, data_only=False)  # type: ignore[union-attr]
-			Sheet = Workbook[Item.SheetName]
-			Sheet[f"{self.ParentViewer.Database.Columns.Name}{Item.Row}"].value = NewName
-			Workbook.save(Item.FilePath)
+			for FilePath in sorted({Item.FilePath for Item in Items}, key=str):
+				Workbook = openpyxl.load_workbook(FilePath, data_only=False)  # type: ignore[union-attr]
+				for Item in [Conflict for Conflict in Items if Conflict.FilePath == FilePath]:
+					Sheet = Workbook[Item.SheetName]
+					Sheet[f"{self.ParentViewer.Database.Columns.Name}{Item.Row}"].value = NewName
+					Replacement = self.ParentViewer._BuildXlsxConflict(Item.FilePath, Item.SheetName, Item.Row, NewName, Sheet)
+					if Replacement is not None:
+						Replacements.append(Replacement)
+				Workbook.save(FilePath)
 		except Exception as Error:
 			tkinter.messagebox.showerror(WINDOW_TITLE, f"Cannot rename XLSX element: {Error}", parent=self)
 			return
-		Replacement = self.ParentViewer._BuildXlsxConflict(Item.FilePath, Item.SheetName, Item.Row, NewName, Sheet)
-		self._RemoveConflict(Item)
-		if Replacement is not None:
+		for Item in Items:
+			self._RemoveConflict(Item)
+		for Replacement in Replacements:
 			self.Conflicts.append(Replacement)
-			self.Conflicts.sort(key=lambda Conflict: (Conflict.Name.casefold(), str(Conflict.FilePath).casefold(), Conflict.Row))
+		self.Conflicts.sort(key=lambda Conflict: (Conflict.Name.casefold(), str(Conflict.FilePath).casefold(), Conflict.Row))
+		for Replacement in Replacements:
 			self._InsertTreeItem(Replacement)
-			self.Tree.selection_set(self._TreeItemId(Replacement))
-			self.Tree.see(self._TreeItemId(Replacement))
+		ReplacementIds = [self._TreeItemId(Replacement) for Replacement in Replacements]
+		if ReplacementIds:
+			self.Tree.selection_set(*ReplacementIds)
+			self.Tree.see(ReplacementIds[0])
 		self._UpdateSummaryLabel()
 
 
