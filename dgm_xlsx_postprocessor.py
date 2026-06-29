@@ -118,8 +118,8 @@ YEAR_RE = re.compile(r"(?P<year>\b(?:19|20)\d{2}\b)\s*(?:року|рік|р\.)?\
 SERIAL_RE = re.compile(r"(?:№|N\.?)\s*(?P<serial>.*?)\s*$", re.IGNORECASE)
 FILE_NUMBER_RE = re.compile(r"^\s*(?P<number>\d+)\.\s+")
 INVALID_FILENAME_CHAR_RE = re.compile(r"[<>:\"/\\|?*\x00-\x1f]")
-VALID_COMMA_NUMBER_RE = re.compile(r"^\d+(?:,\d+)?$")
-DGM_NUMBER_FORMAT = "0.############################"
+VALID_SIMPLE_DECIMAL_NUMBER_RE = re.compile(r"^\d+(?:[,.]\d+)?$")
+DGM_NUMBER_FORMAT = "0.############################;-0.############################;0"
 MIN_COLUMN_WIDTH = 4.0
 MAX_TEXT_COLUMN_WIDTH = 48.0
 MAX_NUMERIC_COLUMN_WIDTH = 26.0
@@ -281,10 +281,10 @@ def ParseRow1Number(Text: object) -> Optional[int]:
 	return int(Match.group(1)) if Match else None
 
 
-def IsValidCommaNumber(Value: object) -> bool:
+def IsValidSimpleDecimalNumber(Value: object) -> bool:
 	if isinstance(Value, (int, float, decimal.Decimal)):
 		return True
-	return bool(VALID_COMMA_NUMBER_RE.fullmatch(NormalizeSpaces(Value)))
+	return bool(VALID_SIMPLE_DECIMAL_NUMBER_RE.fullmatch(NormalizeSpaces(Value)))
 
 
 def ValueToDecimal(Value: object) -> Optional[decimal.Decimal]:
@@ -297,7 +297,7 @@ def ValueToDecimal(Value: object) -> Optional[decimal.Decimal]:
 	if isinstance(Value, float):
 		return decimal.Decimal(str(Value))
 	Text = NormalizeSpaces(Value)
-	if not IsValidCommaNumber(Text):
+	if not IsValidSimpleDecimalNumber(Text):
 		return None
 	return decimal.Decimal(Text.replace(",", "."))
 
