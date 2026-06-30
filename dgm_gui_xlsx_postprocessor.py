@@ -8,6 +8,7 @@ from typing import List, Optional, Set
 import tkinter as tk
 import tkinter.filedialog
 import tkinter.messagebox
+import tkinter.simpledialog
 import tkinter.ttk as ttk
 
 import dgm_database
@@ -18,9 +19,10 @@ from dgm_gui_common import WINDOW_TITLE, openpyxl
 
 
 class FooterPlacementDialog(tk.Toplevel):
-	def __init__(self, Parent: tk.Toplevel, FilePath: Path, ReviewRows: List[tuple[int, str]], InitialRow: int) -> None:
+	def __init__(self, Parent: tk.Toplevel, FilePath: Path, ReviewRows: List[tuple[int, str]], InitialRow: int, FooterStartClues: Optional[List[str]] = None) -> None:
 		super().__init__(Parent)
 		self.Result: Optional[int] = None
+		self.FooterStartClues = FooterStartClues if FooterStartClues is not None else []
 		self.title(f"Select footer start - {FilePath.name}")
 		self.geometry("900x520")
 		self.minsize(700, 360)
@@ -45,8 +47,9 @@ class FooterPlacementDialog(tk.Toplevel):
 		self.FooterRow = tk.IntVar(value=InitialRow)
 		ttk.Spinbox(Controls, from_=1, to=100000, textvariable=self.FooterRow, width=8).grid(row=0, column=1, padx=(0, 6))
 		tk.Button(Controls, text="Use selected row", command=self._UseSelected).grid(row=0, column=2, padx=(0, 6))
-		tk.Button(Controls, text="OK", command=self._Ok).grid(row=0, column=3, padx=(0, 6))
-		tk.Button(Controls, text="Cancel", command=self.destroy).grid(row=0, column=4)
+		tk.Button(Controls, text="Add clue and use row", command=self._AddClueAndUseRow).grid(row=0, column=3, padx=(0, 6))
+		tk.Button(Controls, text="OK", command=self._Ok).grid(row=0, column=4, padx=(0, 6))
+		tk.Button(Controls, text="Cancel", command=self.destroy).grid(row=0, column=5)
 		self.FooterRow.trace_add("write", self._FooterRowChanged)
 		self.Tree.bind("<<TreeviewSelect>>", self._TreeSelectionChanged)
 		self._SelectFooterRow(InitialRow)
@@ -58,6 +61,36 @@ class FooterPlacementDialog(tk.Toplevel):
 		Selection = self.Tree.selection()
 		if Selection:
 			self.FooterRow.set(int(Selection[0]))
+
+	def _AddClueAndUseRow(self) -> None:
+		Selection = self.Tree.selection()
+		SelectedText = ""
+		if Selection:
+			Values = self.Tree.item(Selection[0], "values")
+			SelectedText = str(Values[1]) if len(Values) > 1 else ""
+		Clue = tkinter.simpledialog.askstring(
+			WINDOW_TITLE,
+			"Enter text that identifies the footer start row. Future files in this session will use the first row containing this text.",
+			initialvalue=SelectedText,
+			parent=self,
+		)
+		Clue = " ".join(str(Clue or "").split())
+		if not Clue:
+			return
+		if not any(Existing.casefold() == Clue.casefold() for Existing in self.FooterStartClues):
+			self.FooterStartClues.append(Clue)
+		MatchedRow = FindFooterStartByClue(self._ReviewRows(), self.FooterStartClues)
+		if MatchedRow is not None:
+			self.FooterRow.set(MatchedRow)
+		self._Ok()
+
+	def _ReviewRows(self) -> List[tuple[int, str]]:
+		Rows: List[tuple[int, str]] = []
+		for ItemId in self.Tree.get_children(""):
+			Values = self.Tree.item(ItemId, "values")
+			if len(Values) >= 2:
+				Rows.append((int(Values[0]), str(Values[1])))
+		return Rows
 
 	def _FooterRowChanged(self, *_Args: object) -> None:
 		if self._UpdatingSelection:
@@ -89,6 +122,15 @@ class FooterPlacementDialog(tk.Toplevel):
 	def _Ok(self) -> None:
 		self.Result = int(self.FooterRow.get())
 		self.destroy()
+
+
+def FindFooterStartByClue(ReviewRows: List[tuple[int, str]], FooterStartClues: List[str]) -> Optional[int]:
+	NormalizedClues = [Clue.casefold() for Clue in FooterStartClues if Clue.strip()]
+	for Row, Text in ReviewRows:
+		TextValue = Text.casefold()
+		if any(Clue in TextValue for Clue in NormalizedClues):
+			return Row
+	return None
 
 
 class PostprocessLogWindow(tk.Toplevel):
@@ -390,7 +432,11 @@ class XlsxPostprocessingMixin:
 		if not SelectedFile:
 			return
 		LogWindow = PostprocessLogWindow(self)
-		self._PostprocessXlsxFile(Path(SelectedFile).expanduser().resolve(), RenameToCanonical=True, LogWindow=LogWindow)
+		self._CurrentFooterStartClues = []
+		try:
+			self._PostprocessXlsxFile(Path(SelectedFile).expanduser().resolve(), RenameToCanonical=True, LogWindow=LogWindow)
+		finally:
+			self._CurrentFooterStartClues = []
 
 	def _SelectAndSimplePostprocessXlsxFile(self) -> None:
 		if openpyxl is None:
@@ -404,7 +450,11 @@ class XlsxPostprocessingMixin:
 		if not SelectedFile:
 			return
 		LogWindow = PostprocessLogWindow(self)
-		self._PostprocessXlsxFile(Path(SelectedFile).expanduser().resolve(), RenameToCanonical=False, LogWindow=LogWindow, FooterOnly=True)
+		self._CurrentFooterStartClues = []
+		try:
+			self._PostprocessXlsxFile(Path(SelectedFile).expanduser().resolve(), RenameToCanonical=False, LogWindow=LogWindow, FooterOnly=True)
+		finally:
+			self._CurrentFooterStartClues = []
 
 	def _SelectAndSimplePostprocessXlsxFolder(self) -> None:
 		if openpyxl is None:
@@ -418,6 +468,7 @@ class XlsxPostprocessingMixin:
 			tkinter.messagebox.showinfo(WINDOW_TITLE, "No .xlsx files found in the selected folder.", parent=self)
 			return
 		LogWindow = PostprocessLogWindow(self)
+		self._CurrentFooterStartClues = []
 		LogWindow.Append(f"Found {len(Files)} XLSX file(s) for footer-only postprocess in {SelectedFolder}.")
 		Results = []
 		for Index, FilePath in enumerate(Files, start=1):
@@ -429,9 +480,11 @@ class XlsxPostprocessingMixin:
 			except Exception as Error:
 				LogWindow.Append(f"ERROR footer-only postprocessing {FilePath.name}: {Error}")
 				tkinter.messagebox.showerror(WINDOW_TITLE, f"Cannot footer-only postprocess '{FilePath}': {Error}", parent=self)
+				self._CurrentFooterStartClues = []
 				return
 		LogWindow.Append(f"Finished footer-only postprocessing {len(Results)} file(s).")
 		tkinter.messagebox.showinfo(WINDOW_TITLE, f"Footer-only postprocessed {len(Results)} file(s).", parent=self)
+		self._CurrentFooterStartClues = []
 
 	def _SelectAndPostprocessXlsxFolder(self) -> None:
 		if openpyxl is None:
@@ -445,6 +498,7 @@ class XlsxPostprocessingMixin:
 			tkinter.messagebox.showinfo(WINDOW_TITLE, "No .xlsx files found in the selected folder.", parent=self)
 			return
 		LogWindow = PostprocessLogWindow(self)
+		self._CurrentFooterStartClues = []
 		LogWindow.Append(f"Found {len(Files)} XLSX file(s) to postprocess in {SelectedFolder}.")
 		Results = []
 		for Index, FilePath in enumerate(Files, start=1):
@@ -456,9 +510,11 @@ class XlsxPostprocessingMixin:
 			except Exception as Error:
 				LogWindow.Append(f"ERROR processing {FilePath.name}: {Error}")
 				tkinter.messagebox.showerror(WINDOW_TITLE, f"Cannot postprocess '{FilePath}': {Error}", parent=self)
+				self._CurrentFooterStartClues = []
 				return
 		LogWindow.Append(f"Finished postprocessing {len(Results)} file(s).")
 		tkinter.messagebox.showinfo(WINDOW_TITLE, f"Postprocessed {len(Results)} file(s).", parent=self)
+		self._CurrentFooterStartClues = []
 
 	def _SelectAndPostprocessRegistry(self) -> None:
 		if openpyxl is None:
@@ -477,17 +533,20 @@ class XlsxPostprocessingMixin:
 		LogWindow = PostprocessLogWindow(self)
 		RegistryPath = Path(RegistryFile).expanduser().resolve()
 		FolderPath = Path(Folder).expanduser().resolve()
+		self._CurrentFooterStartClues = []
 		try:
 			Count, ResolutionItems, UnprocessedFiles = self._PostprocessRegistry(RegistryPath, FolderPath, LogWindow)
 		except Exception as Error:
 			LogWindow.Append(f"ERROR: {Error}")
 			tkinter.messagebox.showerror(WINDOW_TITLE, str(Error), parent=self)
+			self._CurrentFooterStartClues = []
 			return
 		LogWindow.Append(f"Registry postprocessing complete. Processed {Count} file(s).")
 		if ResolutionItems and UnprocessedFiles:
 			LogWindow.Append(f"Opening resolver for {len(ResolutionItems)} registry entr(y/ies) and {len(UnprocessedFiles)} unprocessed file(s).")
 			RegistryResolutionWindow(self, RegistryPath, FolderPath, ResolutionItems, UnprocessedFiles, LogWindow)
 		tkinter.messagebox.showinfo(WINDOW_TITLE, f"Registry postprocessing complete. Processed {Count} file(s).", parent=self)
+		self._CurrentFooterStartClues = []
 
 	def _PostprocessOneWithFooterPrompt(self, FilePath: Path, RenameToCanonical: bool, LogWindow: Optional[PostprocessLogWindow] = None, FooterOnly: bool = False) -> dgm_xlsx_postprocessor.PostprocessResult:
 		Processor = self._BuildPostprocessor()
@@ -550,8 +609,19 @@ class XlsxPostprocessingMixin:
 
 	def _AskFooterStart(self, FilePath: Path, ReviewStart: int) -> Optional[int]:
 		Rows = self._ReadFooterReviewRows(FilePath, ReviewStart)
-		Dialog = FooterPlacementDialog(self, FilePath, Rows, ReviewStart)
+		FooterStartClues = self._FooterStartClues()
+		MatchedRow = FindFooterStartByClue(Rows, FooterStartClues)
+		if MatchedRow is not None:
+			return MatchedRow
+		Dialog = FooterPlacementDialog(self, FilePath, Rows, ReviewStart, FooterStartClues)
 		return Dialog.Result
+
+	def _FooterStartClues(self) -> List[str]:
+		Clues = getattr(self, "_CurrentFooterStartClues", None)
+		if Clues is None:
+			Clues = []
+			self._CurrentFooterStartClues = Clues
+		return Clues
 
 	def _ReadFooterReviewRows(self, FilePath: Path, ReviewStart: int) -> List[tuple[int, str]]:
 		Workbook = openpyxl.load_workbook(FilePath, data_only=False)  # type: ignore[union-attr]
