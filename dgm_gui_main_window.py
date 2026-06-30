@@ -53,7 +53,9 @@ class DgmMainWindow(tk.Tk, XlsxProcessingMixin, XlsxPreprocessingMixin, MissingE
 		ttk.Button(self, text="List missing elements in folder", command=self._SelectAndListMissingXlsxFolder).grid(row=12, column=0, sticky="ew", padx=16, pady=4)
 		ttk.Button(self, text="Postprocess .xlsx file", command=self._SelectAndPostprocessXlsxFile).grid(row=13, column=0, sticky="ew", padx=16, pady=4)
 		ttk.Button(self, text="Postprocess folder", command=self._SelectAndPostprocessXlsxFolder).grid(row=14, column=0, sticky="ew", padx=16, pady=4)
-		ttk.Button(self, text="Postprocess registry", command=self._SelectAndPostprocessRegistry).grid(row=15, column=0, sticky="ew", padx=16, pady=(4, 16))
+		ttk.Button(self, text="Footer-only postprocess .xlsx file", command=self._SelectAndSimplePostprocessXlsxFile).grid(row=15, column=0, sticky="ew", padx=16, pady=4)
+		ttk.Button(self, text="Footer-only postprocess folder", command=self._SelectAndSimplePostprocessXlsxFolder).grid(row=16, column=0, sticky="ew", padx=16, pady=4)
+		ttk.Button(self, text="Postprocess registry", command=self._SelectAndPostprocessRegistry).grid(row=17, column=0, sticky="ew", padx=16, pady=(4, 16))
 
 	def _OpenDatabaseEditor(self) -> None:
 		if self.DatabaseEditor is not None and self.DatabaseEditor.winfo_exists():

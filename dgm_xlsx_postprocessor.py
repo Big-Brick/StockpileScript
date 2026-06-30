@@ -391,15 +391,7 @@ class XlsxPostprocessor:
 		self.MetadataExtractor = WorkbookMetadataExtractor(Database.Columns)
 
 	def ProcessFile(self, FilePath: Path, ForcedDocumentType: Optional[str] = None, RenameToCanonical: bool = False, FooterStartOverride: Optional[int] = None) -> PostprocessResult:
-		if openpyxl is None:
-			raise RuntimeError("Missing dependency: openpyxl")
-		Workbook = openpyxl.load_workbook(FilePath, data_only=False)
-		Sheet = Workbook.active
-		Metadata = self.MetadataExtractor.Extract(FilePath, Workbook)
-		if ForcedDocumentType in (DOCUMENT_TYPE_PRESENT, DOCUMENT_TYPE_MISSING):
-			Metadata.DocumentType = ForcedDocumentType
-		if Metadata.DocumentType is None:
-			Metadata.DocumentType = self._GuessDocumentType(FilePath, Sheet)
+		Workbook, Sheet, Metadata = self._OpenWorkbookWithMetadata(FilePath, ForcedDocumentType)
 		Issues = self.FindReviewIssues(Sheet)
 		HeaderEnd = self._FindHeaderEnd(Sheet) or 6
 		FooterStart = FooterStartOverride or self._FindValidFooterStart(Sheet)
@@ -420,6 +412,31 @@ class XlsxPostprocessor:
 				FilePath.rename(Target)
 				SavedPath = Target
 		return PostprocessResult(FilePath, SavedPath, Metadata, Issues, Warnings)
+
+	def ProcessFooterOnly(self, FilePath: Path, ForcedDocumentType: Optional[str] = None, FooterStartOverride: Optional[int] = None) -> PostprocessResult:
+		Workbook, Sheet, Metadata = self._OpenWorkbookWithMetadata(FilePath, ForcedDocumentType)
+		HeaderEnd = self._FindHeaderEnd(Sheet) or 6
+		FooterStart = FooterStartOverride or self._FindValidFooterStart(Sheet)
+		if FooterStart is None:
+			raise FooterPlacementRequired(FilePath, self._FindFooterReviewStart(Sheet))
+		FooterStart = self._RebuildFooter(Sheet, Metadata, FooterStart)
+		self._WriteFooterFormulas(Sheet, Metadata, HeaderEnd + 1, FooterStart, IncludeBodyBorders=False)
+		self._FitColumnWidths(Sheet)
+		Warnings = self._BuildWarnings(Sheet, Metadata, HeaderEnd + 1, FooterStart)
+		Workbook.save(FilePath)
+		return PostprocessResult(FilePath, FilePath, Metadata, [], Warnings)
+
+	def _OpenWorkbookWithMetadata(self, FilePath: Path, ForcedDocumentType: Optional[str] = None) -> Tuple[object, object, DgmDocumentMetadata]:
+		if openpyxl is None:
+			raise RuntimeError("Missing dependency: openpyxl")
+		Workbook = openpyxl.load_workbook(FilePath, data_only=False)
+		Sheet = Workbook.active
+		Metadata = self.MetadataExtractor.Extract(FilePath, Workbook)
+		if ForcedDocumentType in (DOCUMENT_TYPE_PRESENT, DOCUMENT_TYPE_MISSING):
+			Metadata.DocumentType = ForcedDocumentType
+		if Metadata.DocumentType is None:
+			Metadata.DocumentType = self._GuessDocumentType(FilePath, Sheet)
+		return Workbook, Sheet, Metadata
 
 	def FindReviewIssues(self, Sheet: object) -> List[PostprocessRowIssue]:
 		Issues: List[PostprocessRowIssue] = []
@@ -659,7 +676,7 @@ class XlsxPostprocessor:
 				Cell.value = DecimalToWorkbookNumber(Values.GetMetalValue(MetalKey))
 			Cell.number_format = DGM_NUMBER_FORMAT
 
-	def _WriteFooterFormulas(self, Sheet: object, Metadata: DgmDocumentMetadata, BodyStart: int, FooterStart: int) -> None:
+	def _WriteFooterFormulas(self, Sheet: object, Metadata: DgmDocumentMetadata, BodyStart: int, FooterStart: int, IncludeBodyBorders: bool = True) -> None:
 		FooterRows = self._FooterRows(Sheet)
 		if Metadata.FormularyValues is not None:
 			self._WriteFooterFormularyValues(Sheet, Metadata.FormularyValues, False)
@@ -681,13 +698,14 @@ class XlsxPostprocessor:
 				Sheet[MissingCell].value = f"={FormularyCell}-{PresentCell}" if FormularyCell else ""
 			for Row in FooterRows.values():
 				Sheet[f"{TotalColumn}{Row}"].number_format = DGM_NUMBER_FORMAT
-		self._ApplyDgmBorders(Sheet, BodyStart, FooterStart, FooterRows)
+		self._ApplyDgmBorders(Sheet, BodyStart, FooterStart, FooterRows, IncludeBodyBorders)
 
-	def _ApplyDgmBorders(self, Sheet: object, BodyStart: int, FooterStart: int, FooterRows: Dict[str, int]) -> None:
+	def _ApplyDgmBorders(self, Sheet: object, BodyStart: int, FooterStart: int, FooterRows: Dict[str, int], IncludeBodyBorders: bool = True) -> None:
 		Border = self._DgmCellBorder()
-		for Row in range(BodyStart, FooterStart):
-			for Column in self._DgmBodyBorderColumns():
-				Sheet[f"{Column}{Row}"].border = copy.copy(Border)
+		if IncludeBodyBorders:
+			for Row in range(BodyStart, FooterStart):
+				for Column in self._DgmBodyBorderColumns():
+					Sheet[f"{Column}{Row}"].border = copy.copy(Border)
 		FooterBorderColumns = ["D", *self._DgmBodyBorderColumns()]
 		FooterStartColumn = min(openpyxl.utils.column_index_from_string(Column) for Column in FooterBorderColumns)  # type: ignore[union-attr]
 		FooterEndColumn = max(openpyxl.utils.column_index_from_string(Column) for Column in FooterBorderColumns)  # type: ignore[union-attr]

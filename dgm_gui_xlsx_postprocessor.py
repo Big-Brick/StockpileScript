@@ -392,6 +392,47 @@ class XlsxPostprocessingMixin:
 		LogWindow = PostprocessLogWindow(self)
 		self._PostprocessXlsxFile(Path(SelectedFile).expanduser().resolve(), RenameToCanonical=True, LogWindow=LogWindow)
 
+	def _SelectAndSimplePostprocessXlsxFile(self) -> None:
+		if openpyxl is None:
+			tkinter.messagebox.showerror(WINDOW_TITLE, "Missing dependency: openpyxl", parent=self)
+			return
+		SelectedFile = tkinter.filedialog.askopenfilename(
+			title="Select XLSX file for footer-only postprocess",
+			filetypes=(("Excel workbook", "*.xlsx"), ("All files", "*.*")),
+			parent=self,
+		)
+		if not SelectedFile:
+			return
+		LogWindow = PostprocessLogWindow(self)
+		self._PostprocessXlsxFile(Path(SelectedFile).expanduser().resolve(), RenameToCanonical=False, LogWindow=LogWindow, FooterOnly=True)
+
+	def _SelectAndSimplePostprocessXlsxFolder(self) -> None:
+		if openpyxl is None:
+			tkinter.messagebox.showerror(WINDOW_TITLE, "Missing dependency: openpyxl", parent=self)
+			return
+		SelectedFolder = tkinter.filedialog.askdirectory(title="Select folder with XLSX files for footer-only postprocess", parent=self)
+		if not SelectedFolder:
+			return
+		Files = dgm_xlsx_common.FindXlsxFiles(Path(SelectedFolder).expanduser().resolve(), False)
+		if not Files:
+			tkinter.messagebox.showinfo(WINDOW_TITLE, "No .xlsx files found in the selected folder.", parent=self)
+			return
+		LogWindow = PostprocessLogWindow(self)
+		LogWindow.Append(f"Found {len(Files)} XLSX file(s) for footer-only postprocess in {SelectedFolder}.")
+		Results = []
+		for Index, FilePath in enumerate(Files, start=1):
+			try:
+				LogWindow.Append(f"[{Index}/{len(Files)}] Updating footer in {FilePath.name}...")
+				Result = self._PostprocessOneWithFooterPrompt(FilePath, False, LogWindow, FooterOnly=True)
+				Results.append(Result)
+				LogWindow.Append(f"[{Index}/{len(Files)}] Saved {Result.SavedPath.name}; warnings: {len(Result.Warnings)}.")
+			except Exception as Error:
+				LogWindow.Append(f"ERROR footer-only postprocessing {FilePath.name}: {Error}")
+				tkinter.messagebox.showerror(WINDOW_TITLE, f"Cannot footer-only postprocess '{FilePath}': {Error}", parent=self)
+				return
+		LogWindow.Append(f"Finished footer-only postprocessing {len(Results)} file(s).")
+		tkinter.messagebox.showinfo(WINDOW_TITLE, f"Footer-only postprocessed {len(Results)} file(s).", parent=self)
+
 	def _SelectAndPostprocessXlsxFolder(self) -> None:
 		if openpyxl is None:
 			tkinter.messagebox.showerror(WINDOW_TITLE, "Missing dependency: openpyxl", parent=self)
@@ -448,9 +489,11 @@ class XlsxPostprocessingMixin:
 			RegistryResolutionWindow(self, RegistryPath, FolderPath, ResolutionItems, UnprocessedFiles, LogWindow)
 		tkinter.messagebox.showinfo(WINDOW_TITLE, f"Registry postprocessing complete. Processed {Count} file(s).", parent=self)
 
-	def _PostprocessOneWithFooterPrompt(self, FilePath: Path, RenameToCanonical: bool, LogWindow: Optional[PostprocessLogWindow] = None) -> dgm_xlsx_postprocessor.PostprocessResult:
+	def _PostprocessOneWithFooterPrompt(self, FilePath: Path, RenameToCanonical: bool, LogWindow: Optional[PostprocessLogWindow] = None, FooterOnly: bool = False) -> dgm_xlsx_postprocessor.PostprocessResult:
 		Processor = self._BuildPostprocessor()
 		try:
+			if FooterOnly:
+				return Processor.ProcessFooterOnly(FilePath)
 			return Processor.ProcessFile(FilePath, None, RenameToCanonical)
 		except dgm_xlsx_postprocessor.FooterPlacementRequired as Error:
 			if LogWindow is not None:
@@ -460,14 +503,19 @@ class XlsxPostprocessingMixin:
 				raise RuntimeError("Footer placement was cancelled")
 			if LogWindow is not None:
 				LogWindow.Append(f"Using footer start row {FooterStart} for {FilePath.name}.")
+			if FooterOnly:
+				return Processor.ProcessFooterOnly(FilePath, None, FooterStart)
 			return Processor.ProcessFile(FilePath, None, RenameToCanonical, FooterStart)
 
-	def _PostprocessXlsxFile(self, FilePath: Path, RenameToCanonical: bool, LogWindow: Optional[PostprocessLogWindow] = None) -> None:
+	def _PostprocessXlsxFile(self, FilePath: Path, RenameToCanonical: bool, LogWindow: Optional[PostprocessLogWindow] = None, FooterOnly: bool = False) -> None:
 		Processor = self._BuildPostprocessor()
 		if LogWindow is not None:
 			LogWindow.Append(f"Processing {FilePath}...")
 		try:
-			Result = Processor.ProcessFile(FilePath, None, RenameToCanonical)
+			if FooterOnly:
+				Result = Processor.ProcessFooterOnly(FilePath)
+			else:
+				Result = Processor.ProcessFile(FilePath, None, RenameToCanonical)
 		except dgm_xlsx_postprocessor.FooterPlacementRequired as Error:
 			if LogWindow is not None:
 				LogWindow.Append(f"Footer row needs manual selection for {FilePath.name}; suggested row {Error.ReviewStart}.")
@@ -479,7 +527,10 @@ class XlsxPostprocessingMixin:
 			if LogWindow is not None:
 				LogWindow.Append(f"Using footer start row {FooterStart} for {FilePath.name}.")
 			try:
-				Result = Processor.ProcessFile(FilePath, None, RenameToCanonical, FooterStart)
+				if FooterOnly:
+					Result = Processor.ProcessFooterOnly(FilePath, None, FooterStart)
+				else:
+					Result = Processor.ProcessFile(FilePath, None, RenameToCanonical, FooterStart)
 			except Exception as InnerError:
 				if LogWindow is not None:
 					LogWindow.Append(f"ERROR processing {FilePath.name}: {InnerError}")
@@ -492,6 +543,9 @@ class XlsxPostprocessingMixin:
 			return
 		if LogWindow is not None:
 			LogWindow.Append(f"Saved {Result.SavedPath.name}; review issues: {len(Result.Issues)}; warnings: {len(Result.Warnings)}.")
+		if FooterOnly:
+			tkinter.messagebox.showinfo(WINDOW_TITLE, f"Footer-only postprocessed '{Result.SavedPath.name}'.", parent=self)
+			return
 		XlsxPostprocessReviewWindow(self, Processor, Result)
 
 	def _AskFooterStart(self, FilePath: Path, ReviewStart: int) -> Optional[int]:
