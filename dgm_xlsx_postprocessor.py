@@ -14,6 +14,7 @@ import dgm_xlsx_preprocessor
 from dgm_gui_common import openpyxl
 
 if openpyxl is not None:
+	import openpyxl.styles
 	import openpyxl.utils
 	from openpyxl.cell.cell import MergedCell
 else:
@@ -120,6 +121,8 @@ FILE_NUMBER_RE = re.compile(r"^\s*(?P<number>\d+)\.\s+")
 INVALID_FILENAME_CHAR_RE = re.compile(r"[<>:\"/\\|?*\x00-\x1f]")
 VALID_SIMPLE_DECIMAL_NUMBER_RE = re.compile(r"^\d+(?:[,.]\d+)?$")
 DGM_NUMBER_FORMAT = "0.############################;-0.############################;0"
+DGM_BORDER_STYLE = "thin"
+DGM_BORDER_COLOR = "000000"
 MIN_COLUMN_WIDTH = 4.0
 MAX_TEXT_COLUMN_WIDTH = 48.0
 MAX_NUMERIC_COLUMN_WIDTH = 26.0
@@ -678,6 +681,29 @@ class XlsxPostprocessor:
 				Sheet[MissingCell].value = f"={FormularyCell}-{PresentCell}" if FormularyCell else ""
 			for Row in FooterRows.values():
 				Sheet[f"{TotalColumn}{Row}"].number_format = DGM_NUMBER_FORMAT
+		self._ApplyDgmBorders(Sheet, BodyStart, FooterStart, FooterRows)
+
+	def _ApplyDgmBorders(self, Sheet: object, BodyStart: int, FooterStart: int, FooterRows: Dict[str, int]) -> None:
+		Border = self._DgmCellBorder()
+		for Row in range(BodyStart, FooterStart):
+			for Column in self._DgmBodyBorderColumns():
+				Sheet[f"{Column}{Row}"].border = copy.copy(Border)
+		FooterBorderColumns = ["D", *self._DgmBodyBorderColumns()]
+		FooterStartColumn = min(openpyxl.utils.column_index_from_string(Column) for Column in FooterBorderColumns)  # type: ignore[union-attr]
+		FooterEndColumn = max(openpyxl.utils.column_index_from_string(Column) for Column in FooterBorderColumns)  # type: ignore[union-attr]
+		for Row in FooterRows.values():
+			for ColumnIndex in range(FooterStartColumn, FooterEndColumn + 1):
+				Column = openpyxl.utils.get_column_letter(ColumnIndex)  # type: ignore[union-attr]
+				Sheet[f"{Column}{Row}"].border = copy.copy(Border)
+
+	def _DgmBodyBorderColumns(self) -> List[str]:
+		Columns = list(self.Database.Columns.PerElement.values()) + list(self.Database.Columns.Total.values())
+		return sorted(set(Columns), key=lambda Column: openpyxl.utils.column_index_from_string(Column))  # type: ignore[union-attr]
+
+	@staticmethod
+	def _DgmCellBorder() -> object:
+		Side = openpyxl.styles.Side(style=DGM_BORDER_STYLE, color=DGM_BORDER_COLOR)  # type: ignore[union-attr]
+		return openpyxl.styles.Border(left=Side, right=Side, top=Side, bottom=Side)  # type: ignore[union-attr]
 
 	def _FooterRows(self, Sheet: object) -> Dict[str, int]:
 		Rows: Dict[str, int] = {}
