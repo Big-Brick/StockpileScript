@@ -701,27 +701,70 @@ class XlsxPostprocessor:
 		self._ApplyDgmBorders(Sheet, BodyStart, FooterStart, FooterRows, IncludeBodyBorders)
 
 	def _ApplyDgmBorders(self, Sheet: object, BodyStart: int, FooterStart: int, FooterRows: Dict[str, int], IncludeBodyBorders: bool = True) -> None:
-		Border = self._DgmCellBorder()
+		FullBorder = self._DgmCellBorder()
 		if IncludeBodyBorders:
-			for Row in range(BodyStart, FooterStart):
+			for Row in [*self._DgmHeaderRows(Sheet, BodyStart), *range(BodyStart, FooterStart)]:
 				for Column in self._DgmBodyBorderColumns():
-					Sheet[f"{Column}{Row}"].border = copy.copy(Border)
-		FooterBorderColumns = ["D", *self._DgmBodyBorderColumns()]
-		FooterStartColumn = min(openpyxl.utils.column_index_from_string(Column) for Column in FooterBorderColumns)  # type: ignore[union-attr]
-		FooterEndColumn = max(openpyxl.utils.column_index_from_string(Column) for Column in FooterBorderColumns)  # type: ignore[union-attr]
+					Sheet[f"{Column}{Row}"].border = copy.copy(FullBorder)
+		self._ApplyDgmFooterBorders(Sheet, FooterRows)
+
+	def _ApplyDgmFooterBorders(self, Sheet: object, FooterRows: Dict[str, int]) -> None:
+		FullBorder = self._DgmCellBorder()
+		LabelBorder = self._DgmCellBorder(right=False)
+		SpannedBorder = self._DgmCellBorder(left=False, right=False)
+		EndSpannedBorder = self._DgmCellBorder(left=False)
+		TableStartColumn = self._ColumnIndex(self._DgmBodyBorderColumns()[0])
+		TableEndColumn = self._ColumnIndex(self._DgmBodyBorderColumns()[-1])
+		FirstFormulaColumn = min(self._ColumnIndex(Column) for Column in self.Database.Columns.Total.values())
 		for Row in FooterRows.values():
-			for ColumnIndex in range(FooterStartColumn, FooterEndColumn + 1):
+			LabelColumn = self._FooterLabelColumn(Sheet, Row) or self.Database.Columns.PerElement["gold"]
+			LabelColumnIndex = self._ColumnIndex(LabelColumn)
+			for ColumnIndex in range(TableStartColumn, TableEndColumn + 1):
 				Column = openpyxl.utils.get_column_letter(ColumnIndex)  # type: ignore[union-attr]
+				if ColumnIndex < LabelColumnIndex or ColumnIndex >= FirstFormulaColumn:
+					Border = FullBorder
+				elif ColumnIndex == LabelColumnIndex:
+					Border = LabelBorder
+				elif ColumnIndex == FirstFormulaColumn - 1:
+					Border = EndSpannedBorder
+				else:
+					Border = SpannedBorder
 				Sheet[f"{Column}{Row}"].border = copy.copy(Border)
 
+	def _FooterLabelColumn(self, Sheet: object, Row: int) -> Optional[str]:
+		for Cell in Sheet[Row]:  # type: ignore[index]
+			if NormalizeSpaces(Cell.value) in (TOTAL_IN_PRODUCT_LABEL, FORMULARY_LABEL, MISSING_LABEL):
+				return Cell.column_letter
+		return None
+
+	def _DgmHeaderRows(self, Sheet: object, BodyStart: int) -> List[int]:
+		HeaderStart = None
+		HeaderNeedles = ("Найменування", "Кількість", "Вміст догоцінних металів")
+		for Row in range(1, BodyStart):
+			if any(any(Needle in NormalizeSpaces(Cell.value) for Needle in HeaderNeedles) for Cell in Sheet[Row]):  # type: ignore[index]
+				HeaderStart = Row
+				break
+		if HeaderStart is None:
+			return []
+		return [Row for Row in range(HeaderStart, BodyStart) if not any(HEADER_END_MARKER in NormalizeSpaces(Cell.value) for Cell in Sheet[Row])]  # type: ignore[index]
+
 	def _DgmBodyBorderColumns(self) -> List[str]:
-		Columns = list(self.Database.Columns.PerElement.values()) + list(self.Database.Columns.Total.values())
-		return sorted(set(Columns), key=lambda Column: openpyxl.utils.column_index_from_string(Column))  # type: ignore[union-attr]
+		Columns = ["A", self.Database.Columns.Name, self.Database.Columns.Quantity, *self.Database.Columns.PerElement.values(), *self.Database.Columns.Total.values()]
+		return sorted(set(Columns), key=self._ColumnIndex)
 
 	@staticmethod
-	def _DgmCellBorder() -> object:
+	def _ColumnIndex(Column: str) -> int:
+		return openpyxl.utils.column_index_from_string(Column)  # type: ignore[union-attr]
+
+	@staticmethod
+	def _DgmCellBorder(left: bool = True, right: bool = True, top: bool = True, bottom: bool = True) -> object:
 		Side = openpyxl.styles.Side(style=DGM_BORDER_STYLE, color=DGM_BORDER_COLOR)  # type: ignore[union-attr]
-		return openpyxl.styles.Border(left=Side, right=Side, top=Side, bottom=Side)  # type: ignore[union-attr]
+		return openpyxl.styles.Border(  # type: ignore[union-attr]
+			left=Side if left else None,
+			right=Side if right else None,
+			top=Side if top else None,
+			bottom=Side if bottom else None,
+		)
 
 	def _FooterRows(self, Sheet: object) -> Dict[str, int]:
 		Rows: Dict[str, int] = {}
